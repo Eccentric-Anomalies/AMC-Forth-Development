@@ -2,12 +2,14 @@ class_name AMCForth
 
 extends RefCounted
 
+signal terminal_out(text: String)
 
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
+const BANNER:= "AMC Forth"
 
+func terminal_in(text: String) -> void:
+	# just echo for now
+	terminal_out.emit(text)
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
+func init() -> void:
+	print(BANNER)
+	terminal_out.emit(BANNER + "\r\n")
