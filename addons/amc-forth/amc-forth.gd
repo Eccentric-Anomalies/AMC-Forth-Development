@@ -58,6 +58,7 @@ var _built_in_names = [
 	# Programmer Conveniences
 	[".S", _dot_s],
 	[".", _dot],
+	["D.", _d_dot],
 	# Arithmetic
 	["*", _star],
 	["*/", _star_slash],
@@ -75,6 +76,11 @@ var _built_in_names = [
 	["LSHIFT", _lshift],
 	["MOD", _mod],
 	["RSHIFT", _rshift],
+	# Double Precision Arithmetic
+	["D+", _d_plus],
+	["D-", _d_dash],
+	["D2*", _d_two_star],
+	["D2/", _d_two_slash],
 ]
 
 # get built-in "address" from word
@@ -94,6 +100,9 @@ var _terminal_pad: String = ""
 var _pad_position := 0
 var _terminal_buffer: Array = []
 var _buffer_index := 0
+
+# forth ordering scratch
+var _d_scratch := PackedByteArray()
 
 
 # handle editing input strings in interactive mode
@@ -169,6 +178,7 @@ func init() -> void:
 	terminal_out.emit(BANNER + TERM_CR + TERM_LF)
 	_init_built_ins()
 	_ram.resize(RAM_SIZE)
+	_d_scratch.resize(DS_DCELL_SIZE)
 
 
 # privates
@@ -187,6 +197,15 @@ func _rprint_term(text: String) -> void:
 # print, without newline
 func _print_term(text: String) -> void:
 	terminal_out.emit(text)
+
+
+# convert int to forth ordering and vice versa
+func _d_swap(num: int) -> int:
+	_d_scratch.encode_s32(0, num)
+	var t: int = _d_scratch.decode_s16(0)
+	_d_scratch.encode_s16(0, _d_scratch.decode_s16(DS_CELL_SIZE))
+	_d_scratch.encode_s16(DS_CELL_SIZE, t)
+	return _d_scratch.decode_s32(0)
 
 
 func _strip_comments(tokens: PackedStringArray) -> PackedStringArray:
@@ -216,12 +235,17 @@ func _interpret_terminal_line(in_text: String) -> void:
 		var t_up := t.to_upper()
 		if t_up in _built_in_function:
 			_built_in_function[t_up].call()
-		# valid numeric value
+		# valid numeric value (double first)
+		elif t.contains(".") and t.replace(".", "").is_valid_int():
+			var t_strip: String = t.replace(".", "")
+			var temp: int = t_strip.to_int()
+			_ds_p -= DS_DCELL_SIZE
+			_ram.encode_s32(_ds_p, _d_swap(temp))
 		elif t.is_valid_int():
 			var temp: int = t.to_int()
 			# limit entries to 16-bit values
 			_ds_p -= DS_CELL_SIZE
-			_ram.encode_s16(_ds_p, clamp(temp, -32768, 32767))
+			_ram.encode_s16(_ds_p, temp)
 		# nothing we recognize
 		else:
 			_rprint_term(" " + t + " ?")
@@ -395,6 +419,9 @@ func _dot() -> void:
 	_print_term(" " + str(_ram.decode_s16(_ds_p)))
 	_ds_p += DS_CELL_SIZE
 
+func _d_dot() -> void:
+	_print_term(" " + str(_d_swap(_ram.decode_s32(_ds_p))))
+	_ds_p += DS_DCELL_SIZE
 
 func _star() -> void:
 	# Multiply n1 by n2 leaving the product n3
@@ -531,3 +558,27 @@ func _rshift() -> void:
 	_ram.encode_s16(
 		_ds_p, _ram.decode_u16(_ds_p) >> _ram.decode_s16(_ds_p - DS_CELL_SIZE)
 	)
+
+
+func _d_plus() -> void:
+	# Add d1 to d2, leaving the sum d3
+	# ( d1 d2 - d3 )
+	_ds_p += DS_DCELL_SIZE
+	_ram.encode_s32(
+		_ds_p,
+		_d_swap(
+			(
+				_d_swap(_ram.decode_s32(_ds_p))
+				+ _d_swap(_ram.decode_s32(_ds_p - DS_DCELL_SIZE))
+			)
+		)
+	)
+
+func _d_dash() -> void:
+	pass
+
+func _d_two_star() -> void:
+	pass
+
+func _d_two_slash() -> void:
+	pass
