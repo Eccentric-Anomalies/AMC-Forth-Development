@@ -7,13 +7,18 @@ signal terminal_out(text: String)
 const BANNER := "AMC Forth"
 const DICT_SIZE := 0x10000
 const DICT_TOP := 0x0ffff
+const DS_WORDS_SIZE := 0x0100
+const DS_WORDS_SLOP := 6 # extra words allocated to avoid exceptions
 
+const TRUE := int(-1)
+const FALSE := int(0)
 
 const TERM_BSP := char(0x08)
 const TERM_CR := char(0x0D)
 const TERM_LF := char(0x0A)
 const TERM_ESC := char(0x1B)
 const TERM_DEL_LEFT := char(0x7F)
+const TERM_DEL := TERM_ESC + "[3~"
 const TERM_UP := TERM_ESC + "[A"
 const TERM_DOWN := TERM_ESC + "[B"
 const TERM_RIGHT := TERM_ESC + "[C"
@@ -22,7 +27,25 @@ const TERM_CLREOL := TERM_ESC + "[2K"
 const MAX_BUFFER_SIZE := 20
 
 var _built_in_names = [
-	[".", _period],
+	# Data Stack Manipulation
+	["?DUP", _q_dup],
+	["DEPTH", _depth],
+	["DROP", _drop],
+	["DUP", _dup],
+	["NIP", _nip],
+	["OVER", _over],
+	["PICK", _pick],
+	["ROT", _rot],
+	["SWAP", _swap],
+	["TUCK", _tuck],
+	["2DROP", _two_drop],
+	["2DUP", _two_dup],
+	["2OVER", _two_over],
+	["2ROT", _two_rot],
+	["2SWAP", _two_swap],
+	# Programmer Conveniences
+	[".S", _dot_s],
+	[".", _dot],
 	["+", _add],
 ]
 
@@ -31,10 +54,13 @@ var _built_in_address: Dictionary = {}
 # get built-in function from word
 var _built_in_function: Dictionary = {}
 # get built-in function from "address"
-var _built_in_function_from_address: Array = []
+var _built_in_function_from_address: Dictionary = {}
 
 # The Forth dictionary space
 var _dict := PackedByteArray()
+# The Forth data stack
+var _ds := PackedInt32Array()
+var _ds_p := DS_WORDS_SIZE
 
 # terminal scratchpad and buffer
 var _terminal_pad: String = ""
@@ -49,49 +75,58 @@ func terminal_in(text: String) -> void:
 	var echo_text: String = ""
 	var buffer_size := _terminal_buffer.size()
 	while in_str.length() > 0:
-		if in_str.left(1) == TERM_DEL_LEFT:
-			print("before: ", _terminal_pad)
+		if in_str.find(TERM_DEL_LEFT) == 0:
 			_pad_position = max(0, _pad_position - 1)
 			if _terminal_pad.length():
-				_terminal_pad[_pad_position] = " "
-			print("after: ", _terminal_pad)
+				# shrink if deleting from end, else replace with space
+				if _pad_position == _terminal_pad.length() - 1:
+					_terminal_pad = _terminal_pad.left(_pad_position)
+				else:
+					_terminal_pad[_pad_position] = " "
 			# reconstruct the changed entry, with correct cursor position
-			echo_text = TERM_CLREOL + TERM_CR + _terminal_pad  + TERM_CR
-			for i in range(_pad_position):
-				echo_text += TERM_RIGHT
-			in_str = in_str.erase(0, 1)
-		elif in_str.left(3) == TERM_LEFT:
+			echo_text = _refresh_edit_text()
+			in_str = in_str.erase(0, TERM_DEL_LEFT.length())
+		elif in_str.find(TERM_DEL) == 0:
+			# do nothing unless cursor is in text
+			if _pad_position <= _terminal_pad.length():
+				_terminal_pad = _terminal_pad.erase(_pad_position)
+			# reconstruct the changed entry, with correct cursor position
+			echo_text = _refresh_edit_text()
+			in_str = in_str.erase(0, TERM_DEL.length())
+		elif in_str.find(TERM_LEFT) == 0:
 			_pad_position = max(0, _pad_position - 1)
 			echo_text = TERM_LEFT
-			in_str = in_str.erase(0, 3)
-		elif in_str.left(3) == TERM_UP and buffer_size:
+			in_str = in_str.erase(0, TERM_LEFT.length())
+		elif in_str.find(TERM_UP) == 0 and buffer_size:
 			_buffer_index = max(0, _buffer_index - 1)
 			echo_text = _select_buffered_command()
-			in_str = in_str.erase(0, 3)
-		elif in_str.left(3) == TERM_DOWN and buffer_size:
+			in_str = in_str.erase(0, TERM_UP.length())
+		elif in_str.find(TERM_DOWN) == 0 and buffer_size:
 			_buffer_index = min(_terminal_buffer.size() - 1, _buffer_index + 1)
 			echo_text = _select_buffered_command()
-			in_str = in_str.erase(0, 3)
-		elif in_str.left(1) == TERM_LF:
+			in_str = in_str.erase(0, TERM_DOWN.length())
+		elif in_str.find(TERM_LF) == 0:
 			echo_text = ""
-			in_str = in_str.erase(0, 1)
-
-		elif in_str.left(1) == TERM_CR:
+			in_str = in_str.erase(0, TERM_LF.length())
+		elif in_str.find(TERM_CR) == 0:
 			# only add to the buffer if it's different from the top entry
-			if not buffer_size or (_terminal_buffer[-1] != _terminal_pad):
+			# and not blank!
+			if (
+				_terminal_pad.length()
+				and (not buffer_size or (_terminal_buffer[-1] != _terminal_pad))
+			):
 				_terminal_buffer.append(_terminal_pad)
 				# if we just grew too big...
 				if buffer_size == MAX_BUFFER_SIZE:
 					_terminal_buffer.pop_front()
 			_buffer_index = _terminal_buffer.size()
-			echo_text = TERM_CR + TERM_LF # FIXME interpreter will do newline stuff
+			_interpret_terminal_line(_terminal_pad)
 			_terminal_pad = ""
 			_pad_position = 0
-			in_str = in_str.erase(0, 1)
+			in_str = in_str.erase(0, TERM_CR.length())
 		# not a control character(s)
 		else:
 			echo_text = in_str.left(1)
-			print(echo_text.to_ascii_buffer())
 			in_str = in_str.erase(0, 1)
 			for c in echo_text:
 				if _pad_position < _terminal_pad.length():
@@ -106,10 +141,75 @@ func init() -> void:
 	print(BANNER)
 	terminal_out.emit(BANNER + TERM_CR + TERM_LF)
 	_init_built_ins()
+	_ds.resize(DS_WORDS_SIZE + DS_WORDS_SLOP)
 	_dict.resize(DICT_SIZE)
 
 
 # privates
+
+func _emit_newline() -> void:
+	terminal_out.emit(TERM_CR + TERM_LF)
+
+# print, with newline
+func _rprint_term(text: String) -> void:
+	_print_term(text)
+	_emit_newline()
+
+# print, without newline
+func _print_term(text: String) -> void:
+	terminal_out.emit(text)
+
+func _strip_comments(tokens: PackedStringArray) -> PackedStringArray:
+	var new_tokens: PackedStringArray = []
+	var in_comment := false
+	for i in tokens.size():
+		if not in_comment:
+			if tokens[i] == "\\":
+				# end of line comment. We're done here
+				return new_tokens
+			if tokens[i] == "(":
+				in_comment = true
+			else:
+				new_tokens.append(tokens[i])
+		else:  # in comment
+			if tokens[i][-1] == ")":
+				in_comment = false
+	return new_tokens
+
+
+func _interpret_terminal_line(in_text: String) -> void:
+	var tokens: PackedStringArray = in_text.split(" ")
+	while tokens.has(""):
+		tokens.remove_at(tokens.find(""))
+	tokens = _strip_comments(tokens)
+	for t in tokens:
+		var t_up := t.to_upper()
+		if t_up in _built_in_function:
+			_built_in_function[t_up].call()
+		# valid numeric value
+		elif t.is_valid_int():
+			var temp : int = t.to_int()
+			# limit entries to 16-bit values
+			_ds_p -= 1
+			_ds[_ds_p] = clamp(temp, -32768, 32767)
+		# check the stack
+		if _ds_p < DS_WORDS_SLOP:
+			_rprint_term(" Data stack overflow")
+			_ds_p = DS_WORDS_SLOP
+			return
+		if _ds_p > DS_WORDS_SIZE:
+			_rprint_term(" Data stack underflow")
+			_ds_p = DS_WORDS_SIZE
+			return
+	_rprint_term(" ok")
+
+
+# return echo text that refreshes the current edit
+func _refresh_edit_text() -> String:
+	var echo = TERM_CLREOL + TERM_CR + _terminal_pad + TERM_CR
+	for i in range(_pad_position):
+		echo += TERM_RIGHT
+	return echo
 
 
 func _select_buffered_command() -> String:
@@ -123,15 +223,136 @@ func _init_built_ins() -> void:
 	for i in _built_in_names.size():
 		var word: String = _built_in_names[i][0]
 		var f: Callable = _built_in_names[i][1]
-		_built_in_address[word] = i
+		_built_in_address[word] = i * 2
 		_built_in_function[word] = f
-		_built_in_function_from_address.append(f)
+		_built_in_function_from_address[i * 2] = f
 
 
 # built-ins
-func _period() -> void:
-	pass
+# STACK
+func _q_dup() -> void:
+	# ( x - 0 | x x )
+	var t = _ds[_ds_p]
+	if t != 0:
+		_ds_p -= 1
+		_ds[_ds_p] = t
 
+func _depth() -> void:
+	# ( - +n )
+	var t: int = DICT_TOP - _ds_p
+	_ds_p -= 1
+	_ds[_ds_p] = t
+
+func _drop() -> void:
+	# ( x - )
+	_ds_p += 1
+
+func _dup() -> void:
+	# ( x - x x )
+	var t = _ds[_ds_p]
+	_ds_p -= 1
+	_ds[_ds_p] = t
+
+func _nip() -> void:
+	# drop second item, leaving top unchanged
+	# ( x1 x2 - x2 )
+	var t = _ds[_ds_p]
+	_ds_p += 1
+	_ds[_ds_p] = t
+
+func _over() -> void:
+	# place a copy of x1 on top of the stack
+	# ( x1 x2 - x1 x2 x1 )
+	_ds_p -= 1
+	_ds[_ds_p] = _ds[_ds_p + 2]
+
+func _pick() -> void:
+	# place a copy of the nth stack entry on top of the stack
+	# zeroth item is the top of the stack so 0 pick is dup
+	# ( +n - x )
+	var t = _ds[_ds_p]
+	_ds[_ds_p] = _ds[_ds_p + t + 1]
+
+func _rot() -> void:
+	# rotate the top three items on the stack
+	# ( x1 x2 x3 - x2 x3 x1 )
+	var t = _ds[_ds_p + 2]
+	_ds[_ds_p + 2] = _ds[_ds_p + 1]
+	_ds[_ds_p + 1] = _ds[_ds_p]
+	_ds[_ds_p] = t
+
+func _swap() -> void:
+	# exchange the top two items on the stack
+	# ( x1 x2 - x2 x1 )
+	var t = _ds[_ds_p + 1]
+	_ds[_ds_p + 1] = _ds[_ds_p]
+	_ds[_ds_p] = t
+
+func _tuck() -> void:
+	# place a copy of the top stack item below the second stack item
+	# ( x1 x2 - x2 x1 x2 )
+	_ds[_ds_p - 1] = _ds[_ds_p]
+	_ds[_ds_p] = _ds[_ds_p + 1]
+	_ds[_ds_p + 1] = _ds[_ds_p - 1]
+	_ds_p -= 1
+
+func _two_drop() -> void:
+	# remove the top pair of cells from the stack
+	# ( x1 x2 - )
+	_ds_p += 2
+
+func _two_dup() -> void:
+	# duplicate the top cell pair
+	# (x1 x2 - x1 x2 x1 x2 )
+	_ds_p -= 2
+	_ds[_ds_p] = _ds[_ds_p + 2]
+	_ds[_ds_p + 1] = _ds[_ds_p + 3]
+
+func _two_over() -> void:
+	# copy a cell pair x1 x2 to the top of the stack
+	# ( x1 x2 x3 x4 - x1 x2 x3 x4 x1 x2 )
+	_ds_p -= 2
+	_ds[_ds_p] = _ds[_ds_p + 4]
+	_ds[_ds_p + 1] = _ds[_ds_p + 5]
+
+func _two_rot() -> void:
+	# rotate the top three cell pairs on the stack
+	# ( x1 x2 x3 x4 x5 x6 - x3 x4 x5 x6 x1 x2 )
+	var t1 = _ds[_ds_p + 5]
+	var t2 = _ds[_ds_p + 4]
+	_ds[_ds_p + 4] = _ds[_ds_p + 2]
+	_ds[_ds_p + 5] = _ds[_ds_p + 3]
+	_ds[_ds_p + 3] = _ds[_ds_p + 1]
+	_ds[_ds_p + 2] = _ds[_ds_p]
+	_ds[_ds_p + 1] = t1
+	_ds[_ds_p] = t2
+
+func _two_swap() -> void:
+	# exchange the top two cell pairs
+	# ( x1 x2 x3 x4 - x3 x4 x1 x2 )
+	var t1 = _ds[_ds_p + 3]
+	var t2 = _ds[_ds_p + 2]
+	_ds[_ds_p + 3] = _ds[_ds_p + 1]
+	_ds[_ds_p + 2] = _ds[_ds_p]
+	_ds[_ds_p + 1] = t1
+	_ds[_ds_p] = t2
+
+# Programmer Conveniences
+func _dot_s() -> void:
+	var pointer = DS_WORDS_SIZE - 1
+	_rprint_term("")
+	while pointer >= _ds_p:
+		_print_term(" " + str(_ds[pointer]))
+		pointer -= 1
+	_print_term(" <-Top")
+
+
+
+func _dot() -> void:
+	_print_term(" " + str(_ds[_ds_p]))
+	_ds_p += 1
 
 func _add() -> void:
-	pass
+	var t = _ds[_ds_p] + _ds[_ds_p+1]
+	_ds_p += 1
+	_ds[_ds_p] = t
