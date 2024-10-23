@@ -58,7 +58,23 @@ var _built_in_names = [
 	# Programmer Conveniences
 	[".S", _dot_s],
 	[".", _dot],
-	["+", _add],
+	# Arithmetic
+	["*", _star],
+	["*/", _star_slash],
+	["*/MOD", _star_slash_mod],
+	["+", _plus],
+	["-", _dash],
+	["/", _slash],
+	["/MOD", _slash_mod],
+	["1+", _one_plus],
+	["1-", _one_dash],
+	["2+", _two_plus],
+	["2-", _two_dash],
+	["2*", _two_star],
+	["2/", _two_slash],
+	["LSHIFT", _lshift],
+	["MOD", _mod],
+	["RSHIFT", _rshift],
 ]
 
 # get built-in "address" from word
@@ -209,16 +225,16 @@ func _interpret_terminal_line(in_text: String) -> void:
 		# nothing we recognize
 		else:
 			_rprint_term(" " + t + " ?")
-			return # not ok
+			return  # not ok
 		# check the stack
 		if _ds_p < DS_START + DS_WORDS_GUARD:
 			_rprint_term(" Data stack overflow")
 			_ds_p = DS_START + DS_WORDS_GUARD
-			return # not ok
+			return  # not ok
 		if _ds_p > DS_TOP:
 			_rprint_term(" Data stack underflow")
 			_ds_p = DS_TOP
-			return # not ok
+			return  # not ok
 	_rprint_term(" ok")
 
 
@@ -380,7 +396,138 @@ func _dot() -> void:
 	_ds_p += DS_CELL_SIZE
 
 
-func _add() -> void:
-	var t = _ram.decode_s16(_ds_p) + _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+func _star() -> void:
+	# Multiply n1 by n2 leaving the product n3
+	# ( n1 n2 - n3 )
+	var t: int = _ram.decode_s16(_ds_p) * _ram.decode_s16(_ds_p + DS_CELL_SIZE)
 	_ds_p += DS_CELL_SIZE
 	_ram.encode_s16(_ds_p, t)
+
+
+func _star_slash() -> void:
+	# Multiply n1 by n2 producing a double-cell result d.
+	# Divide d by n3, giving the single-cell quotient n4.
+	# ( n1 n2 n3 - n4 )
+	var p: int = (
+		_ram.decode_s16(_ds_p + DS_CELL_SIZE)
+		* _ram.decode_s16(_ds_p + DS_CELL_SIZE * 2)
+	)
+	var q: int = p / _ram.decode_s16(_ds_p)
+	_ds_p += DS_CELL_SIZE * 2
+	_ram.encode_s16(_ds_p, q)
+
+
+func _star_slash_mod() -> void:
+	# Multiply n1 by n2 producing a double-cell result d.
+	# Divide d by n3, giving the single-cell remainder n4
+	# and a single-cell quotient n5
+	# ( n1 n2 n3 - n4 n5 )
+	var p: int = (
+		_ram.decode_s16(_ds_p + DS_CELL_SIZE)
+		* _ram.decode_s16(_ds_p + DS_CELL_SIZE * 2)
+	)
+	var r: int = p % _ram.decode_s16(_ds_p)
+	var q: int = p / _ram.decode_s16(_ds_p)
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, q)  # quotient
+	_ram.encode_s16(_ds_p + DS_CELL_SIZE, r)  # remainder
+
+
+func _plus() -> void:
+	# Add n1 to n2 leaving the sum n3
+	# ( n1 n2 - n3 )
+	var t: int = _ram.decode_s16(_ds_p) + _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, t)
+
+
+func _dash() -> void:
+	# subtract n2 from n1, leaving the diference n3
+	# ( n1 n2 - n3 )
+	var t: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) - _ram.decode_s16(_ds_p)
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, t)
+
+
+func _slash() -> void:
+	# divide n1 by n2, leaving the quotient n3
+	# ( n1 n2 - n3 )
+	var t: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) / _ram.decode_s16(_ds_p)
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, t)
+
+
+func _slash_mod() -> void:
+	# divide n1 by n2, leaving the remainder n3 and quotient n4
+	# ( n1 n2 - n3 n4 )
+	var q: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) / _ram.decode_s16(_ds_p)
+	var r: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) % _ram.decode_s16(_ds_p)
+	_ram.encode_s16(_ds_p, q)
+	_ram.encode_s16(_ds_p + DS_CELL_SIZE, r)
+
+
+func _one_plus() -> void:
+	# Add one to n1, leaving n2
+	# ( n1 - n2 )
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) + 1)
+
+
+func _one_dash() -> void:
+	# Subtract one from n1, leaving n2
+	# ( n1 - n2 )
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) - 1)
+
+
+func _two_plus() -> void:
+	# Add two to n1, leaving n2
+	# ( n1 - n2 )
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) + 2)
+
+
+func _two_dash() -> void:
+	# Subtract two from n1, leaving n2
+	# ( n1 - n2 )
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) - 2)
+
+
+func _two_star() -> void:
+	# Return x2, result of shifting x1 one bit towards the MSB,
+	# filling the LSB with zero
+	# ( x1 - x2 )
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) << 1)
+
+
+func _two_slash() -> void:
+	# Return x2, result of shifting x1 one bit towards LSB,
+	# leaving the MSB unchanged
+	# ( x1 - x2 )
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) >> 1)
+
+
+func _lshift() -> void:
+	# Perform a logical left shift of u places on x1, giving x2._add_constant_central_force
+	# Fill the vacated LSB bits with zero
+	# (x1 u - x2 )
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(
+		_ds_p, _ram.decode_s16(_ds_p) << _ram.decode_s16(_ds_p - DS_CELL_SIZE)
+	)
+
+
+func _mod() -> void:
+	# Divide n1 by n2, giving the remainder n3
+	# (n1 n2 - n3 )
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(
+		_ds_p, _ram.decode_s16(_ds_p) % _ram.decode_s16(_ds_p - DS_CELL_SIZE)
+	)
+
+
+func _rshift() -> void:
+	# Perform a logical right shift of u places on x1, giving x2.
+	# Fill the vacated MSB bits with zeroes
+	# ( x1 u - x2 )
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(
+		_ds_p, _ram.decode_u16(_ds_p) >> _ram.decode_s16(_ds_p - DS_CELL_SIZE)
+	)
