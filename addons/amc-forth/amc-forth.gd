@@ -5,10 +5,22 @@ extends RefCounted
 signal terminal_out(text: String)
 
 const BANNER := "AMC Forth"
-const DICT_SIZE := 0x10000
-const DICT_TOP := 0x0ffff
+
+# Memory Map
+const RAM_SIZE := 0x10000  # BYTES
+const DICT_START := 0x0100  # BYTES
+const DICT_SIZE := 0x08000
+const DICT_TOP := DICT_START + DICT_SIZE
+const DS_START := DICT_TOP  # start of the data stack
 const DS_WORDS_SIZE := 0x0100
-const DS_WORDS_SLOP := 6 # extra words allocated to avoid exceptions
+const DS_WORDS_GUARD := 0x010  # extra words allocated to avoid exceptions
+const DS_CELL_SIZE := 2
+const DS_DCELL_SIZE := DS_CELL_SIZE * 2
+const DS_TOP := DS_START + DS_WORDS_SIZE * DS_CELL_SIZE
+const CS_START := DS_TOP + DS_WORDS_GUARD * DS_CELL_SIZE  # start of control stack
+const CS_WORDS_SIZE := 0x0100
+const CS_CELL_SIZE := 2
+const CS_TOP := CS_START + CS_WORDS_SIZE * CS_CELL_SIZE
 
 const TRUE := int(-1)
 const FALSE := int(0)
@@ -57,10 +69,9 @@ var _built_in_function: Dictionary = {}
 var _built_in_function_from_address: Dictionary = {}
 
 # The Forth dictionary space
-var _dict := PackedByteArray()
-# The Forth data stack
-var _ds := PackedInt32Array()
-var _ds_p := DS_WORDS_SIZE
+# data stack pointer is in byte units
+var _ds_p := DS_TOP
+var _ram := PackedByteArray()
 
 # terminal scratchpad and buffer
 var _terminal_pad: String = ""
@@ -141,23 +152,26 @@ func init() -> void:
 	print(BANNER)
 	terminal_out.emit(BANNER + TERM_CR + TERM_LF)
 	_init_built_ins()
-	_ds.resize(DS_WORDS_SIZE + DS_WORDS_SLOP)
-	_dict.resize(DICT_SIZE)
+	_ram.resize(RAM_SIZE)
 
 
 # privates
 
+
 func _emit_newline() -> void:
 	terminal_out.emit(TERM_CR + TERM_LF)
+
 
 # print, with newline
 func _rprint_term(text: String) -> void:
 	_print_term(text)
 	_emit_newline()
 
+
 # print, without newline
 func _print_term(text: String) -> void:
 	terminal_out.emit(text)
+
 
 func _strip_comments(tokens: PackedStringArray) -> PackedStringArray:
 	var new_tokens: PackedStringArray = []
@@ -188,19 +202,23 @@ func _interpret_terminal_line(in_text: String) -> void:
 			_built_in_function[t_up].call()
 		# valid numeric value
 		elif t.is_valid_int():
-			var temp : int = t.to_int()
+			var temp: int = t.to_int()
 			# limit entries to 16-bit values
-			_ds_p -= 1
-			_ds[_ds_p] = clamp(temp, -32768, 32767)
+			_ds_p -= DS_CELL_SIZE
+			_ram.encode_s16(_ds_p, clamp(temp, -32768, 32767))
+		# nothing we recognize
+		else:
+			_rprint_term(" " + t + " ?")
+			return # not ok
 		# check the stack
-		if _ds_p < DS_WORDS_SLOP:
+		if _ds_p < DS_START + DS_WORDS_GUARD:
 			_rprint_term(" Data stack overflow")
-			_ds_p = DS_WORDS_SLOP
-			return
-		if _ds_p > DS_WORDS_SIZE:
+			_ds_p = DS_START + DS_WORDS_GUARD
+			return # not ok
+		if _ds_p > DS_TOP:
 			_rprint_term(" Data stack underflow")
-			_ds_p = DS_WORDS_SIZE
-			return
+			_ds_p = DS_TOP
+			return # not ok
 	_rprint_term(" ok")
 
 
@@ -232,127 +250,137 @@ func _init_built_ins() -> void:
 # STACK
 func _q_dup() -> void:
 	# ( x - 0 | x x )
-	var t = _ds[_ds_p]
+	var t: int = _ram.decode_s16(_ds_p)
 	if t != 0:
-		_ds_p -= 1
-		_ds[_ds_p] = t
+		_ds_p -= DS_CELL_SIZE
+		_ram.encode_s16(_ds_p, t)
+
 
 func _depth() -> void:
 	# ( - +n )
-	var t: int = DICT_TOP - _ds_p
-	_ds_p -= 1
-	_ds[_ds_p] = t
+	var t: int = (DS_TOP - _ds_p) / DS_CELL_SIZE
+	_ds_p -= DS_CELL_SIZE
+	_ram.encode_u16(_ds_p, t)
+
 
 func _drop() -> void:
 	# ( x - )
-	_ds_p += 1
+	_ds_p += DS_CELL_SIZE
+
 
 func _dup() -> void:
 	# ( x - x x )
-	var t = _ds[_ds_p]
-	_ds_p -= 1
-	_ds[_ds_p] = t
+	var t: int = _ram.decode_s16(_ds_p)
+	_ds_p -= DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, t)
+
 
 func _nip() -> void:
 	# drop second item, leaving top unchanged
 	# ( x1 x2 - x2 )
-	var t = _ds[_ds_p]
-	_ds_p += 1
-	_ds[_ds_p] = t
+	var t: int = _ram.decode_s16(_ds_p)
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, t)
+
 
 func _over() -> void:
 	# place a copy of x1 on top of the stack
 	# ( x1 x2 - x1 x2 x1 )
-	_ds_p -= 1
-	_ds[_ds_p] = _ds[_ds_p + 2]
+	_ds_p -= DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p + 2 * DS_CELL_SIZE))
+
 
 func _pick() -> void:
 	# place a copy of the nth stack entry on top of the stack
 	# zeroth item is the top of the stack so 0 pick is dup
 	# ( +n - x )
-	var t = _ds[_ds_p]
-	_ds[_ds_p] = _ds[_ds_p + t + 1]
+	var t: int = _ram.decode_s16(_ds_p)
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p + (t + 1) * DS_CELL_SIZE))
+
 
 func _rot() -> void:
 	# rotate the top three items on the stack
 	# ( x1 x2 x3 - x2 x3 x1 )
-	var t = _ds[_ds_p + 2]
-	_ds[_ds_p + 2] = _ds[_ds_p + 1]
-	_ds[_ds_p + 1] = _ds[_ds_p]
-	_ds[_ds_p] = t
+	var t: int = _ram.decode_s16(_ds_p + 2 * DS_CELL_SIZE)
+	_ram.encode_s16(
+		_ds_p + 2 * DS_CELL_SIZE, _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+	)
+	_ram.encode_s16(_ds_p + DS_CELL_SIZE, _ram.decode_s16(_ds_p))
+	_ram.encode_s16(_ds_p, t)
+
 
 func _swap() -> void:
 	# exchange the top two items on the stack
 	# ( x1 x2 - x2 x1 )
-	var t = _ds[_ds_p + 1]
-	_ds[_ds_p + 1] = _ds[_ds_p]
-	_ds[_ds_p] = t
+	var t: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+	_ram.encode_s16(_ds_p + DS_CELL_SIZE, _ram.decode_s16(_ds_p))
+	_ram.encode_s16(_ds_p, t)
+
 
 func _tuck() -> void:
 	# place a copy of the top stack item below the second stack item
 	# ( x1 x2 - x2 x1 x2 )
-	_ds[_ds_p - 1] = _ds[_ds_p]
-	_ds[_ds_p] = _ds[_ds_p + 1]
-	_ds[_ds_p + 1] = _ds[_ds_p - 1]
-	_ds_p -= 1
+	_ram.encode_s16(_ds_p - DS_CELL_SIZE, _ram.decode_s16(_ds_p))
+	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p + DS_CELL_SIZE))
+	_ram.encode_s16(_ds_p + DS_CELL_SIZE, _ram.decode_s16(_ds_p - DS_CELL_SIZE))
+	_ds_p -= DS_CELL_SIZE
+
 
 func _two_drop() -> void:
 	# remove the top pair of cells from the stack
 	# ( x1 x2 - )
-	_ds_p += 2
+	_ds_p += DS_DCELL_SIZE
+
 
 func _two_dup() -> void:
 	# duplicate the top cell pair
 	# (x1 x2 - x1 x2 x1 x2 )
-	_ds_p -= 2
-	_ds[_ds_p] = _ds[_ds_p + 2]
-	_ds[_ds_p + 1] = _ds[_ds_p + 3]
+	_ds_p -= DS_DCELL_SIZE
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p + DS_DCELL_SIZE))
+
 
 func _two_over() -> void:
 	# copy a cell pair x1 x2 to the top of the stack
 	# ( x1 x2 x3 x4 - x1 x2 x3 x4 x1 x2 )
-	_ds_p -= 2
-	_ds[_ds_p] = _ds[_ds_p + 4]
-	_ds[_ds_p + 1] = _ds[_ds_p + 5]
+	_ds_p -= DS_DCELL_SIZE
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p + 2 * DS_DCELL_SIZE))
+
 
 func _two_rot() -> void:
 	# rotate the top three cell pairs on the stack
 	# ( x1 x2 x3 x4 x5 x6 - x3 x4 x5 x6 x1 x2 )
-	var t1 = _ds[_ds_p + 5]
-	var t2 = _ds[_ds_p + 4]
-	_ds[_ds_p + 4] = _ds[_ds_p + 2]
-	_ds[_ds_p + 5] = _ds[_ds_p + 3]
-	_ds[_ds_p + 3] = _ds[_ds_p + 1]
-	_ds[_ds_p + 2] = _ds[_ds_p]
-	_ds[_ds_p + 1] = t1
-	_ds[_ds_p] = t2
+	var t: int = _ram.decode_s32(_ds_p + 2 * DS_DCELL_SIZE)
+	_ram.encode_s32(
+		_ds_p + 2 * DS_DCELL_SIZE, _ram.decode_s32(_ds_p + DS_DCELL_SIZE)
+	)
+	_ram.encode_s32(_ds_p + DS_DCELL_SIZE, _ram.decode_s32(_ds_p))
+	_ram.encode_s32(_ds_p, t)
+
 
 func _two_swap() -> void:
 	# exchange the top two cell pairs
 	# ( x1 x2 x3 x4 - x3 x4 x1 x2 )
-	var t1 = _ds[_ds_p + 3]
-	var t2 = _ds[_ds_p + 2]
-	_ds[_ds_p + 3] = _ds[_ds_p + 1]
-	_ds[_ds_p + 2] = _ds[_ds_p]
-	_ds[_ds_p + 1] = t1
-	_ds[_ds_p] = t2
+	var t: int = _ram.decode_s32(_ds_p + DS_DCELL_SIZE)
+	_ram.encode_s32(_ds_p + DS_DCELL_SIZE, _ram.decode_s32(_ds_p))
+	_ram.encode_s32(_ds_p, t)
+
 
 # Programmer Conveniences
 func _dot_s() -> void:
-	var pointer = DS_WORDS_SIZE - 1
+	var pointer = DS_TOP - DS_CELL_SIZE
 	_rprint_term("")
 	while pointer >= _ds_p:
-		_print_term(" " + str(_ds[pointer]))
-		pointer -= 1
+		_print_term(" " + str(_ram.decode_s16(pointer)))
+		pointer -= DS_CELL_SIZE
 	_print_term(" <-Top")
 
 
-
 func _dot() -> void:
-	_print_term(" " + str(_ds[_ds_p]))
-	_ds_p += 1
+	_print_term(" " + str(_ram.decode_s16(_ds_p)))
+	_ds_p += DS_CELL_SIZE
+
 
 func _add() -> void:
-	var t = _ds[_ds_p] + _ds[_ds_p+1]
-	_ds_p += 1
-	_ds[_ds_p] = t
+	var t = _ram.decode_s16(_ds_p) + _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s16(_ds_p, t)
