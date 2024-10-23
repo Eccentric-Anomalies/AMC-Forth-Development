@@ -12,14 +12,17 @@ const DICT_START := 0x0100  # BYTES
 const DICT_SIZE := 0x08000
 const DICT_TOP := DICT_START + DICT_SIZE
 const DS_START := DICT_TOP  # start of the data stack
-const DS_WORDS_SIZE := 0x0100
+const DS_WORDS_SIZE := 0x0200
 const DS_WORDS_GUARD := 0x010  # extra words allocated to avoid exceptions
-const DS_CELL_SIZE := 2
+# cell size should be 2 or 4
+# if 2, use (encode|decode)_(s|u)16 and (encode|decode)_(s_u)32
+# if 4, use (encode|decode)_(s|u)32 and (encode|decode)_(s_u)64
+const DS_CELL_SIZE := 4
 const DS_DCELL_SIZE := DS_CELL_SIZE * 2
 const DS_TOP := DS_START + DS_WORDS_SIZE * DS_CELL_SIZE
 const CS_START := DS_TOP + DS_WORDS_GUARD * DS_CELL_SIZE  # start of control stack
-const CS_WORDS_SIZE := 0x0100
-const CS_CELL_SIZE := 2
+const CS_WORDS_SIZE := 0x0200
+const CS_CELL_SIZE := 4
 const CS_TOP := CS_START + CS_WORDS_SIZE * CS_CELL_SIZE
 
 const TRUE := int(-1)
@@ -37,6 +40,7 @@ const TERM_RIGHT := TERM_ESC + "[C"
 const TERM_LEFT := TERM_ESC + "[D"
 const TERM_CLREOL := TERM_ESC + "[2K"
 const MAX_BUFFER_SIZE := 20
+
 
 var _built_in_names = [
 	# Data Stack Manipulation
@@ -180,7 +184,6 @@ func init() -> void:
 	_ram.resize(RAM_SIZE)
 	_d_scratch.resize(DS_DCELL_SIZE)
 
-
 # privates
 
 
@@ -201,11 +204,11 @@ func _print_term(text: String) -> void:
 
 # convert int to forth ordering and vice versa
 func _d_swap(num: int) -> int:
-	_d_scratch.encode_s32(0, num)
-	var t: int = _d_scratch.decode_s16(0)
-	_d_scratch.encode_s16(0, _d_scratch.decode_s16(DS_CELL_SIZE))
-	_d_scratch.encode_s16(DS_CELL_SIZE, t)
-	return _d_scratch.decode_s32(0)
+	_d_scratch.encode_s64(0, num)
+	var t: int = _d_scratch.decode_s32(0)
+	_d_scratch.encode_s32(0, _d_scratch.decode_s32(DS_CELL_SIZE))
+	_d_scratch.encode_s32(DS_CELL_SIZE, t)
+	return _d_scratch.decode_s64(0)
 
 
 func _strip_comments(tokens: PackedStringArray) -> PackedStringArray:
@@ -240,12 +243,12 @@ func _interpret_terminal_line(in_text: String) -> void:
 			var t_strip: String = t.replace(".", "")
 			var temp: int = t_strip.to_int()
 			_ds_p -= DS_DCELL_SIZE
-			_ram.encode_s32(_ds_p, _d_swap(temp))
+			_ram.encode_s64(_ds_p, _d_swap(temp))
 		elif t.is_valid_int():
 			var temp: int = t.to_int()
 			# limit entries to 16-bit values
 			_ds_p -= DS_CELL_SIZE
-			_ram.encode_s16(_ds_p, temp)
+			_ram.encode_s32(_ds_p, temp)
 		# nothing we recognize
 		else:
 			_rprint_term(" " + t + " ?")
@@ -290,17 +293,17 @@ func _init_built_ins() -> void:
 # STACK
 func _q_dup() -> void:
 	# ( x - 0 | x x )
-	var t: int = _ram.decode_s16(_ds_p)
+	var t: int = _ram.decode_s32(_ds_p)
 	if t != 0:
 		_ds_p -= DS_CELL_SIZE
-		_ram.encode_s16(_ds_p, t)
+		_ram.encode_s32(_ds_p, t)
 
 
 func _depth() -> void:
 	# ( - +n )
 	var t: int = (DS_TOP - _ds_p) / DS_CELL_SIZE
 	_ds_p -= DS_CELL_SIZE
-	_ram.encode_u16(_ds_p, t)
+	_ram.encode_u32(_ds_p, t)
 
 
 func _drop() -> void:
@@ -310,59 +313,59 @@ func _drop() -> void:
 
 func _dup() -> void:
 	# ( x - x x )
-	var t: int = _ram.decode_s16(_ds_p)
+	var t: int = _ram.decode_s32(_ds_p)
 	_ds_p -= DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, t)
+	_ram.encode_s32(_ds_p, t)
 
 
 func _nip() -> void:
 	# drop second item, leaving top unchanged
 	# ( x1 x2 - x2 )
-	var t: int = _ram.decode_s16(_ds_p)
+	var t: int = _ram.decode_s32(_ds_p)
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, t)
+	_ram.encode_s32(_ds_p, t)
 
 
 func _over() -> void:
 	# place a copy of x1 on top of the stack
 	# ( x1 x2 - x1 x2 x1 )
 	_ds_p -= DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p + 2 * DS_CELL_SIZE))
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p + 2 * DS_CELL_SIZE))
 
 
 func _pick() -> void:
 	# place a copy of the nth stack entry on top of the stack
 	# zeroth item is the top of the stack so 0 pick is dup
 	# ( +n - x )
-	var t: int = _ram.decode_s16(_ds_p)
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p + (t + 1) * DS_CELL_SIZE))
+	var t: int = _ram.decode_s32(_ds_p)
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p + (t + 1) * DS_CELL_SIZE))
 
 
 func _rot() -> void:
 	# rotate the top three items on the stack
 	# ( x1 x2 x3 - x2 x3 x1 )
-	var t: int = _ram.decode_s16(_ds_p + 2 * DS_CELL_SIZE)
-	_ram.encode_s16(
-		_ds_p + 2 * DS_CELL_SIZE, _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+	var t: int = _ram.decode_s32(_ds_p + 2 * DS_CELL_SIZE)
+	_ram.encode_s32(
+		_ds_p + 2 * DS_CELL_SIZE, _ram.decode_s32(_ds_p + DS_CELL_SIZE)
 	)
-	_ram.encode_s16(_ds_p + DS_CELL_SIZE, _ram.decode_s16(_ds_p))
-	_ram.encode_s16(_ds_p, t)
+	_ram.encode_s32(_ds_p + DS_CELL_SIZE, _ram.decode_s32(_ds_p))
+	_ram.encode_s32(_ds_p, t)
 
 
 func _swap() -> void:
 	# exchange the top two items on the stack
 	# ( x1 x2 - x2 x1 )
-	var t: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE)
-	_ram.encode_s16(_ds_p + DS_CELL_SIZE, _ram.decode_s16(_ds_p))
-	_ram.encode_s16(_ds_p, t)
+	var t: int = _ram.decode_s32(_ds_p + DS_CELL_SIZE)
+	_ram.encode_s32(_ds_p + DS_CELL_SIZE, _ram.decode_s32(_ds_p))
+	_ram.encode_s32(_ds_p, t)
 
 
 func _tuck() -> void:
 	# place a copy of the top stack item below the second stack item
 	# ( x1 x2 - x2 x1 x2 )
-	_ram.encode_s16(_ds_p - DS_CELL_SIZE, _ram.decode_s16(_ds_p))
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p + DS_CELL_SIZE))
-	_ram.encode_s16(_ds_p + DS_CELL_SIZE, _ram.decode_s16(_ds_p - DS_CELL_SIZE))
+	_ram.encode_s32(_ds_p - DS_CELL_SIZE, _ram.decode_s32(_ds_p))
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p + DS_CELL_SIZE))
+	_ram.encode_s32(_ds_p + DS_CELL_SIZE, _ram.decode_s32(_ds_p - DS_CELL_SIZE))
 	_ds_p -= DS_CELL_SIZE
 
 
@@ -376,33 +379,33 @@ func _two_dup() -> void:
 	# duplicate the top cell pair
 	# (x1 x2 - x1 x2 x1 x2 )
 	_ds_p -= DS_DCELL_SIZE
-	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p + DS_DCELL_SIZE))
+	_ram.encode_s64(_ds_p, _ram.decode_s64(_ds_p + DS_DCELL_SIZE))
 
 
 func _two_over() -> void:
 	# copy a cell pair x1 x2 to the top of the stack
 	# ( x1 x2 x3 x4 - x1 x2 x3 x4 x1 x2 )
 	_ds_p -= DS_DCELL_SIZE
-	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p + 2 * DS_DCELL_SIZE))
+	_ram.encode_s64(_ds_p, _ram.decode_s64(_ds_p + 2 * DS_DCELL_SIZE))
 
 
 func _two_rot() -> void:
 	# rotate the top three cell pairs on the stack
 	# ( x1 x2 x3 x4 x5 x6 - x3 x4 x5 x6 x1 x2 )
-	var t: int = _ram.decode_s32(_ds_p + 2 * DS_DCELL_SIZE)
-	_ram.encode_s32(
-		_ds_p + 2 * DS_DCELL_SIZE, _ram.decode_s32(_ds_p + DS_DCELL_SIZE)
+	var t: int = _ram.decode_s64(_ds_p + 2 * DS_DCELL_SIZE)
+	_ram.encode_s64(
+		_ds_p + 2 * DS_DCELL_SIZE, _ram.decode_s64(_ds_p + DS_DCELL_SIZE)
 	)
-	_ram.encode_s32(_ds_p + DS_DCELL_SIZE, _ram.decode_s32(_ds_p))
-	_ram.encode_s32(_ds_p, t)
+	_ram.encode_s64(_ds_p + DS_DCELL_SIZE, _ram.decode_s64(_ds_p))
+	_ram.encode_s64(_ds_p, t)
 
 
 func _two_swap() -> void:
 	# exchange the top two cell pairs
 	# ( x1 x2 x3 x4 - x3 x4 x1 x2 )
-	var t: int = _ram.decode_s32(_ds_p + DS_DCELL_SIZE)
-	_ram.encode_s32(_ds_p + DS_DCELL_SIZE, _ram.decode_s32(_ds_p))
-	_ram.encode_s32(_ds_p, t)
+	var t: int = _ram.decode_s64(_ds_p + DS_DCELL_SIZE)
+	_ram.encode_s64(_ds_p + DS_DCELL_SIZE, _ram.decode_s64(_ds_p))
+	_ram.encode_s64(_ds_p, t)
 
 
 # Programmer Conveniences
@@ -410,25 +413,25 @@ func _dot_s() -> void:
 	var pointer = DS_TOP - DS_CELL_SIZE
 	_rprint_term("")
 	while pointer >= _ds_p:
-		_print_term(" " + str(_ram.decode_s16(pointer)))
+		_print_term(" " + str(_ram.decode_s32(pointer)))
 		pointer -= DS_CELL_SIZE
 	_print_term(" <-Top")
 
 
 func _dot() -> void:
-	_print_term(" " + str(_ram.decode_s16(_ds_p)))
+	_print_term(" " + str(_ram.decode_s32(_ds_p)))
 	_ds_p += DS_CELL_SIZE
 
 func _d_dot() -> void:
-	_print_term(" " + str(_d_swap(_ram.decode_s32(_ds_p))))
+	_print_term(" " + str(_d_swap(_ram.decode_s64(_ds_p))))
 	_ds_p += DS_DCELL_SIZE
 
 func _star() -> void:
 	# Multiply n1 by n2 leaving the product n3
 	# ( n1 n2 - n3 )
-	var t: int = _ram.decode_s16(_ds_p) * _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+	var t: int = _ram.decode_s32(_ds_p) * _ram.decode_s32(_ds_p + DS_CELL_SIZE)
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, t)
+	_ram.encode_s32(_ds_p, t)
 
 
 func _star_slash() -> void:
@@ -436,12 +439,12 @@ func _star_slash() -> void:
 	# Divide d by n3, giving the single-cell quotient n4.
 	# ( n1 n2 n3 - n4 )
 	var p: int = (
-		_ram.decode_s16(_ds_p + DS_CELL_SIZE)
-		* _ram.decode_s16(_ds_p + DS_CELL_SIZE * 2)
+		_ram.decode_s32(_ds_p + DS_CELL_SIZE)
+		* _ram.decode_s32(_ds_p + DS_CELL_SIZE * 2)
 	)
-	var q: int = p / _ram.decode_s16(_ds_p)
+	var q: int = p / _ram.decode_s32(_ds_p)
 	_ds_p += DS_CELL_SIZE * 2
-	_ram.encode_s16(_ds_p, q)
+	_ram.encode_s32(_ds_p, q)
 
 
 func _star_slash_mod() -> void:
@@ -450,85 +453,85 @@ func _star_slash_mod() -> void:
 	# and a single-cell quotient n5
 	# ( n1 n2 n3 - n4 n5 )
 	var p: int = (
-		_ram.decode_s16(_ds_p + DS_CELL_SIZE)
-		* _ram.decode_s16(_ds_p + DS_CELL_SIZE * 2)
+		_ram.decode_s32(_ds_p + DS_CELL_SIZE)
+		* _ram.decode_s32(_ds_p + DS_CELL_SIZE * 2)
 	)
-	var r: int = p % _ram.decode_s16(_ds_p)
-	var q: int = p / _ram.decode_s16(_ds_p)
+	var r: int = p % _ram.decode_s32(_ds_p)
+	var q: int = p / _ram.decode_s32(_ds_p)
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, q)  # quotient
-	_ram.encode_s16(_ds_p + DS_CELL_SIZE, r)  # remainder
+	_ram.encode_s32(_ds_p, q)  # quotient
+	_ram.encode_s32(_ds_p + DS_CELL_SIZE, r)  # remainder
 
 
 func _plus() -> void:
 	# Add n1 to n2 leaving the sum n3
 	# ( n1 n2 - n3 )
-	var t: int = _ram.decode_s16(_ds_p) + _ram.decode_s16(_ds_p + DS_CELL_SIZE)
+	var t: int = _ram.decode_s32(_ds_p) + _ram.decode_s32(_ds_p + DS_CELL_SIZE)
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, t)
+	_ram.encode_s32(_ds_p, t)
 
 
 func _dash() -> void:
 	# subtract n2 from n1, leaving the diference n3
 	# ( n1 n2 - n3 )
-	var t: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) - _ram.decode_s16(_ds_p)
+	var t: int = _ram.decode_s32(_ds_p + DS_CELL_SIZE) - _ram.decode_s32(_ds_p)
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, t)
+	_ram.encode_s32(_ds_p, t)
 
 
 func _slash() -> void:
 	# divide n1 by n2, leaving the quotient n3
 	# ( n1 n2 - n3 )
-	var t: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) / _ram.decode_s16(_ds_p)
+	var t: int = _ram.decode_s32(_ds_p + DS_CELL_SIZE) / _ram.decode_s32(_ds_p)
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(_ds_p, t)
+	_ram.encode_s32(_ds_p, t)
 
 
 func _slash_mod() -> void:
 	# divide n1 by n2, leaving the remainder n3 and quotient n4
 	# ( n1 n2 - n3 n4 )
-	var q: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) / _ram.decode_s16(_ds_p)
-	var r: int = _ram.decode_s16(_ds_p + DS_CELL_SIZE) % _ram.decode_s16(_ds_p)
-	_ram.encode_s16(_ds_p, q)
-	_ram.encode_s16(_ds_p + DS_CELL_SIZE, r)
+	var q: int = _ram.decode_s32(_ds_p + DS_CELL_SIZE) / _ram.decode_s32(_ds_p)
+	var r: int = _ram.decode_s32(_ds_p + DS_CELL_SIZE) % _ram.decode_s32(_ds_p)
+	_ram.encode_s32(_ds_p, q)
+	_ram.encode_s32(_ds_p + DS_CELL_SIZE, r)
 
 
 func _one_plus() -> void:
 	# Add one to n1, leaving n2
 	# ( n1 - n2 )
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) + 1)
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) + 1)
 
 
 func _one_dash() -> void:
 	# Subtract one from n1, leaving n2
 	# ( n1 - n2 )
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) - 1)
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) - 1)
 
 
 func _two_plus() -> void:
 	# Add two to n1, leaving n2
 	# ( n1 - n2 )
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) + 2)
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) + 2)
 
 
 func _two_dash() -> void:
 	# Subtract two from n1, leaving n2
 	# ( n1 - n2 )
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) - 2)
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) - 2)
 
 
 func _two_star() -> void:
 	# Return x2, result of shifting x1 one bit towards the MSB,
 	# filling the LSB with zero
 	# ( x1 - x2 )
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) << 1)
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) << 1)
 
 
 func _two_slash() -> void:
 	# Return x2, result of shifting x1 one bit towards LSB,
 	# leaving the MSB unchanged
 	# ( x1 - x2 )
-	_ram.encode_s16(_ds_p, _ram.decode_s16(_ds_p) >> 1)
+	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) >> 1)
 
 
 func _lshift() -> void:
@@ -536,8 +539,8 @@ func _lshift() -> void:
 	# Fill the vacated LSB bits with zero
 	# (x1 u - x2 )
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(
-		_ds_p, _ram.decode_s16(_ds_p) << _ram.decode_s16(_ds_p - DS_CELL_SIZE)
+	_ram.encode_s32(
+		_ds_p, _ram.decode_s32(_ds_p) << _ram.decode_s32(_ds_p - DS_CELL_SIZE)
 	)
 
 
@@ -545,8 +548,8 @@ func _mod() -> void:
 	# Divide n1 by n2, giving the remainder n3
 	# (n1 n2 - n3 )
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(
-		_ds_p, _ram.decode_s16(_ds_p) % _ram.decode_s16(_ds_p - DS_CELL_SIZE)
+	_ram.encode_s32(
+		_ds_p, _ram.decode_s32(_ds_p) % _ram.decode_s32(_ds_p - DS_CELL_SIZE)
 	)
 
 
@@ -555,8 +558,8 @@ func _rshift() -> void:
 	# Fill the vacated MSB bits with zeroes
 	# ( x1 u - x2 )
 	_ds_p += DS_CELL_SIZE
-	_ram.encode_s16(
-		_ds_p, _ram.decode_u16(_ds_p) >> _ram.decode_s16(_ds_p - DS_CELL_SIZE)
+	_ram.encode_s32(
+		_ds_p, _ram.decode_u32(_ds_p) >> _ram.decode_s32(_ds_p - DS_CELL_SIZE)
 	)
 
 
@@ -564,12 +567,12 @@ func _d_plus() -> void:
 	# Add d1 to d2, leaving the sum d3
 	# ( d1 d2 - d3 )
 	_ds_p += DS_DCELL_SIZE
-	_ram.encode_s32(
+	_ram.encode_s64(
 		_ds_p,
 		_d_swap(
 			(
-				_d_swap(_ram.decode_s32(_ds_p))
-				+ _d_swap(_ram.decode_s32(_ds_p - DS_DCELL_SIZE))
+				_d_swap(_ram.decode_s64(_ds_p))
+				+ _d_swap(_ram.decode_s64(_ds_p - DS_DCELL_SIZE))
 			)
 		)
 	)
