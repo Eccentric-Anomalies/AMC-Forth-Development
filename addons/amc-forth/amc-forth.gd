@@ -41,7 +41,6 @@ const TERM_LEFT := TERM_ESC + "[D"
 const TERM_CLREOL := TERM_ESC + "[2K"
 const MAX_BUFFER_SIZE := 20
 
-
 var _built_in_names = [
 	# Data Stack Manipulation
 	["?DUP", _q_dup],
@@ -68,13 +67,13 @@ var _built_in_names = [
 	["*/", _star_slash],
 	["*/MOD", _star_slash_mod],
 	["+", _plus],
-	["-", _dash],
+	["-", _minus],
 	["/", _slash],
 	["/MOD", _slash_mod],
 	["1+", _one_plus],
-	["1-", _one_dash],
+	["1-", _one_minus],
 	["2+", _two_plus],
-	["2-", _two_dash],
+	["2-", _two_minus],
 	["2*", _two_star],
 	["2/", _two_slash],
 	["LSHIFT", _lshift],
@@ -82,9 +81,20 @@ var _built_in_names = [
 	["RSHIFT", _rshift],
 	# Double Precision Arithmetic
 	["D+", _d_plus],
-	["D-", _d_dash],
+	["D-", _d_minus],
 	["D2*", _d_two_star],
 	["D2/", _d_two_slash],
+	# Mixed Precision Operations
+	["D>S", _d_to_s],
+	["M*", _m_star],
+	["M*/", _m_star_slash],
+	["M+", _m_plus],
+	["M-", _m_minus],
+	["M/", _m_slash],
+	["S>D", _s_to_d],
+	["SM/REM", _sm_slash_rem],
+	["UM/MOD", _um_slash_mod],
+	["UM*", _um_star],
 ]
 
 # get built-in "address" from word
@@ -183,6 +193,7 @@ func init() -> void:
 	_init_built_ins()
 	_ram.resize(RAM_SIZE)
 	_d_scratch.resize(DS_DCELL_SIZE)
+
 
 # privates
 
@@ -422,9 +433,11 @@ func _dot() -> void:
 	_print_term(" " + str(_ram.decode_s32(_ds_p)))
 	_ds_p += DS_CELL_SIZE
 
+
 func _d_dot() -> void:
 	_print_term(" " + str(_d_swap(_ram.decode_s64(_ds_p))))
 	_ds_p += DS_DCELL_SIZE
+
 
 func _star() -> void:
 	# Multiply n1 by n2 leaving the product n3
@@ -471,7 +484,7 @@ func _plus() -> void:
 	_ram.encode_s32(_ds_p, t)
 
 
-func _dash() -> void:
+func _minus() -> void:
 	# subtract n2 from n1, leaving the diference n3
 	# ( n1 n2 - n3 )
 	var t: int = _ram.decode_s32(_ds_p + DS_CELL_SIZE) - _ram.decode_s32(_ds_p)
@@ -502,7 +515,7 @@ func _one_plus() -> void:
 	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) + 1)
 
 
-func _one_dash() -> void:
+func _one_minus() -> void:
 	# Subtract one from n1, leaving n2
 	# ( n1 - n2 )
 	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) - 1)
@@ -514,7 +527,7 @@ func _two_plus() -> void:
 	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) + 2)
 
 
-func _two_dash() -> void:
+func _two_minus() -> void:
 	# Subtract two from n1, leaving n2
 	# ( n1 - n2 )
 	_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p) - 2)
@@ -577,11 +590,142 @@ func _d_plus() -> void:
 		)
 	)
 
-func _d_dash() -> void:
-	pass
+
+func _d_minus() -> void:
+	# Subtract d2 from d1, leaving the difference d3
+	# ( d1 d2 - d3 )
+	_ds_p += DS_DCELL_SIZE
+	_ram.encode_s64(
+		_ds_p,
+		_d_swap(
+			(
+				_d_swap(_ram.decode_s64(_ds_p))
+				- _d_swap(_ram.decode_s64(_ds_p - DS_DCELL_SIZE))
+			)
+		)
+	)
+
 
 func _d_two_star() -> void:
-	pass
+	# Multiply d1 by 2, leaving the result d2
+	# ( d1 - d2 )
+	_ram.encode_s64(_ds_p, _d_swap(_d_swap(_ram.decode_s64(_ds_p)) * 2))
+
 
 func _d_two_slash() -> void:
-	pass
+	# Divide d1 by 2, leaving the result d2
+	# ( d1 - d2 )
+	_ram.encode_s64(_ds_p, _d_swap(_d_swap(_ram.decode_s64(_ds_p)) / 2))
+
+
+func _d_to_s() -> void:
+	# Convert double to single, discarding MS cell.
+	# ( d - n )
+	# this assumes doubles are pushed in LS MS order
+	_ds_p += DS_CELL_SIZE
+
+
+func _m_star() -> void:
+	# Multiply n1 by n2, leaving the double result d.
+	# ( n1 n2 - d )
+	_ram.encode_s64(
+		_ds_p,
+		_d_swap(_ram.decode_s32(_ds_p) * _ram.decode_s32(_ds_p + DS_CELL_SIZE))
+	)
+
+
+func _m_star_slash() -> void:
+	# Multiply d1 by n1 producing a triple cell intermediate result t.
+	# Divide t by n2, giving quotient d2.
+	# Use this with n1 or n2 = 1 to accomplish double precision multiplication
+	# or division.
+	# ( d1 n1 +n2 - d2 )
+	# Following is an *approximate* implementation, using the double float
+	var q: float = (
+		float(_ram.decode_s32(_ds_p + DS_CELL_SIZE)) / _ram.decode_s32(_ds_p)
+	)
+	_ds_p += DS_CELL_SIZE * 2
+	_ram.encode_s64(_ds_p, _d_swap(_d_swap(_ram.decode_s64(_ds_p)) * q))
+
+
+func _m_plus() -> void:
+	# Add n to d1 leaving the sum d2
+	# ( d1 n - d2 )
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s64(
+		_ds_p,
+		_d_swap(
+			(
+				_d_swap(_ram.decode_s64(_ds_p))
+				+ _ram.decode_s32(_ds_p - DS_CELL_SIZE)
+			)
+		)
+	)
+
+
+func _m_minus() -> void:
+	# Subtract n from d1 leaving the difference d2
+	# ( d1 n - d2 )
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_s64(
+		_ds_p,
+		_d_swap(
+			(
+				_d_swap(_ram.decode_s64(_ds_p))
+				- _ram.decode_s32(_ds_p - DS_CELL_SIZE)
+			)
+		)
+	)
+
+
+func _m_slash() -> void:
+	# Divide d by n1 leaving the single precision quotient n2
+	# ( d n1 - n2 )
+	var t: int = (
+		_d_swap(_ram.decode_s64(_ds_p + DS_CELL_SIZE)) / _ram.decode_s32(_ds_p)
+	)
+	_ds_p += DS_DCELL_SIZE
+	_ram.encode_s32(_ds_p, t)
+
+
+func _s_to_d() -> void:
+	# Convert a single cell number n to its double equivalent d
+	# ( n - d )
+	var t: int = _ram.decode_s32(_ds_p)
+	_ds_p += DS_CELL_SIZE - DS_DCELL_SIZE
+	_ram.encode_s64(_ds_p, _d_swap(t))
+
+
+func _sm_slash_rem() -> void:
+	# Divide d by n1, using symmetric division, giving quotient n3 and
+	# remainder n2. All arguments are signed.
+	# ( d n1 - n2 n3 )
+	var dd: int = _d_swap(_ram.decode_s64(_ds_p + DS_CELL_SIZE))
+	var d: int = _ram.decode_s32(_ds_p)
+	var q: int = dd / d
+	var r: int = dd % d
+	_ds_p += DS_DCELL_SIZE - DS_CELL_SIZE
+	_ram.encode_s32(_ds_p, q)
+	_ram.encode_s32(_ds_p + DS_CELL_SIZE, r)
+
+
+func _um_slash_mod() -> void:
+	# Divide ud by n1, leaving quotient n3 and remainder n2.
+	# All arguments and result are unsigned.
+	# ( d u1 - u2 u3 )
+	var dd: int = _d_swap(_ram.decode_u64(_ds_p + DS_CELL_SIZE))
+	var d: int = _ram.decode_u32(_ds_p)
+	var q: int = dd / d
+	var r: int = dd % d
+	_ds_p += DS_DCELL_SIZE - DS_CELL_SIZE
+	_ram.encode_u32(_ds_p, q)
+	_ram.encode_u32(_ds_p + DS_CELL_SIZE, r)
+
+
+func _um_star() -> void:
+	# Multiply u1 by u2, leaving the double-precision result ud
+	# ( u1 u2 - ud )
+	_ram.encode_u64(
+		_ds_p,
+		_d_swap(_ram.decode_u32(_ds_p + DS_CELL_SIZE) * _ram.decode_u32(_ds_p))
+	)
