@@ -8,9 +8,11 @@ const BANNER := "AMC Forth"
 
 # Memory Map
 const RAM_SIZE := 0x10000  # BYTES
+# Dictionary
 const DICT_START := 0x0100  # BYTES
 const DICT_SIZE := 0x08000
 const DICT_TOP := DICT_START + DICT_SIZE
+# Data Stack
 const DS_START := DICT_TOP  # start of the data stack
 const DS_WORDS_SIZE := 0x0200
 const DS_WORDS_GUARD := 0x010  # extra words allocated to avoid exceptions
@@ -20,6 +22,7 @@ const DS_WORDS_GUARD := 0x010  # extra words allocated to avoid exceptions
 const DS_CELL_SIZE := 4
 const DS_DCELL_SIZE := DS_CELL_SIZE * 2
 const DS_TOP := DS_START + DS_WORDS_SIZE * DS_CELL_SIZE
+# Control Stack
 const CS_START := DS_TOP + DS_WORDS_GUARD * DS_CELL_SIZE  # start of control stack
 const CS_WORDS_SIZE := 0x0200
 const CS_CELL_SIZE := 4
@@ -95,6 +98,15 @@ var _built_in_names = [
 	["SM/REM", _sm_slash_rem],
 	["UM/MOD", _um_slash_mod],
 	["UM*", _um_star],
+	# Logical Operators
+	["ABS", _abs],
+	["AND", _and],
+	["INVERT", _invert],
+	["MAX", _max],
+	["MIN", _min],
+	["NEGATE", _negate],
+	["OR", _or],
+	["XOR", _xor],
 ]
 
 # get built-in "address" from word
@@ -729,3 +741,53 @@ func _um_star() -> void:
 		_ds_p,
 		_d_swap(_ram.decode_u32(_ds_p + DS_CELL_SIZE) * _ram.decode_u32(_ds_p))
 	)
+
+# Logical Operators
+func _abs() -> void:
+	# Replace the top stack item with its absolute value
+	# ( n - +n )
+	_ram.encode_u32(_ds_p, abs(_ram.decode_s32(_ds_p)))
+
+func _and() -> void:
+	# Return x3, the bit-wise logical and of x1 and x2
+	# ( x1 x2 - x3)
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_u32(_ds_p, _ram.decode_u32(_ds_p) & _ram.decode_u32(_ds_p - DS_CELL_SIZE))
+
+func _invert() -> void:
+	# Invert all bits of x1, giving its logical inverse x2
+	# ( x1 - x2 )
+	_ram.encode_u32(_ds_p, ~ _ram.decode_u32(_ds_p))
+
+func _max() -> void:
+	# Return n3, the greater of n1 and n2
+	# ( n1 n2 - n3 )
+	_ds_p += DS_CELL_SIZE
+	var lt:bool = _ram.decode_s32(_ds_p) < _ram.decode_s32(_ds_p - DS_CELL_SIZE)
+	if lt:
+		_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p - DS_CELL_SIZE))
+
+func _min() -> void:
+	# Return n3, the lesser of n1 and n2
+	# ( n1 n2 - n3 )
+	_ds_p += DS_CELL_SIZE
+	var gt:bool = _ram.decode_s32(_ds_p) > _ram.decode_s32(_ds_p - DS_CELL_SIZE)
+	if gt:
+		_ram.encode_s32(_ds_p, _ram.decode_s32(_ds_p - DS_CELL_SIZE))
+
+func _negate() -> void:
+	# Change the sign of the top stack value
+	# ( n - -n )
+	_ram.encode_s32(_ds_p, - _ram.decode_s32(_ds_p))
+
+func _or() -> void:
+	# Return x3, the bit-wise inclusive or of x1 with x2
+	# ( x1 x2 - x3 )
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_u32(_ds_p, _ram.decode_u32(_ds_p) | _ram.decode_u32(_ds_p - DS_CELL_SIZE))
+
+func _xor() -> void:
+	# Return x3, the bit-wise exclusive or of x1 with x2
+	# ( x1 x2 - x3 )
+	_ds_p += DS_CELL_SIZE
+	_ram.encode_u32(_ds_p, _ram.decode_u32(_ds_p) ^ _ram.decode_u32(_ds_p - DS_CELL_SIZE))
