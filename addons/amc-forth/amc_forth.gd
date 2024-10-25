@@ -107,6 +107,11 @@ var _built_in_names = [
 	["NEGATE", _negate],
 	["OR", _or],
 	["XOR", _xor],
+	# Double-Precision Logical Operators
+	["DABS", _d_abs],
+	["DMAX", _d_max],
+	["DMIN", _d_min],
+	["DNEGATE", _d_negate],
 ]
 
 # get built-in "address" from word
@@ -791,3 +796,30 @@ func _xor() -> void:
 	# ( x1 x2 - x3 )
 	_ds_p += DS_CELL_SIZE
 	_ram.encode_u32(_ds_p, _ram.decode_u32(_ds_p) ^ _ram.decode_u32(_ds_p - DS_CELL_SIZE))
+
+# Double-Precision Logical Operators
+func _d_abs() -> void:
+	# Replace the top stack item with its absolute value
+	# ( d - +d )
+	_ram.encode_u64(_ds_p, _d_swap(abs(_d_swap(_ram.decode_s64(_ds_p)))))
+
+func _d_max() -> void:
+	# Return d3, the greater of d1 and d2
+	# ( d1 d2 - d3 )
+	_ds_p += DS_DCELL_SIZE
+	var lt:bool = _d_swap(_ram.decode_s64(_ds_p)) < _d_swap(_ram.decode_s64(_ds_p - DS_DCELL_SIZE))
+	if lt:
+		_ram.encode_s64(_ds_p, _ram.decode_s64(_ds_p - DS_DCELL_SIZE))
+
+func _d_min() -> void:
+	# Return d3, the lesser of d1 and d2
+	# ( d1 d2 - d3 )
+	_ds_p += DS_DCELL_SIZE
+	var gt:bool = _d_swap(_ram.decode_s64(_ds_p)) > _d_swap(_ram.decode_s64(_ds_p - DS_DCELL_SIZE))
+	if gt:
+		_ram.encode_s64(_ds_p, _ram.decode_s64(_ds_p - DS_DCELL_SIZE))
+
+func _d_negate() -> void:
+	# Change the sign of the top stack value
+	# ( d - -d )
+	_ram.encode_u64(_ds_p, _d_swap(- (_d_swap(_ram.decode_s64(_ds_p)))))
