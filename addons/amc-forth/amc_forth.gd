@@ -1,3 +1,4 @@
+# gdlint:ignore = max-file-lines
 class_name AMCForth
 
 extends RefCounted
@@ -44,6 +45,14 @@ const TERM_LEFT := TERM_ESC + "[D"
 const TERM_CLREOL := TERM_ESC + "[2K"
 const MAX_BUFFER_SIZE := 20
 
+const DEFINING_NAMES = [
+	"VARIABLE",
+	"2VARIABLE",
+	"CVARIABLE",
+]
+
+# Built-In names have a run-time definition and optional
+# compile-time definition
 var _built_in_names = [
 	# Data Stack Manipulation
 	["?DUP", _q_dup],
@@ -112,6 +121,11 @@ var _built_in_names = [
 	["DMAX", _d_max],
 	["DMIN", _d_min],
 	["DNEGATE", _d_negate],
+	# Defining Words
+	["VARIABLE", _variable, _ct_variable],
+	["2VARIABLE", _two_variable, _ct_two_variable],
+	["CVARIABLE", _c_variable, _ct_c_variable,
+
 ]
 
 # get built-in "address" from word
