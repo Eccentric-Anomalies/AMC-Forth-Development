@@ -1,4 +1,3 @@
-# gdlint:ignore = max-file-lines
 class_name AMCForth
 
 extends RefCounted
@@ -8,14 +7,14 @@ signal terminal_out(text: String)
 const BANNER := "AMC Forth"
 
 # Memory Map
-const RAM_SIZE := 0x10000  # BYTES
+const RAM_SIZE := 0x1000  # BYTES # FIXME
 # Dictionary
 const DICT_START := 0x0100  # BYTES
-const DICT_SIZE := 0x08000
+const DICT_SIZE := 0x0800  # FIXME
 const DICT_TOP := DICT_START + DICT_SIZE
 # Data Stack
 const DS_START := DICT_TOP  # start of the data stack
-const DS_WORDS_SIZE := 0x0200
+const DS_WORDS_SIZE := 0x020
 const DS_WORDS_GUARD := 0x010  # extra words allocated to avoid exceptions
 # cell size should be 2 or 4
 # if 2, use (encode|decode)_(s|u)16 and (encode|decode)_(s_u)32
@@ -25,9 +24,23 @@ const DS_DCELL_SIZE := DS_CELL_SIZE * 2
 const DS_TOP := DS_START + DS_WORDS_SIZE * DS_CELL_SIZE
 # Control Stack
 const CS_START := DS_TOP + DS_WORDS_GUARD * DS_CELL_SIZE  # start of control stack
-const CS_WORDS_SIZE := 0x0200
+const CS_WORDS_SIZE := 0x020
 const CS_CELL_SIZE := 4
 const CS_TOP := CS_START + CS_WORDS_SIZE * CS_CELL_SIZE
+# Input Buffer
+const BUFF_SOURCE_SIZE := 0x0100 # bytes
+const BUFF_SOURCE_START := CS_TOP
+const BUFF_SOURCE_TOP := BUFF_SOURCE_START + BUFF_SOURCE_SIZE
+# Pointer to the parse position in the buffer
+const BUFF_TO_IN := BUFF_SOURCE_TOP
+const BUFF_TO_IN_TOP := BUFF_TO_IN + DS_CELL_SIZE
+# Temporary word storage (used by WORD)
+const WORD_SIZE := 0x0100
+const WORD_START := BUFF_TO_IN_TOP
+const WORD_TOP := WORD_START + WORD_SIZE
+
+# VIRTUAL addresses for built-in words
+const DICT_VIRTUAL_START := 0x0f000000
 
 const TRUE := int(-1)
 const FALSE := int(0)
@@ -37,6 +50,7 @@ const TERM_CR := char(0x0D)
 const TERM_LF := char(0x0A)
 const TERM_ESC := char(0x1B)
 const TERM_DEL_LEFT := char(0x7F)
+const TERM_BL := char(0x20)
 const TERM_DEL := TERM_ESC + "[3~"
 const TERM_UP := TERM_ESC + "[A"
 const TERM_DOWN := TERM_ESC + "[B"
@@ -46,6 +60,7 @@ const TERM_CLREOL := TERM_ESC + "[2K"
 const MAX_BUFFER_SIZE := 20
 
 const DEFINING_NAMES = [
+	"CREATE",
 	"VARIABLE",
 	"2VARIABLE",
 	"CVARIABLE",
@@ -121,10 +136,19 @@ var _built_in_names = [
 	["DMAX", _d_max],
 	["DMIN", _d_min],
 	["DNEGATE", _d_negate],
+	# Input
+	["WORD", _word],
+	["PARSE", _parse],
+	["BL", _b_l],
+	[">IN", _to_in],
+	["SOURCE", _source],
 	# Defining Words
-	["VARIABLE", _variable, _ct_variable],
-	["2VARIABLE", _two_variable, _ct_two_variable],
-	["CVARIABLE", _c_variable, _ct_c_variable,
+	#["CREATE", _create, _ct_create],
+	#["VARIABLE", _variable, _ct_variable],
+	#["2VARIABLE", _two_variable, _ct_two_variable],
+	#["CVARIABLE", _c_variable, _ct_c_variable],
+	# Strings
+	["COUNT", _count],
 
 ]
 
@@ -136,13 +160,17 @@ var _built_in_function: Dictionary = {}
 var _built_in_function_from_address: Dictionary = {}
 
 # The Forth dictionary space
-# data stack pointer is in byte units
+var _dict_p := DICT_START # position of last link
+var _dict_top := DICT_START # position of next new link to create
+
+# The Forth data stack pointer is in byte units
 var _ds_p := DS_TOP
 var _ram := PackedByteArray()
 
 # terminal scratchpad and buffer
 var _terminal_pad: String = ""
 var _pad_position := 0
+var _parse_pointer := 0
 var _terminal_buffer: Array = []
 var _buffer_index := 0
 
@@ -201,7 +229,7 @@ func terminal_in(text: String) -> void:
 				if buffer_size == MAX_BUFFER_SIZE:
 					_terminal_buffer.pop_front()
 			_buffer_index = _terminal_buffer.size()
-			_interpret_terminal_line(_terminal_pad)
+			_interpret_terminal_line()
 			_terminal_pad = ""
 			_pad_position = 0
 			in_str = in_str.erase(0, TERM_CR.length())
@@ -271,15 +299,37 @@ func _strip_comments(tokens: PackedStringArray) -> PackedStringArray:
 	return new_tokens
 
 
-func _interpret_terminal_line(in_text: String) -> void:
-	var tokens: PackedStringArray = in_text.split(" ")
+
+func _interpret_terminal_line() -> void:
+	var tokens: PackedStringArray = _terminal_pad.split(" ")
 	while tokens.has(""):
 		tokens.remove_at(tokens.find(""))
 	tokens = _strip_comments(tokens)
-	for t in tokens:
-		var t_up := t.to_upper()
-		if t_up in _built_in_function:
-			_built_in_function[t_up].call()
+	# reassemble input stream
+	var stripped_input:= " ".join(tokens)
+	var bytes_input:PackedByteArray = stripped_input.to_upper().to_ascii_buffer()
+	bytes_input.push_back(0) # null terminate
+	# transfer to the RAM-based input buffer (accessible to the engine)
+	for i in bytes_input.size():
+		_set_byte(BUFF_SOURCE_START + i, bytes_input[i])
+	# reset the buffer pointer
+	_set_word(BUFF_TO_IN, 0)
+	while true:
+		# call the Forth WORD, setting blank as delimiter
+		_push_word(TERM_BL.to_ascii_buffer()[0])
+		_word()
+		_count()
+		var len:int = _pop_word() # length of word
+		var caddr:int = _pop_word() # start of word
+		# out of tokens?
+		if len == 0:
+			break
+		var t:String = ""
+		for c in len:
+			t = t + char(_get_byte(caddr + c))
+		# t should be the next token
+		if t in _built_in_function:
+			_built_in_function[t].call()
 		# valid numeric value (double first)
 		elif t.contains(".") and t.replace(".", "").is_valid_int():
 			var t_strip: String = t.replace(".", "")
@@ -326,9 +376,89 @@ func _init_built_ins() -> void:
 	for i in _built_in_names.size():
 		var word: String = _built_in_names[i][0]
 		var f: Callable = _built_in_names[i][1]
-		_built_in_address[word] = i * 2
+		# native functions are assigned virtual addresses, outside of
+		# the real memory map.
+		var addr:int = (i * DS_CELL_SIZE) + DICT_VIRTUAL_START
+		_built_in_address[word] = addr
 		_built_in_function[word] = f
-		_built_in_function_from_address[i * 2] = f
+		_built_in_function_from_address[(i * DS_CELL_SIZE) + DICT_VIRTUAL_START] = f
+
+
+# Data stack and RAM helpers
+func _set_byte(addr:int, val:int) -> void:
+	_ram.encode_u8(addr, val)
+
+func _get_byte(addr:int) -> int:
+	return _ram.decode_u8(addr)
+
+# signed cell-sized values
+
+func _set_int(addr: int, val:int) -> void:
+	_ram.encode_s32(addr, val)
+
+func _push_int(val:int) -> void:
+	_ds_p -= DS_CELL_SIZE
+	_set_int(_ds_p, val)
+
+func _get_int(addr:int) -> int:
+	return _ram.decode_s32(addr)
+
+func _pop_int() -> int:
+	var t: int = _get_int(_ds_p)
+	_ds_p += DS_CELL_SIZE
+	return t
+
+# unsigned cell-sized values
+
+func _set_word(addr: int, val:int) -> void:
+	_ram.encode_u32(addr, val)
+
+func _push_word(val:int) -> void:
+	_ds_p -= DS_CELL_SIZE
+	_set_word(_ds_p, val)
+
+func _get_word(addr:int) -> int:
+	return _ram.decode_u32(addr)
+
+func _pop_word() -> int:
+	var t: int = _get_word(_ds_p)
+	_ds_p += DS_CELL_SIZE
+	return t
+
+# signed double-precision values
+
+func _set_dint(addr: int, val:int) -> void:
+	_ram.encode_s64(addr, _d_swap(val))
+
+func _push_dint(val:int) -> void:
+	_ds_p -= DS_DCELL_SIZE
+	_set_dint(_ds_p, val)
+
+func _get_dint(addr:int) -> int:
+	return _d_swap(_ram.decode_s64(addr))
+
+func _pop_dint() -> int:
+	var t: int = _get_dint(_ds_p)
+	_ds_p += DS_DCELL_SIZE
+	return t
+
+# unsigned double-precision values
+
+func _set_dword(addr: int, val:int) -> void:
+	_ram.encode_u64(addr, _d_swap(val))
+
+func _push_dword(val:int) -> void:
+	_ds_p -= DS_DCELL_SIZE
+	_set_dword(_ds_p, val)
+
+func _get_dword(addr:int) -> int:
+	return _d_swap(_ram.decode_u64(addr))
+
+func _pop_dword() -> int:
+	var t: int = _get_dword(_ds_p)
+	_ds_p += DS_DCELL_SIZE
+	return t
+
 
 
 # built-ins
@@ -837,3 +967,89 @@ func _d_negate() -> void:
 	# Change the sign of the top stack value
 	# ( d - -d )
 	_ram.encode_u64(_ds_p, _d_swap(- (_d_swap(_ram.decode_s64(_ds_p)))))
+
+# Input
+func _word() -> void:
+	# Skip leading occurrences of the delimiter char. Parse text
+	# deliminted by char. Return the address of a temporary location
+	# containing the pased text as a counted string
+	# ( char - c-addr )
+	_dup()
+	var delim: int = _pop_word()
+	_source()
+	var source_size:int = _pop_word()
+	var source_start:int = _pop_word()
+	_to_in()
+	var ptraddr: int = _pop_word()
+	while true:
+		var t:int = _get_byte(source_start + _get_word(ptraddr))
+		if t == delim:
+			# increment the input pointer
+			_set_word(ptraddr, _get_word(ptraddr) + 1)
+		else:
+			break
+	_parse()
+	var count:int = _pop_word()
+	var straddr:int = _pop_word()
+	var ret:int = straddr - 1
+	_set_byte(ret, count)
+	_push_word(ret)
+
+
+func _parse() -> void:
+	# Parse text to the first instance of char, returning the address
+	# and length of a temporary location containing the parsed text.
+	# Returns an address with one byte available in front for forming
+	# a character count.
+	# ( char - c_addr n )
+	var count: int = 0
+	var ptr: int = WORD_START + 1
+	var delim: int = _pop_word()
+	_source()
+	var source_size:int = _pop_word()
+	var source_start:int = _pop_word()
+	_to_in()
+	var ptraddr: int = _pop_word()
+	_push_word(ptr) # parsed text begins here
+	while true:
+		var t:int = _get_byte(source_start + _get_word(ptraddr))
+		# a null character also stops the parse
+		if t != 0 and t != delim:
+			_set_byte(ptr, t)
+			ptr += 1
+			count += 1
+			# increment the input pointer
+			_set_word(ptraddr, _get_word(ptraddr) + 1)
+		else:
+			break
+	_push_word(count)
+
+
+func _b_l() -> void:
+	# Return char, the ASCII character value of a space
+	# ( - char )
+	_push_word(int(TERM_BL))
+
+func _to_in() -> void:
+	# Return address of a cell containing the offset, in characters,
+	# from the start of the input buffer to the start of the current
+	# parse position
+	# ( - a-addr )
+	_push_word(BUFF_TO_IN)
+
+func _source() -> void:
+	# Return the address and length of the input buffer
+	# ( - c-addr u )
+	_push_word(BUFF_SOURCE_START)
+	_push_word(BUFF_SOURCE_SIZE)
+
+# Strings
+
+func _count() -> void:
+	# Return the length n, and address of the text portion of a counted string
+	# ( c_addr1 - c_addr2 u )
+	var addr: int = _pop_word()
+	_push_word(addr + 1)
+	_push_word(_get_byte(addr))
+
+# gdlint:ignore = max-file-lines
