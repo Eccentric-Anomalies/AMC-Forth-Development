@@ -143,12 +143,17 @@ var _built_in_names = [
 	[">IN", _to_in],
 	["SOURCE", _source],
 	# Defining Words
-	#["CREATE", _create, _ct_create],
+	["CREATE", _create, _ct_create],
 	#["VARIABLE", _variable, _ct_variable],
 	#["2VARIABLE", _two_variable, _ct_two_variable],
 	#["CVARIABLE", _c_variable, _ct_c_variable],
 	# Strings
 	["COUNT", _count],
+	["COMPARE", _compare],
+	["HERE", _here],
+	# Dictionary
+	["ALLOT", _allot],
+	["UNUSED", _unused],
 ]
 
 # get built-in "address" from word
@@ -161,6 +166,8 @@ var _built_in_function_from_address: Dictionary = {}
 # The Forth dictionary space
 var _dict_p := DICT_START  # position of last link
 var _dict_top := DICT_START  # position of next new link to create
+var _dict_ip := 0 # code field pointer set to current execution point
+
 
 # The Forth data stack pointer is in byte units
 var _ds_p := DS_TOP
@@ -270,6 +277,32 @@ func _rprint_term(text: String) -> void:
 func _print_term(text: String) -> void:
 	terminal_out.emit(text)
 
+# gdscript String from address and length
+func _str_from_addr_n(addr: int, n: int) -> String:
+	var t: String = ""
+	for c in n:
+		t = t + char(_get_byte(addr + c))
+	return t
+
+# Execute the code field at address. This will recurse down
+# until it executes a built-in
+func _execute_code_field(addr: int) -> void:
+	var code_word: int = _get_word(addr)
+	if code_word in _built_in_address:
+		_dict_ip = addr
+		_built_in_function[code_word].call()
+	else:
+		# the code word is an address somewhere else
+		_execute_code_field(code_word)
+
+# counted string from gdscript String
+func _cstring_from_str(addr: int, s: String) -> void:
+	var n: int = addr
+	_set_byte(n, s.length())
+	n += 1
+	for c in s.to_ascii_buffer():
+		_set_byte(n, c)
+		n += 1
 
 # convert int to forth ordering and vice versa
 func _d_swap(num: int) -> int:
@@ -324,34 +357,36 @@ func _interpret_terminal_line() -> void:
 		# out of tokens?
 		if len == 0:
 			break
-		var t: String = ""
-		for c in len:
-			t = t + char(_get_byte(caddr + c))
+		var t: String = _str_from_addr_n(caddr, len)
 		# t should be the next token
 		if t in _built_in_function:
 			_built_in_function[t].call()
-		# valid numeric value (double first)
-		elif t.contains(".") and t.replace(".", "").is_valid_int():
-			var t_strip: String = t.replace(".", "")
-			var temp: int = t_strip.to_int()
-			_push_dword(temp)
-		elif t.is_valid_int():
-			var temp: int = t.to_int()
-			# single-precision
-			_push_word(temp)
-		# nothing we recognize
 		else:
-			_rprint_term(" " + t + " ?")
-			return  # not ok
-		# check the stack
-		if _ds_p < DS_START + DS_WORDS_GUARD:
-			_rprint_term(" Data stack overflow")
-			_ds_p = DS_START + DS_WORDS_GUARD
-			return  # not ok
-		if _ds_p > DS_TOP:
-			_rprint_term(" Data stack underflow")
-			_ds_p = DS_TOP
-			return  # not ok
+			var found_entry = _find_in_dict(t)
+			if found_entry != 0:
+				_execute_code_field(found_entry)
+			# valid numeric value (double first)
+			elif t.contains(".") and t.replace(".", "").is_valid_int():
+				var t_strip: String = t.replace(".", "")
+				var temp: int = t_strip.to_int()
+				_push_dword(temp)
+			elif t.is_valid_int():
+				var temp: int = t.to_int()
+				# single-precision
+				_push_word(temp)
+			# nothing we recognize
+			else:
+				_rprint_term(" " + t + " ?")
+				return  # not ok
+			# check the stack
+			if _ds_p < DS_START + DS_WORDS_GUARD:
+				_rprint_term(" Data stack overflow")
+				_ds_p = DS_START + DS_WORDS_GUARD
+				return  # not ok
+			if _ds_p > DS_TOP:
+				_rprint_term(" Data stack underflow")
+				_ds_p = DS_TOP
+				return  # not ok
 	_rprint_term(" ok")
 
 
@@ -374,6 +409,9 @@ func _init_built_ins() -> void:
 	for i in _built_in_names.size():
 		var word: String = _built_in_names[i][0]
 		var f: Callable = _built_in_names[i][1]
+		# use the compiled address if available
+		if _built_in_names[i].size() == 3:
+			f = _built_in_names[i][2]
 		# native functions are assigned virtual addresses, outside of
 		# the real memory map.
 		var addr: int = (i * DS_CELL_SIZE) + DICT_VIRTUAL_START
@@ -381,6 +419,36 @@ func _init_built_ins() -> void:
 		_built_in_function[word] = f
 		_built_in_function_from_address[(i * DS_CELL_SIZE) + DICT_VIRTUAL_START] = f
 
+
+
+
+# Find word in dictionary, starting at address of top
+# If found, returns the address of the first code field
+# If not found, returns zero
+func _find_in_dict(word: String) -> int:
+	if _dict_p == _dict_top:
+		# dictionary is empty
+		return 0
+	# stuff the search string in data memory
+	_cstring_from_str(_dict_top, word)
+	# make a temporary pointer
+	var p:int = _dict_p
+	while p != -1:
+		_push_word(_dict_top)
+		_count()	# search word in addr, n format
+		_push_word(p + DS_CELL_SIZE)
+		_count() 	# candidate word in addr, n format
+		_dup()		# copy the length
+		var n_length:int = _pop_word()
+		_compare()
+		# is this the correct entry?
+		if _pop_word() == 0:
+			# found it. Link address + link size + string length byte + string
+			return p + DS_CELL_SIZE + 1 + n_length
+		# not found, drill down to the next entry
+		p = _get_int(p)
+	# exhausted the dictionary, finding nothing
+	return 0
 
 # Data stack and RAM helpers
 func _set_byte(addr: int, val: int) -> void:
@@ -1024,5 +1092,69 @@ func _count() -> void:
 	var addr: int = _pop_word()
 	_push_word(addr + 1)
 	_push_word(_get_byte(addr))
+
+
+func _compare() -> void:
+	# Compare string to string (see details in docs)
+	# ( c-addr1 u1 c-addr2 u2 - n )
+	var n2: int = _pop_word()
+	var a2: int = _pop_word()
+	var n1: int = _pop_word()
+	var a1: int = _pop_word()
+	var s2: String = _str_from_addr_n(a2, n2)
+	var s1: String = _str_from_addr_n(a1, n1)
+	var ret: int = 0
+	if s1 == s2:
+		_push_word(ret)
+	elif s1 < s2:
+		_push_word(-1)
+	else:
+		_push_word(1)
+
+
+func _here() -> void:
+	# Return address of the next available location in data-space
+	# ( - addr )
+	_push_word(_dict_top)
+
+# Dictionary
+
+func _create(built_in_addr: int) -> void:
+	# Construct a dictionary entry for the next token in the input stream
+	# Execution of *name* will return the address of its data space
+	# ( - )
+	# Grab the name
+	_push_word(TERM_BL.to_ascii_buffer()[0])
+	_word()
+	var len: int = _pop_word() # length
+	var caddr: int = _pop_word() # start
+	# poke address of last link at next spot
+	_set_word(_dict_top, _dict_p)
+	_dict_top += DS_CELL_SIZE
+	# poke the name length
+	_set_byte(_dict_top, len)
+	_dict_top += 1
+	# copy the name # FIXME use MOVE
+	for i in len:
+		_set_byte(_dict_top, caddr + i)
+		_dict_top += 1
+	# copy the _ct_create code field
+	_set_word(_dict_top, built_in_addr)
+	_dict_top += DS_CELL_SIZE
+
+func _ct_create() -> void:
+	# When executing as-compiled, return next cell address
+	_push_word(_dict_ip + DS_CELL_SIZE)
+
+
+func _allot() -> void:
+	pass
+
+func _unused() -> void:
+	# Return u, the number of bytes remainint in the memory area
+	# where dictionary entries are constructed.
+	# ( - u )
+	_push_word(DICT_TOP - _dict_top)
+
 
 # gdlint:ignore = max-file-lines
