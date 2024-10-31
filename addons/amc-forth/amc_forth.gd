@@ -59,12 +59,6 @@ const TERM_LEFT := TERM_ESC + "[D"
 const TERM_CLREOL := TERM_ESC + "[2K"
 const MAX_BUFFER_SIZE := 20
 
-const DEFINING_NAMES = [
-	"CREATE",
-	"VARIABLE",
-	"2VARIABLE",
-	"CVARIABLE",
-]
 
 # Built-In names have a run-time definition and optional
 # compile-time definition
@@ -88,6 +82,7 @@ var _built_in_names = [
 	# Stack Operations
 	["!", _store],
 	["@", _fetch],
+	["?", _question],
 	# Execution Tokens
 	["'", _tick],
 	["EXECUTE", _execute],
@@ -150,9 +145,21 @@ var _built_in_names = [
 	["SOURCE", _source],
 	# Defining Words
 	["CREATE", _create],
-	#["VARIABLE", _variable, _ct_variable],
-	#["2VARIABLE", _two_variable, _ct_two_variable],
-	#["CVARIABLE", _c_variable, _ct_c_variable],
+	["VARIABLE", _variable],
+	["2VARIABLE", _two_variable],
+	["CONSTANT", _constant],
+	["2CONSTANT", _two_constant],
+	["VALUE", _value],
+	["TO", _to],
+	# Arrays
+	[",", _comma],
+	["ALLOT", _allot],
+	["BUFFER:", _buffer_colon],
+	["C,", _c_comma],
+	["CELL+", _cell_plus],
+	["CELLS", _cells],
+	["CHAR+", _char_plus],
+	["CHARS", _chars],
 	# Strings
 	["COUNT", _count],
 	["COMPARE", _compare],
@@ -269,6 +276,8 @@ func init() -> void:
 	_init_built_ins()
 	_ram.resize(RAM_SIZE)
 	_d_scratch.resize(DS_DCELL_SIZE)
+	# set the terminal link in the dictionary
+	_set_int(_dict_p, -1)
 
 
 # privates
@@ -682,12 +691,18 @@ func _store() -> void:
 	# Store x in the cell at a-addr
 	# ( x a-addr - )
 	var addr:int = _pop_word()
-	_set_dword(addr, _pop_word())
+	_set_word(addr, _pop_word())
 
 func _fetch() -> void:
 	# Replace a-addr with the contents of the cell at a_addr
 	# ( a_addr - x )
-	_push_word(_get_dword(_pop_word()))
+	_push_word(_get_word(_pop_word()))
+
+func _question() -> void:
+	# Fetch the contents of the given address and display
+	# ( a-addr - )
+	_fetch()
+	_dot()
 
 # Execution Tokens
 func _tick() -> void:
@@ -707,16 +722,16 @@ func _tick() -> void:
 		_push_word(token_addr)
 		_fetch()
 
+
+func _display_invalid_execution_token() -> void:
+	_rprint_term(" Invalid execution token")
+
 func _execute() -> void:
 	# Remove execution token xt from the stack and perform
 	# the execution behavior it identifies
 	# ( xt - )
 	var xt:int = _pop_word()
-	var f:Callable = _built_in_function_from_address.get(xt)
-	if f:
-		f.call()
-	else:
-		_rprint_term(" Invalid execution token")
+	_built_in_function_from_address.get(xt, _display_invalid_execution_token).call()		
 
 
 
@@ -1236,20 +1251,74 @@ func _c_move_up() -> void:
 			_set_byte(a2 + i, _get_byte(a1 + i))
 
 
-# Dictionary
+# Arrays
 
-func _create() -> void:
-	# Construct a dictionary entry for the next token in the input stream
-	# Execution of *name* will return the address of its data space
-	# ( - )
+func _comma() -> void:
+	# Reserve one cell of data space and store x in it.
+	# ( x - )
+	_set_word(_dict_top, _pop_word())
+	_dict_top += DS_CELL_SIZE
+
+func _allot() -> void:
+	# Allocate u bytes of data space beginning at the next location.
+	# ( u - )
+	_dict_top += _pop_word()
+
+func _buffer_colon() -> void:
+	# Create a dictionary entry for name associated with n bytes of space
+	# n BUFFER: <name> 
+	# ( n - )
+	# execution of <name> will return address of the starting byte ( - addr )
+	_create()
+	_allot()
+
+func _c_comma() -> void:
+	# Rserve one byte of data space and store char in the byte
+	# ( char - )
+	_set_byte(_dict_top, _pop_word())
+	_dict_top += 1
+
+func _cell_plus() -> void:
+	# Add the size in bytes of a cell to a_addr1, returning a_addr2
+	# ( a-addr1 - a-addr2 )
+	_push_word(DS_CELL_SIZE)
+	_plus()
+
+func _cells() -> void:
+	# Return n2, the size in bytes of n1 cells
+	# ( n1 - n2 )
+	_push_word(DS_CELL_SIZE)
+	_star()
+
+func _char_plus() -> void:
+	# Add the size in bytes of a character to c_addr1, giving c-addr2
+	# ( c-addr1 - c-addr2 )
+	_push_word(1)
+	_plus()
+
+func _chars() -> void:
+	# Return n2, the size in bytes of n1 characters. May be a no-op.
+	pass
+
+
+# Defining Words
+
+func _create_dict_entry_name() -> void:
+	# Internal utility function for creating the start of 
+	# a dictionary entry. The next thing to follow will be
+	# the execution token. Upon exit, _dict_top will point to the
+	# next byte in the entry.
+	# ( - )	
 	# Grab the name
 	_push_word(TERM_BL.to_ascii_buffer()[0])
 	_word()
 	_count()
 	var len: int = _pop_word()  # length
 	var caddr: int = _pop_word()  # start
-	# poke address of last link at next spot
-	_set_word(_dict_top, _dict_p)
+	# poke address of last link at next spot, but only if this isn't
+	# the very first spot in the dictionary
+	if _dict_top != _dict_p:
+		_set_word(_dict_top, _dict_p)
 	# move the top link 
 	_dict_p = _dict_top
 	_dict_top += DS_CELL_SIZE
@@ -1263,10 +1332,18 @@ func _create() -> void:
 	_move()
 	_dict_top += len
 
+
+func _create() -> void:
+	# Construct a dictionary entry for the next token in the input stream
+	# Execution of *name* will return the address of its data space
+	# ( - )
+	_create_dict_entry_name()
 	# create a closure for the return address
 	var get_address = func():
+		# execution token returns the following cell
 		var data_space_addr:int = _dict_top + DS_CELL_SIZE
 		return func():
+			# ( - addr )
 			_push_word(data_space_addr)
 
 	var execution_token:int = _allocate_execution_token(get_address.call())
@@ -1274,10 +1351,101 @@ func _create() -> void:
 	_set_word(_dict_top, execution_token)
 	_dict_top += DS_CELL_SIZE
 
+func _variable() -> void:
+	# Create a dictionary entry for name associated with one cell of data
+	# ( - )
+	_create()
+	# make room for one cell
+	_dict_top += DS_CELL_SIZE
 
-func _allot() -> void:
-	pass
 
+func _two_variable() -> void:
+	# Create a ditionary entry for name associated with two cells of data
+	# ( - )
+	_create()
+	# make room for one cell
+	_dict_top += DS_DCELL_SIZE
+
+func _constant() -> void:
+	# Create a dictionary entry for name, associated with constant x.
+	# ( x - )
+	_create_dict_entry_name()
+	var data_addr: int = _dict_top + DS_CELL_SIZE
+	# store the constant
+	_set_word(data_addr, _pop_word())
+	# create a closure for the return value
+	var get_address = func():
+		# execution token returns the following cell value
+		var data_space_addr:int = data_addr
+		return func():
+			# ( - x )
+			_push_word(_get_word(data_space_addr))
+
+	var execution_token:int = _allocate_execution_token(get_address.call())
+	# copy the execution token
+	_set_word(_dict_top, execution_token)
+	_dict_top += DS_DCELL_SIZE
+
+func _two_constant() -> void:
+	# Create a dictionary entry for name, associated with constant double d.
+	# ( d - )
+	_create_dict_entry_name()
+	var data_addr: int = _dict_top + DS_CELL_SIZE
+	# store the constant
+	_set_dword(data_addr, _pop_dword())
+	# create a closure for the return value
+	var get_address = func():
+		# execution token returns the following cell value
+		var data_space_addr:int = data_addr
+		return func():
+			# ( - x )
+			_push_dword(_get_dword(data_space_addr))
+
+	var execution_token:int = _allocate_execution_token(get_address.call())
+	# copy the execution token
+	_set_word(_dict_top, execution_token)
+	_dict_top += DS_CELL_SIZE + DS_DCELL_SIZE
+
+func _value() -> void:
+	# Create a dictionary entry for name, associated with value x.
+	# ( x - )
+	_create_dict_entry_name()
+	var data_addr: int = _dict_top + DS_CELL_SIZE
+	# store the constant
+	_set_word(data_addr, _pop_word())
+	# create a closure for the return value
+	var get_address = func():
+		# execution token returns the following cell value
+		var data_space_addr:int = data_addr
+		return func():
+			# ( - x )
+			_push_word(_get_word(data_space_addr))
+
+	var execution_token:int = _allocate_execution_token(get_address.call())
+	# copy the execution token
+	_set_word(_dict_top, execution_token)
+	_dict_top += DS_DCELL_SIZE
+
+func _to() -> void:
+	# Store x in the data space associated with name (defined by value)
+	# x TO <name> ( x - )
+	# get the name
+	_push_word(TERM_BL.to_ascii_buffer()[0])
+	_word()
+	_count()
+	var len: int = _pop_word()  # length
+	var caddr: int = _pop_word()  # start
+	var word:String = _str_from_addr_n(caddr, len)
+	var token_addr = _find_in_dict(word)
+	if not token_addr:
+		_rprint_term(" " + word + " ?")
+	else:
+		# adjust to data field location
+		token_addr += DS_CELL_SIZE
+		_set_word(token_addr, _pop_word())
+
+
+# Dictionary
 
 func _unused() -> void:
 	# Return u, the number of bytes remaining in the memory area
