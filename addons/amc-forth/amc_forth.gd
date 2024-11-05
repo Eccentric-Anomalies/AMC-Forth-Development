@@ -63,6 +63,7 @@ const MAX_BUFFER_SIZE := 20
 # Built-In names have a run-time definition and optional
 # compile-time definition
 var _built_in_names = [
+	["(", _left_parenthesis],
 	["+", _plus],
 	["-", _minus],
 	[",", _comma],
@@ -263,6 +264,8 @@ func init() -> void:
 	_d_scratch.resize(DS_DCELL_SIZE)
 	# set the terminal link in the dictionary
 	_set_int(_dict_p, -1)
+	# reset the buffer pointer
+	_set_word(BUFF_TO_IN, 0)
 
 
 # privates
@@ -323,40 +326,14 @@ func _d_swap(num: int) -> int:
 	return _d_scratch.decode_s64(0)
 
 
-func _strip_comments(tokens: PackedStringArray) -> PackedStringArray:
-	var new_tokens: PackedStringArray = []
-	var in_comment := false
-	for i in tokens.size():
-		if not in_comment:
-			if tokens[i] == "\\":
-				# end of line comment. We're done here
-				return new_tokens
-			if tokens[i] == "(":
-				in_comment = true
-			else:
-				new_tokens.append(tokens[i])
-		else:  # in comment
-			if tokens[i][-1] == ")":
-				in_comment = false
-	return new_tokens
-
-
 func _interpret_terminal_line() -> void:
-	var tokens: PackedStringArray = _terminal_pad.split(" ")
-	while tokens.has(""):
-		tokens.remove_at(tokens.find(""))
-	tokens = _strip_comments(tokens)
-	# reassemble input stream
-	var stripped_input := " ".join(tokens)
 	var bytes_input: PackedByteArray = (
-		stripped_input.to_upper().to_ascii_buffer()
+		_terminal_pad.to_ascii_buffer()
 	)
 	bytes_input.push_back(0)  # null terminate
 	# transfer to the RAM-based input buffer (accessible to the engine)
 	for i in bytes_input.size():
 		_set_byte(BUFF_SOURCE_START + i, bytes_input[i])
-	# reset the buffer pointer
-	_set_word(BUFF_TO_IN, 0)
 	while true:
 		# call the Forth WORD, setting blank as delimiter
 		_push_word(TERM_BL.to_ascii_buffer()[0])
@@ -366,11 +343,13 @@ func _interpret_terminal_line() -> void:
 		var caddr: int = _pop_word()  # start of word
 		# out of tokens?
 		if len == 0:
+			# reset the buffer pointer
+			_set_word(BUFF_TO_IN, 0)
 			break
 		var t: String = _str_from_addr_n(caddr, len)
 		# t should be the next token
-		if t in _built_in_function:
-			_built_in_function[t].call()
+		if t.to_upper() in _built_in_function:
+			_built_in_function[t.to_upper()].call()
 		else:
 			var found_entry = _find_in_dict(t)
 			if found_entry != 0:
@@ -562,6 +541,13 @@ func _pop_dword() -> int:
 
 
 # built-ins
+# Comments
+func _left_parenthesis() -> void:
+	# Begin parsing a comment, terminated by ')' character
+	_push_word(")".to_ascii_buffer()[0])
+	_parse()
+	_two_drop()
+
 # STACK
 func _q_dup() -> void:
 	# ( x - 0 | x x )
@@ -1099,7 +1085,7 @@ func _parse() -> void:
 	# Parse text to the first instance of char, returning the address
 	# and length of a temporary location containing the parsed text.
 	# Returns an address with one byte available in front for forming
-	# a character count.
+	# a character count. Consumes the final delimiter. 
 	# ( char - c_addr n )
 	var count: int = 0
 	var ptr: int = WORD_START + 1
@@ -1112,13 +1098,14 @@ func _parse() -> void:
 	_push_word(ptr)  # parsed text begins here
 	while true:
 		var t: int = _get_byte(source_start + _get_word(ptraddr))
+		# increment the input pointer
+		if t != 0:
+			_set_word(ptraddr, _get_word(ptraddr) + 1)
 		# a null character also stops the parse
 		if t != 0 and t != delim:
 			_set_byte(ptr, t)
 			ptr += 1
 			count += 1
-			# increment the input pointer
-			_set_word(ptraddr, _get_word(ptraddr) + 1)
 		else:
 			break
 	_push_word(count)
