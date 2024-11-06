@@ -48,6 +48,7 @@ const FALSE := int(0)
 const TERM_BSP := char(0x08)
 const TERM_CR := char(0x0D)
 const TERM_LF := char(0x0A)
+const TERM_CRLF := "\r\n"
 const TERM_ESC := char(0x1B)
 const TERM_DEL_LEFT := char(0x7F)
 const TERM_BL := char(0x20)
@@ -58,6 +59,8 @@ const TERM_RIGHT := TERM_ESC + "[C"
 const TERM_LEFT := TERM_ESC + "[D"
 const TERM_CLREOL := TERM_ESC + "[2K"
 const MAX_BUFFER_SIZE := 20
+const TERM_COLUMNS := 80
+const TERM_ROWS := 24
 
 
 # Built-In names have a run-time definition and optional
@@ -159,6 +162,7 @@ var _built_in_names = [
 	["VALUE", _value],
 	["VARIABLE", _variable],
 	["WORD", _word],
+	["WORDS", _words],
 	["XOR", _xor],
 ]
 
@@ -1295,6 +1299,40 @@ func _chars() -> void:
 
 
 # Defining Words
+
+func _words() -> void:
+	# List all the definition names in the word list of the search order.
+	# Returns dictionary names, then built-in names.
+	# ( - )
+	var word_len:int
+	var col: int = "WORDS".length() + 1
+	_print_term(" ")
+	if _dict_p != _dict_top:
+		# dictionary is not empty
+		var p: int = _dict_p
+		while p != -1:
+			_push_word(p + DS_CELL_SIZE)
+			_count()  # search word in addr, n format
+			_dup()	  # retrieve the size
+			word_len = _pop_word()
+			if col + word_len + 1 >= TERM_COLUMNS - 2:
+				_print_term(TERM_CRLF)
+				col = 0
+			col += word_len + 1
+			# emit the dictionary entry name
+			_type()
+			_print_term(" ")
+			# drill down to the next entry
+			p = _get_int(p)
+	# now go through the built-in names
+	for entry in _built_in_names:
+		word_len = entry[0].length()
+		if col + word_len + 1 >= TERM_COLUMNS - 2:
+			_print_term(TERM_CRLF)
+			col = 0
+		col += word_len + 1
+		_print_term(entry[0] + " ")
+
 
 func _create_dict_entry_name() -> void:
 	# Internal utility function for creating the start of 
