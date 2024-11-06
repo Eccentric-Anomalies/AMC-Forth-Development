@@ -64,6 +64,8 @@ const MAX_BUFFER_SIZE := 20
 # compile-time definition
 var _built_in_names = [
 	["(", _left_parenthesis],
+	[".(", _dot_left_parenthesis],
+	["\\", _back_slash],
 	["+", _plus],
 	["-", _minus],
 	[",", _comma],
@@ -122,6 +124,7 @@ var _built_in_names = [
 	["DNEGATE", _d_negate],
 	["DROP", _drop],
 	["DUP", _dup],
+	["EMIT", _emit],
 	["EXECUTE", _execute],
 	["HERE", _here],
 	["INVERT", _invert],
@@ -149,6 +152,7 @@ var _built_in_names = [
 	["SWAP", _swap],
 	["TO", _to],
 	["TUCK", _tuck],
+	["TYPE", _type],
 	["UM*", _um_star],
 	["UM/MOD", _um_slash_mod],
 	["UNUSED", _unused],
@@ -348,34 +352,33 @@ func _interpret_terminal_line() -> void:
 			break
 		var t: String = _str_from_addr_n(caddr, len)
 		# t should be the next token
-		if t.to_upper() in _built_in_function:
+		var found_entry = _find_in_dict(t)
+		if found_entry != 0:
+			_execute_code_field(found_entry)
+		elif t.to_upper() in _built_in_function:
 			_built_in_function[t.to_upper()].call()
+		# valid numeric value (double first)
+		elif t.contains(".") and t.replace(".", "").is_valid_int():
+			var t_strip: String = t.replace(".", "")
+			var temp: int = t_strip.to_int()
+			_push_dword(temp)
+		elif t.is_valid_int():
+			var temp: int = t.to_int()
+			# single-precision
+			_push_word(temp)
+		# nothing we recognize
 		else:
-			var found_entry = _find_in_dict(t)
-			if found_entry != 0:
-				_execute_code_field(found_entry)
-			# valid numeric value (double first)
-			elif t.contains(".") and t.replace(".", "").is_valid_int():
-				var t_strip: String = t.replace(".", "")
-				var temp: int = t_strip.to_int()
-				_push_dword(temp)
-			elif t.is_valid_int():
-				var temp: int = t.to_int()
-				# single-precision
-				_push_word(temp)
-			# nothing we recognize
-			else:
-				_rprint_term(" " + t + " ?")
-				return  # not ok
-			# check the stack
-			if _ds_p < DS_START + DS_WORDS_GUARD:
-				_rprint_term(" Data stack overflow")
-				_ds_p = DS_START + DS_WORDS_GUARD
-				return  # not ok
-			if _ds_p > DS_TOP:
-				_rprint_term(" Data stack underflow")
-				_ds_p = DS_TOP
-				return  # not ok
+			_rprint_term(" " + t + " ?")
+			return  # not ok
+		# check the stack
+		if _ds_p < DS_START + DS_WORDS_GUARD:
+			_rprint_term(" Data stack overflow")
+			_ds_p = DS_START + DS_WORDS_GUARD
+			return  # not ok
+		if _ds_p > DS_TOP:
+			_rprint_term(" Data stack underflow")
+			_ds_p = DS_TOP
+			return  # not ok
 	_rprint_term(" ok")
 
 
@@ -544,9 +547,27 @@ func _pop_dword() -> int:
 # Comments
 func _left_parenthesis() -> void:
 	# Begin parsing a comment, terminated by ')' character
+	# ( - )
 	_push_word(")".to_ascii_buffer()[0])
 	_parse()
 	_two_drop()
+
+func _dot_left_parenthesis() -> void:
+	# Begin parsing a comment, terminated by ')'. Comment text
+	# will emit to the terminal.
+	# ( - )
+	_push_word(")".to_ascii_buffer()[0])
+	_parse() # returns c-addr n
+	_type()
+
+
+func _back_slash() -> void:
+	# Begin parsing a comment, terminated by end of line
+	# ( - )
+	_push_word(TERM_CR.to_ascii_buffer()[0])
+	_parse()
+	_two_drop()
+
 
 # STACK
 func _q_dup() -> void:
@@ -1424,5 +1445,22 @@ func _unused() -> void:
 	# where dictionary entries are constructed.
 	# ( - u )
 	_push_word(DICT_TOP - _dict_top)
+
+
+# Terminal I/O
+func _emit() -> void:
+	# Output one character from the LSB of the top item on stack.
+	# ( b - )
+	var c:int = _pop_word()
+	_print_term(char(c))
+
+func _type() -> void:
+	# Output the characer string at c-addr, length u
+	# ( c-addr u - )
+	var l: int = _pop_word()
+	var s: int = _pop_word()
+	for i in l:
+		_push_word(_get_byte(s + i))
+		_emit()
 
 # gdlint:ignore = max-file-lines
