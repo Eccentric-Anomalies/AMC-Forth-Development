@@ -40,7 +40,9 @@ const WORD_START := BUFF_TO_IN_TOP
 const WORD_TOP := WORD_START + WORD_SIZE
 
 # VIRTUAL addresses for built-in words
-const DICT_VIRTUAL_START := 0x0f000000
+const DICT_VIRTUAL_START := 0x01000000
+# VIRTUAL addresses for built-in execute-time functions
+const DICT_VIRTUAL_EXEC_START := 0x02000000
 
 const TRUE := int(-1)
 const FALSE := int(0)
@@ -62,9 +64,455 @@ const MAX_BUFFER_SIZE := 20
 const TERM_COLUMNS := 80
 const TERM_ROWS := 24
 
+# Standard Forth words will be used to define execution
+# token values that are invariant as AMC Forth word list
+# expands. Non-standard Forth words unique to AMC Forth
+# may be added at the end without changing ordering. Ever.
+# From https://forth-standard.org/standard/alpha
+# And "Forth Programmer's Handbook" for "common usage" words
+const STANDARD_FORTH_NAMES = [
+"!",
+"#",
+"#>",
+"#S",
+"'",
+"(",
+"(LOCAL)",
+"*",
+"*/",
+"*/MOD",
+"+",
+"+!",
+"+FIELD",
+"+LOOP",
+"+X/STRING",
+",",
+"-",
+"-TRAILING",
+"-TRAILING-GARBAGE",
+".",
+".\"",
+".(",
+".R",
+".S",
+"/",
+"/MOD",
+"/STRING",
+"0<",
+"0<>",
+"0=",
+"0>",
+"1+",
+"1-",
+"2!",
+"2*",
+"2/",
+"2>R",
+"2@",
+"2CONSTANT",
+"2DROP",
+"2DUP",
+"2LITERAL",
+"2OVER",
+"2R>",
+"2R@",
+"2ROT",
+"2SWAP",
+"2VALUE",
+"2VARIABLE",
+":",
+":NONAME",
+";",
+";CODE",
+"<",
+"<#",
+"<>",
+"=",
+">",
+">BODY",
+">FLOAT",
+">IN",
+">NUMBER",
+">R",
+"?",
+"?DO",
+"?DUP",
+"@",
+"ABORT",
+"ABORT\"",
+"ABS",
+"ACCEPT",
+"ACTION-OF",
+"AGAIN",
+"AHEAD",
+"ALIGN",
+"ALIGNED",
+"ALLOCATE",
+"ALLOT",
+"ALSO",
+"AND",
+"ASSEMBLER",
+"AT-XY",
+"BASE",
+"BEGIN",
+"BEGIN-STRUCTURE",
+"BIN",
+"BL",
+"BLANK",
+"BLK",
+"BLOCK",
+"BUFFER",
+"BUFFER:",
+"BYE",
+"C!",
+"C\"",
+"C,",
+"C@",
+"CASE",
+"CATCH",
+"CELL+",
+"CELLS",
+"CFIELD:",
+"CHAR",
+"CHAR+",
+"CHARS",
+"CLOSE-FILE",
+"CMOVE",
+"CMOVE>",
+"CODE",
+"COMPARE",
+"COMPILE,",
+"CONSTANT",
+"COUNT",
+"CR",
+"CREATE",
+"CREATE-FILE",
+"CS-PICK",
+"CS-ROLL",
+"D+",
+"D-",
+"D.",
+"D.R",
+"D0<",
+"D0=",
+"D2*",
+"D2/",
+"D<",
+"D=",
+"D>F",
+"D>S",
+"DABS",
+"DECIMAL",
+"DEFER",
+"DEFER!",
+"DEFER@",
+"DEFINITIONS",
+"DELETE-FILE",
+"DEPTH",
+"DF!",
+"DF@",
+"DFALIGN",
+"DFALIGNED",
+"DFFIELD:",
+"DFLOAT+",
+"DFLOATS",
+"DMAX",
+"DMIN",
+"DNEGATE",
+"DO",
+"DOES>",
+"DROP",
+"DU<",
+"DUMP",
+"DUP",
+"EDITOR",
+"EKEY",
+"EKEY>CHAR",
+"EKEY>FKEY",
+"EKEY>XCHAR",
+"EKEY?",
+"ELSE",
+"EMIT",
+"EMIT?",
+"EMPTY-BUFFERS",
+"END-STRUCTURE",
+"ENDCASE",
+"ENDOF",
+"ENVIRONMENT?",
+"ERASE",
+"EVALUATE",
+"EXECUTE",
+"EXIT",
+"F!",
+"F*",
+"F**",
+"F+",
+"F-",
+"F.",
+"F/",
+"F0<",
+"F0=",
+"F<",
+"F>D",
+"F>S",
+"F@",
+"FABS",
+"FACOS",
+"FACOSH",
+"FALIGN",
+"FALIGNED",
+"FALOG",
+"FALSE",
+"FASIN",
+"FASINH",
+"FATAN",
+"FATAN2",
+"FATANH",
+"FCONSTANT",
+"FCOS",
+"FCOSH",
+"FDEPTH",
+"FDROP",
+"FDUP",
+"FE.",
+"FEXP",
+"FEXPM1",
+"FFIELD:",
+"FIELD:",
+"FILE-POSITION",
+"FILE-SIZE",
+"FILE-STATUS",
+"FILL",
+"FIND",
+"FLITERAL",
+"FLN",
+"FLNP1",
+"FLOAT+",
+"FLOATS",
+"FLOG",
+"FLOOR",
+"FLUSH",
+"FLUSH-FILE",
+"FM/MOD",
+"FMAX",
+"FMIN",
+"FNEGATE",
+"FORGET",
+"FORTH",
+"FORTH-WORDLIST",
+"FOVER",
+"FREE",
+"FROT",
+"FROUND",
+"FS.",
+"FSIN",
+"FSINCOS",
+"FSINH",
+"FSQRT",
+"FSWAP",
+"FTAN",
+"FTANH",
+"FTRUNC",
+"FVALUE",
+"FVARIABLE",
+"F~",
+"GET-CURRENT",
+"GET-ORDER",
+"HERE",
+"HEX",
+"HOLD",
+"HOLDS",
+"I",
+"IF",
+"IMMEDIATE",
+"INCLUDE",
+"INCLUDE-FILE",
+"INCLUDED",
+"INVERT",
+"IS",
+"J",
+"K-ALT-MASK",
+"K-CTRL-MASK",
+"K-DELETE",
+"K-DOWN",
+"K-END",
+"K-F1",
+"K-F10",
+"K-F11",
+"K-F12",
+"K-F2",
+"K-F3",
+"K-F4",
+"K-F5",
+"K-F6",
+"K-F7",
+"K-F8",
+"K-F9",
+"K-HOME",
+"K-INSERT",
+"K-LEFT",
+"K-NEXT",
+"K-PRIOR",
+"K-RIGHT",
+"K-SHIFT-MASK",
+"K-UP",
+"KEY",
+"KEY?",
+"LEAVE",
+"LIST",
+"LITERAL",
+"LOAD",
+"LOCALS|",
+"LOOP",
+"LSHIFT",
+"M*",
+"M*/",
+"M+",
+"MARKER",
+"MAX",
+"MIN",
+"MOD",
+"MOVE",
+"MS",
+"N>R",
+"NAME>COMPILE",
+"NAME>INTERPRET",
+"NAME>STRING",
+"NEGATE",
+"NIP",
+"NR>",
+"OF",
+"ONLY",
+"OPEN-FILE",
+"OR",
+"ORDER",
+"OVER",
+"PAD",
+"PAGE",
+"PARSE",
+"PARSE-NAME",
+"PICK",
+"POSTPONE",
+"PRECISION",
+"PREVIOUS",
+"QUIT",
+"R/O",
+"R/W",
+"R>",
+"R@",
+"READ-FILE",
+"READ-LINE",
+"RECURSE",
+"REFILL",
+"RENAME-FILE",
+"REPEAT",
+"REPLACES",
+"REPOSITION-FILE",
+"REPRESENT",
+"REQUIRE",
+"REQUIRED",
+"RESIZE",
+"RESIZE-FILE",
+"RESTORE-INPUT",
+"ROLL",
+"ROT",
+"RSHIFT",
+"S\"",
+"S>D",
+"S>F",
+"SAVE-BUFFERS",
+"SAVE-INPUT",
+"SCR",
+"SEARCH",
+"SEARCH-WORDLIST",
+"SEE",
+"SET-CURRENT",
+"SET-ORDER",
+"SET-PRECISION",
+"SF!",
+"SF@",
+"SFALIGN",
+"SFALIGNED",
+"SFFIELD:",
+"SFLOAT+",
+"SFLOATS",
+"SIGN",
+"SLITERAL",
+"SM/REM",
+"SOURCE",
+"SOURCE-ID",
+"SPACE",
+"SPACES",
+"STATE",
+"SUBSTITUTE",
+"SWAP",
+"SYNONYM",
+"S\\\"",
+"THEN",
+"THROW",
+"THRU",
+"TIME&DATE",
+"TO",
+"TRAVERSE-WORDLIST",
+"TRUE",
+"TUCK",
+"TYPE",
+"U.",
+"U.R",
+"U<",
+"U>",
+"UM*",
+"UM/MOD",
+"UNESCAPE",
+"UNLOOP",
+"UNTIL",
+"UNUSED",
+"UPDATE",
+"VALUE",
+"VARIABLE",
+"W/O",
+"WHILE",
+"WITHIN",
+"WORD",
+"WORDLIST",
+"WORDS",
+"WRITE-FILE",
+"WRITE-LINE",
+"X-SIZE",
+"X-WIDTH",
+"XC!+",
+"XC!+?",
+"XC,",
+"XC-SIZE",
+"XC-WIDTH",
+"XC@+",
+"XCHAR+",
+"XCHAR-",
+"XEMIT",
+"XHOLD",
+"XKEY",
+"XKEY?",
+"XOR",
+"X\\STRING-",
+"[",
+"[']",
+"[CHAR]",
+"[COMPILE]",
+"[DEFINED]",
+"[ELSE]",
+"[IF]",
+"[THEN]",
+"[UNDEFINED]",
+"\\",
+"]",
+"{:",
+"2+", # common usage
+"2-", # common usage
+"M-", # common usage
+"M/", # common usage
+]
 
-# Built-In names have a run-time definition and optional
-# compile-time definition
+# Built-In names have a run-time definition
 var _built_in_names = [
 	["(", _left_parenthesis],
 	[".(", _dot_left_parenthesis],
@@ -166,15 +614,24 @@ var _built_in_names = [
 	["XOR", _xor],
 ]
 
+# list of built-in functions that have different
+# compiled (execution token) behavior. Only ADD new functions
+# to the end of the list, without changing order.
+var _built_in_exec_functions = [
+	_create_exec,
+	_constant_exec,
+	_two_constant_exec,
+	_value_exec,
+]
+
 # get built-in "address" from word
 var _built_in_address: Dictionary = {}
 # get built-in function from word
 var _built_in_function: Dictionary = {}
 # get built-in function from "address"
 var _built_in_function_from_address: Dictionary = {}
-
-# execution token allocation
-var _token_count = DICT_VIRTUAL_START
+# get address from built-in function
+var _address_from_built_in_function: Dictionary = {}
 
 # The Forth dictionary space
 var _dict_p := DICT_START  # position of last link
@@ -293,6 +750,10 @@ func _rprint_term(text: String) -> void:
 func _print_term(text: String) -> void:
 	terminal_out.emit(text)
 
+# report an unknown word
+func _print_unknown_word(word: String) -> void:
+	_rprint_term(" " + word + " ?")
+
 
 # gdscript String from address and length
 func _str_from_addr_n(addr: int, n: int) -> String:
@@ -300,19 +761,6 @@ func _str_from_addr_n(addr: int, n: int) -> String:
 	for c in n:
 		t = t + char(_get_byte(addr + c))
 	return t
-
-
-# Execute the code field at address. This will recurse down
-# until it executes a built-in
-func _execute_code_field(addr: int) -> void:
-	var code_word: int = _get_word(addr)
-	var f:Callable = _built_in_function_from_address.get(code_word)
-	if f:
-		# _dict_ip = addr # FIXME not really needed?
-		f.call()
-	else:
-		# the code word is an address somewhere else
-		_execute_code_field(code_word)
 
 
 # counted string from gdscript String
@@ -333,6 +781,9 @@ func _d_swap(num: int) -> int:
 	_d_scratch.encode_s32(DS_CELL_SIZE, t)
 	return _d_scratch.decode_s64(0)
 
+func _abort_line() -> void:
+	_set_word(BUFF_TO_IN, 0)
+
 
 func _interpret_terminal_line() -> void:
 	var bytes_input: PackedByteArray = (
@@ -352,13 +803,14 @@ func _interpret_terminal_line() -> void:
 		# out of tokens?
 		if len == 0:
 			# reset the buffer pointer
-			_set_word(BUFF_TO_IN, 0)
+			_abort_line()
 			break
 		var t: String = _str_from_addr_n(caddr, len)
 		# t should be the next token
 		var found_entry = _find_in_dict(t)
 		if found_entry != 0:
-			_execute_code_field(found_entry)
+			_push_word(found_entry)
+			_execute()
 		elif t.to_upper() in _built_in_function:
 			_built_in_function[t.to_upper()].call()
 		# valid numeric value (double first)
@@ -372,16 +824,19 @@ func _interpret_terminal_line() -> void:
 			_push_word(temp)
 		# nothing we recognize
 		else:
-			_rprint_term(" " + t + " ?")
+			_print_unknown_word(t)
+			_abort_line()
 			return  # not ok
 		# check the stack
 		if _ds_p < DS_START + DS_WORDS_GUARD:
 			_rprint_term(" Data stack overflow")
 			_ds_p = DS_START + DS_WORDS_GUARD
+			_abort_line()
 			return  # not ok
 		if _ds_p > DS_TOP:
 			_rprint_term(" Data stack underflow")
 			_ds_p = DS_TOP
+			_abort_line()
 			return  # not ok
 	_rprint_term(" ok")
 
@@ -401,25 +856,27 @@ func _select_buffered_command() -> String:
 	return TERM_CLREOL + TERM_CR + _terminal_pad
 
 
-# allocate a virtual execution token to a specific function
-# returns the token
-func _allocate_execution_token(f:Callable) -> int:
-	# assign the function to the current token
-	_built_in_function_from_address[_token_count] = f
-	var ret:int = _token_count
-	_token_count += DS_CELL_SIZE
-	return ret
-
 func _init_built_ins() -> void:
+	var addr:int
+	var token_count:int = DICT_VIRTUAL_START
+	for i in STANDARD_FORTH_NAMES.size():
+		_built_in_address[STANDARD_FORTH_NAMES[i]] = token_count
+		token_count += DS_CELL_SIZE
 	for i in _built_in_names.size():
 		var word: String = _built_in_names[i][0]
 		var f: Callable = _built_in_names[i][1]
 		# native functions are assigned virtual addresses, outside of
 		# the real memory map.
-		var addr:int = _allocate_execution_token(f)
-		_built_in_address[word] = addr
+		addr = _built_in_address[word]
+		_built_in_function_from_address[addr] = f
+		_address_from_built_in_function[f] = addr
 		_built_in_function[word] = f
-
+	# reset token count to point to the EXEC virtual addresses
+	token_count = DICT_VIRTUAL_EXEC_START
+	for f in _built_in_exec_functions:
+		_built_in_function_from_address[token_count] = f
+		_address_from_built_in_function[f] = token_count
+		token_count += DS_CELL_SIZE
 
 # Find word in dictionary, starting at address of top
 # If found, returns the address of the first code field
@@ -704,31 +1161,42 @@ func _question() -> void:
 func _tick() -> void:
 	# Search the dictionary for name and leave its execution token
 	# on the stack. Abort if name cannot be found.
-	# ( - xt )
+	# ( - xt ) <name>
+	# retrieve the name token
 	_push_word(TERM_BL.to_ascii_buffer()[0])
 	_word()
 	_count()
 	var len: int = _pop_word()  # length
 	var caddr: int = _pop_word()  # start
 	var word:String = _str_from_addr_n(caddr, len)
+	# look the name up
 	var token_addr = _find_in_dict(word)
-	if not token_addr:
-		_rprint_term(" " + word + " ?")
-	else:
+	# either in user dictionary, a built-in xt, or neither
+	if token_addr:
 		_push_word(token_addr)
-		_fetch()
+	elif word in _built_in_address:
+		_push_word(_built_in_address[word])
+	else:
+		_print_unknown_word(word)
 
-
-func _display_invalid_execution_token() -> void:
-	_rprint_term(" Invalid execution token")
 
 func _execute() -> void:
 	# Remove execution token xt from the stack and perform
 	# the execution behavior it identifies
 	# ( xt - )
 	var xt:int = _pop_word()
-	_built_in_function_from_address.get(xt, _display_invalid_execution_token).call()		
-
+	if xt in _built_in_function_from_address:
+		# this xt identifies a gdscript function
+		_built_in_function_from_address[xt].call()
+	elif xt >= DICT_START and xt < DICT_TOP:
+		# this is a physical address of an xt
+		_dict_ip = xt
+		# push the xt
+		_push_word(_get_word(xt))
+		# recurse down a layer
+		_execute()
+	else:
+		_rprint_term(" Invalid execution token")
 
 
 # Programmer Conveniences
@@ -1110,7 +1578,7 @@ func _parse() -> void:
 	# Parse text to the first instance of char, returning the address
 	# and length of a temporary location containing the parsed text.
 	# Returns an address with one byte available in front for forming
-	# a character count. Consumes the final delimiter. 
+	# a character count. Consumes the final delimiter.
 	# ( char - c_addr n )
 	var count: int = 0
 	var ptr: int = WORD_START + 1
@@ -1223,7 +1691,7 @@ func _c_move() -> void:
 	# move in ascending order a1 -> a2, fast, then slow
 	while i < u:
 		if u - i >= DS_DCELL_SIZE:
-			_set_dword(a2 + i, _get_word(a1 + i))
+			_set_dword(a2 + i, _get_dword(a1 + i))
 			i += DS_DCELL_SIZE
 		else:
 			_set_byte(a2 + i, _get_byte(a1 + i))
@@ -1242,7 +1710,7 @@ func _c_move_up() -> void:
 	while i > 0:
 		if i >= DS_DCELL_SIZE:
 			i -= DS_DCELL_SIZE
-			_set_dword(a2 + i, _get_word(a1 + i))
+			_set_dword(a2 + i, _get_dword(a1 + i))
 		else:
 			i -= 1
 			_set_byte(a2 + i, _get_byte(a1 + i))
@@ -1263,7 +1731,7 @@ func _allot() -> void:
 
 func _buffer_colon() -> void:
 	# Create a dictionary entry for name associated with n bytes of space
-	# n BUFFER: <name> 
+	# n BUFFER: <name>
 	# ( n - )
 	# execution of <name> will return address of the starting byte ( - addr )
 	_create()
@@ -1335,11 +1803,11 @@ func _words() -> void:
 
 
 func _create_dict_entry_name() -> void:
-	# Internal utility function for creating the start of 
+	# Internal utility function for creating the start of
 	# a dictionary entry. The next thing to follow will be
 	# the execution token. Upon exit, _dict_top will point to the
 	# next byte in the entry.
-	# ( - )	
+	# ( - )
 	# Grab the name
 	_push_word(TERM_BL.to_ascii_buffer()[0])
 	_word()
@@ -1350,7 +1818,7 @@ func _create_dict_entry_name() -> void:
 	# the very first spot in the dictionary
 	if _dict_top != _dict_p:
 		_set_word(_dict_top, _dict_p)
-	# move the top link 
+	# move the top link
 	_dict_p = _dict_top
 	_dict_top += DS_CELL_SIZE
 	# poke the name length
@@ -1369,18 +1837,13 @@ func _create() -> void:
 	# Execution of *name* will return the address of its data space
 	# ( - )
 	_create_dict_entry_name()
-	# create a closure for the return address
-	var get_address = func():
-		# execution token returns the following cell
-		var data_space_addr:int = _dict_top + DS_CELL_SIZE
-		return func():
-			# ( - addr )
-			_push_word(data_space_addr)
-
-	var execution_token:int = _allocate_execution_token(get_address.call())
-	# copy the execution token
-	_set_word(_dict_top, execution_token)
+	_set_word(_dict_top, _address_from_built_in_function[_create_exec])
 	_dict_top += DS_CELL_SIZE
+
+func _create_exec() -> void:
+	# execution time functionality of _create
+	# return address of cell after execution token
+	_push_word(_dict_ip + DS_CELL_SIZE)
 
 func _variable() -> void:
 	# Create a dictionary entry for name associated with one cell of data
@@ -1401,61 +1864,48 @@ func _constant() -> void:
 	# Create a dictionary entry for name, associated with constant x.
 	# ( x - )
 	_create_dict_entry_name()
-	var data_addr: int = _dict_top + DS_CELL_SIZE
-	# store the constant
-	_set_word(data_addr, _pop_word())
-	# create a closure for the return value
-	var get_address = func():
-		# execution token returns the following cell value
-		var data_space_addr:int = data_addr
-		return func():
-			# ( - x )
-			_push_word(_get_word(data_space_addr))
-
-	var execution_token:int = _allocate_execution_token(get_address.call())
 	# copy the execution token
-	_set_word(_dict_top, execution_token)
-	_dict_top += DS_DCELL_SIZE
+	_set_word(_dict_top, _address_from_built_in_function[_constant_exec])
+	# store the constant
+	_set_word(_dict_top + DS_CELL_SIZE, _pop_word())
+	_dict_top += DS_DCELL_SIZE # two cells up
+
+func _constant_exec() -> void:
+	# execution time functionality of _constant
+	# return contents of cell after execution token
+	_push_word(_get_word(_dict_ip + DS_CELL_SIZE))
+
 
 func _two_constant() -> void:
 	# Create a dictionary entry for name, associated with constant double d.
 	# ( d - )
 	_create_dict_entry_name()
-	var data_addr: int = _dict_top + DS_CELL_SIZE
-	# store the constant
-	_set_dword(data_addr, _pop_dword())
-	# create a closure for the return value
-	var get_address = func():
-		# execution token returns the following cell value
-		var data_space_addr:int = data_addr
-		return func():
-			# ( - x )
-			_push_dword(_get_dword(data_space_addr))
-
-	var execution_token:int = _allocate_execution_token(get_address.call())
 	# copy the execution token
-	_set_word(_dict_top, execution_token)
+	_set_word(_dict_top, _address_from_built_in_function[_two_constant_exec])
+	# store the constant
+	_set_dword(_dict_top + DS_CELL_SIZE, _pop_dword())
 	_dict_top += DS_CELL_SIZE + DS_DCELL_SIZE
+
+func _two_constant_exec() -> void:
+	# execution time functionality of _two_constant
+	# return contents of double cell after execution token
+	_push_dword(_get_dword(_dict_ip + DS_CELL_SIZE))
+
 
 func _value() -> void:
 	# Create a dictionary entry for name, associated with value x.
 	# ( x - )
 	_create_dict_entry_name()
-	var data_addr: int = _dict_top + DS_CELL_SIZE
-	# store the constant
-	_set_word(data_addr, _pop_word())
-	# create a closure for the return value
-	var get_address = func():
-		# execution token returns the following cell value
-		var data_space_addr:int = data_addr
-		return func():
-			# ( - x )
-			_push_word(_get_word(data_space_addr))
-
-	var execution_token:int = _allocate_execution_token(get_address.call())
 	# copy the execution token
-	_set_word(_dict_top, execution_token)
+	_set_word(_dict_top, _address_from_built_in_function[_value_exec])
+	# store the initial value
+	_set_word(_dict_top + DS_CELL_SIZE, _pop_word())
 	_dict_top += DS_DCELL_SIZE
+
+func _value_exec() -> void:
+	# execution time functionality of _value
+	# return contents of the cell after the execution token
+	_push_word(_get_word(_dict_ip + DS_CELL_SIZE))
 
 func _to() -> void:
 	# Store x in the data space associated with name (defined by value)
@@ -1469,7 +1919,7 @@ func _to() -> void:
 	var word:String = _str_from_addr_n(caddr, len)
 	var token_addr = _find_in_dict(word)
 	if not token_addr:
-		_rprint_term(" " + word + " ?")
+		_print_unknown_word(word)
 	else:
 		# adjust to data field location
 		token_addr += DS_CELL_SIZE
