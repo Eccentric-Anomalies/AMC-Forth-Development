@@ -1,10 +1,16 @@
 class_name ForthCoreExt
+## Define built-in Forth words in the CORE EXTENSION word set
+##
 
 extends ForthImplementationBase
 
-var _forth: ForthImplementationBase
 
-
+## Initialize (executed automatically by ForthCoreExt.new())
+##
+## (1) Append an array of <WORD>, <function> pairs to the Forth
+## list of built-in words (built_in_names).
+## (2) Append an array of <function> references to the Forth
+## list of built-in execution-time functions (if any)
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 	(
@@ -36,6 +42,7 @@ func _init(_forth: AMCForth) -> void:
 	)
 
 
+## .(
 func dot_left_parenthesis() -> void:
 	# Begin parsing a comment, terminated by ')'. Comment text
 	# will emit to the terminal.
@@ -44,6 +51,7 @@ func dot_left_parenthesis() -> void:
 	forth.type()
 
 
+## \
 func back_slash() -> void:
 	# Begin parsing a comment, terminated by end of line
 	# ( - )
@@ -52,6 +60,7 @@ func back_slash() -> void:
 	forth.two_drop()
 
 
+## BUFFER:
 func buffer_colon() -> void:
 	# Create a dictionary entry for name associated with n bytes of space
 	# n BUFFER: <name>
@@ -61,6 +70,7 @@ func buffer_colon() -> void:
 	forth.core.allot()
 
 
+## NIP
 func nip() -> void:
 	# drop second item, leaving top unchanged
 	# ( x1 x2 - x2 )
@@ -69,6 +79,7 @@ func nip() -> void:
 	forth.ram.set_int(forth.ds_p, t)
 
 
+## PARSE
 func parse() -> void:
 	# Parse text to the first instance of char, returning the address
 	# and length of a temporary location containing the parsed text.
@@ -101,6 +112,7 @@ func parse() -> void:
 	forth.push_word(count)
 
 
+## PICK
 func pick() -> void:
 	# place a copy of the nth stack entry on top of the stack
 	# zeroth item is the top of the stack so 0 pick is dup
@@ -111,6 +123,7 @@ func pick() -> void:
 	)
 
 
+## TO
 func to() -> void:
 	# Store x in the data space associated with name (defined by value)
 	# x TO <name> ( x - )
@@ -130,6 +143,7 @@ func to() -> void:
 		forth.ram.set_word(token_addr, forth.pop_word())
 
 
+## TUCK
 func tuck() -> void:
 	# place a copy of the top stack item below the second stack item
 	# ( x1 x2 - x2 x1 x2 )
@@ -146,6 +160,7 @@ func tuck() -> void:
 	forth.ds_p -= ForthRAM.CELL_SIZE
 
 
+## UNUSED
 func unused() -> void:
 	# Return u, the number of bytes remaining in the memory area
 	# where dictionary entries are constructed.
@@ -153,6 +168,7 @@ func unused() -> void:
 	forth.push_word(forth.DICT_TOP - forth.dict_top)
 
 
+## VALUE
 func value() -> void:
 	# Create a dictionary entry for name, associated with value x.
 	# ( x - )
@@ -166,6 +182,7 @@ func value() -> void:
 	forth.dict_top += ForthRAM.DCELL_SIZE
 
 
+## VALUE run-time implementation
 func value_exec() -> void:
 	# execution time functionality of _value
 	# return contents of the cell after the execution token

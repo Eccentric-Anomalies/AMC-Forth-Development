@@ -65,13 +65,17 @@ var dict_top := DICT_START  # position of next new link to create
 var dict_ip := 0  # code field pointer set to current execution point
 
 # Built-In names have a run-time definition
+# These are "<WORD>", <run-time function> pairs that are defined by each
+# Forth implementation class (e.g. ForthDouble, etc.)
 var built_in_names: Array = []
-
 # list of built-in functions that have different
-# compiled (execution token) behavior. Only ADD new functions
-# to the end of the list, without changing order.
+# compiled (execution token) behavior.
+# These are <run-time function> items that are defined by each
+# Forth implementation class (e.g. ForthDouble, etc.) when a
+# different *compiled* behavior is required
 var built_in_exec_functions: Array = []
-# get address from built-in function
+
+# get "address" from built-in function
 var address_from_built_in_function: Dictionary = {}
 # get built-in function from "address"
 var built_in_function_from_address: Dictionary = {}
@@ -219,6 +223,7 @@ func create_dict_entry_name() -> void:
 	core.move()
 	dict_top += len
 
+# Forth Data Stack Push and Pop Routines
 
 func push_int(val: int) -> void:
 	ds_p -= ForthRAM.CELL_SIZE
@@ -266,7 +271,9 @@ func pop_dword() -> int:
 
 # privates
 
-
+# Called when AMCForth.new() is executed
+# This will cascade instantiation of all the Forth implementation classes
+# and initialize dictionaries for relating built-in words and addresses
 func _init() -> void:
 	ram = ForthRAM.new(RAM_SIZE)
 	util = ForthUtil.new(self)
