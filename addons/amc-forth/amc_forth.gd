@@ -127,104 +127,104 @@ func _init_built_ins() -> void:
 
 func _init_built_in_names() -> void:
 	_built_in_names = [
-		["(", core.left_parenthesis],
-		[".(", core.dot_left_parenthesis],
-		["\\", _back_slash],
-		["+", _plus],
-		["-", _minus],
-		[",", _comma],
-		[".", _dot],
-		["1+", _one_plus],
-		["1-", _one_minus],
-		["2+", _two_plus],
-		["2-", _two_minus],
-		["'", _tick],
-		["!", _store],
-		["*", _star],
-		["*/", _star_slash],
-		["*/MOD", _star_slash_mod],
-		[".S", _dot_s],
-		["/", _slash],
-		["/MOD", _slash_mod],
-		["?", _question],
-		["?DUP", _q_dup],
-		["@", _fetch],
-		[">IN", _to_in],
-		["2*", _two_star],
-		["2/", _two_slash],
-		["2CONSTANT", _two_constant],
-		["2DROP", two_drop],
-		["2DUP", _two_dup],
-		["2OVER", _two_over],
-		["2ROT", _two_rot],
-		["2SWAP", _two_swap],
-		["2VARIABLE", _two_variable],
-		["ABS", _abs],
-		["ALLOT", _allot],
-		["AND", _and],
-		["BL", _b_l],
-		["BUFFER:", _buffer_colon],
-		["C,", _c_comma],
-		["CELL+", _cell_plus],
-		["CELLS", _cells],
-		["CHAR+", _char_plus],
-		["CHARS", _chars],
-		["CMOVE", _c_move],
-		["CMOVE>", _c_move_up],
-		["COMPARE", _compare],
-		["CONSTANT", _constant],
-		["COUNT", _count],
-		["CREATE", _create],
-		["D.", _d_dot],
-		["D-", _d_minus],
-		["D+", _d_plus],
-		["D>S", _d_to_s],
-		["D2*", _d_two_star],
-		["D2/", _d_two_slash],
-		["DABS", _d_abs],
-		["DEPTH", _depth],
-		["DMAX", _d_max],
-		["DMIN", _d_min],
-		["DNEGATE", _d_negate],
-		["DROP", _drop],
-		["DUP", _dup],
-		["EMIT", _emit],
-		["EXECUTE", _execute],
-		["HERE", _here],
-		["INVERT", _invert],
-		["LSHIFT", _lshift],
-		["M-", _m_minus],
-		["M*", _m_star],
-		["M*/", _m_star_slash],
-		["M/", _m_slash],
-		["M+", _m_plus],
-		["MAX", _max],
-		["MIN", _min],
-		["MOD", _mod],
-		["MOVE", _move],
-		["NEGATE", _negate],
-		["NIP", _nip],
-		["OR", _or],
-		["OVER", _over],
-		["PARSE", parse],
-		["PICK", _pick],
-		["ROT", _rot],
-		["RSHIFT", _rshift],
-		["S>D", _s_to_d],
-		["SM/REM", _sm_slash_rem],
-		["SOURCE", _source],
-		["SWAP", _swap],
-		["TO", _to],
-		["TUCK", _tuck],
-		["TYPE", type],
-		["UM*", _um_star],
-		["UM/MOD", _um_slash_mod],
-		["UNUSED", _unused],
-		["VALUE", _value],
-		["VARIABLE", _variable],
-		["WORD", _word],
-		["WORDS", _words],
-		["XOR", _xor],
+		["(", core.left_parenthesis],		# core
+		[".(", core.dot_left_parenthesis],	# core ext
+		["\\", _back_slash],				# core ext
+		["+", _plus],						# core
+		["-", _minus],						# core
+		[",", _comma],						# core
+		[".", _dot],						# core
+		["1+", _one_plus],					# core
+		["1-", _one_minus],					# core
+		["2+", _two_plus],					# common use
+		["2-", _two_minus],					# common use
+		["'", _tick],						# core
+		["!", _store],						# core
+		["*", _star],						# core
+		["*/", _star_slash],				# core
+		["*/MOD", _star_slash_mod],			# core
+		[".S", _dot_s],						# tools
+		["/", _slash],						# core
+		["/MOD", _slash_mod],				# core
+		["?", _question],					# tools
+		["?DUP", _q_dup],					# core
+		["@", _fetch],						# core
+		[">IN", _to_in],					# core
+		["2*", _two_star],					# core
+		["2/", _two_slash],					# core
+		["2CONSTANT", _two_constant],		# double
+		["2DROP", two_drop],				# core
+		["2DUP", _two_dup],					# core
+		["2OVER", _two_over],				# core
+		["2ROT", _two_rot],					# double ext
+		["2SWAP", _two_swap],				# core
+		["2VARIABLE", _two_variable],		# double
+		["ABS", _abs],						# core
+		["ALLOT", _allot],					# core
+		["AND", _and],						# core
+		["BL", _b_l],						# core
+		["BUFFER:", _buffer_colon],			# core ext
+		["C,", _c_comma],					# core
+		["CELL+", _cell_plus],				# core
+		["CELLS", _cells],					# core
+		["CHAR+", _char_plus],				# core
+		["CHARS", _chars],					# core
+		["CMOVE", _c_move],					# string
+		["CMOVE>", _c_move_up],				# string
+		["COMPARE", _compare],				# string
+		["CONSTANT", _constant],			# core
+		["COUNT", _count],					# core
+		["CREATE", _create],				# core
+		["D.", _d_dot],						# double
+		["D-", _d_minus],					# double
+		["D+", _d_plus],					# double
+		["D>S", _d_to_s],					# double
+		["D2*", _d_two_star],				# double
+		["D2/", _d_two_slash],				# double
+		["DABS", _d_abs],					# double
+		["DEPTH", _depth],					# core
+		["DMAX", _d_max],					# double
+		["DMIN", _d_min],					# double
+		["DNEGATE", _d_negate],				# double
+		["DROP", _drop],					# core
+		["DUP", _dup],						# core
+		["EMIT", _emit],					# core
+		["EXECUTE", _execute],				# core
+		["HERE", _here],					# core
+		["INVERT", _invert],				# core
+		["LSHIFT", _lshift],				# core
+		["M-", _m_minus],					# common use
+		["M*", _m_star],					# core
+		["M*/", _m_star_slash],				# double
+		["M/", _m_slash],					# common use
+		["M+", _m_plus],					# double
+		["MAX", _max],						# core
+		["MIN", _min],						# core
+		["MOD", _mod],						# core
+		["MOVE", _move],					# core
+		["NEGATE", _negate],				# core
+		["NIP", _nip],						# core ext
+		["OR", _or],						# core
+		["OVER", _over],					# core
+		["PARSE", parse],					# core ext
+		["PICK", _pick],					# core ext
+		["ROT", _rot],						# core
+		["RSHIFT", _rshift],				# core
+		["S>D", _s_to_d],					# core
+		["SM/REM", _sm_slash_rem],			# core
+		["SOURCE", _source],				# core
+		["SWAP", _swap],					# core
+		["TO", _to],						# core ext
+		["TUCK", _tuck],					# core ext
+		["TYPE", type],						# core
+		["UM*", _um_star],					# core
+		["UM/MOD", _um_slash_mod],			# core
+		["UNUSED", _unused],				# core ext
+		["VALUE", _value],					# core ext
+		["VARIABLE", _variable],			# core
+		["WORD", _word],					# core
+		["WORDS", _words],					# tools
+		["XOR", _xor],						# core
 	]
 
 
