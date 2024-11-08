@@ -42,7 +42,6 @@ func _ready() -> void:
 	_start_listening()
 	forth = AMCForth.new()
 	forth.connect("terminal_out", _on_forth_output)
-	forth.init()
 
 
 func _process(_delta: float) -> void:
@@ -51,6 +50,7 @@ func _process(_delta: float) -> void:
 			connection = server.take_connection()
 			server.stop()  # do not listen now
 			connection.set_no_delay(true)
+			forth.client_connected()
 	else:  # not listening.. connected
 		if connection:
 			var connect_status = connection.get_status()

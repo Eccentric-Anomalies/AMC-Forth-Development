@@ -47,108 +47,11 @@ const MAX_BUFFER_SIZE := 20
 # Reference to the physical memory and utilities
 var ram: ForthRAM
 var util: ForthUtil
+# Core Forth implementations
+var core: ForthCore
 
 # Built-In names have a run-time definition
-var _built_in_names = [
-	["(", _left_parenthesis],
-	[".(", _dot_left_parenthesis],
-	["\\", _back_slash],
-	["+", _plus],
-	["-", _minus],
-	[",", _comma],
-	[".", _dot],
-	["1+", _one_plus],
-	["1-", _one_minus],
-	["2+", _two_plus],
-	["2-", _two_minus],
-	["'", _tick],
-	["!", _store],
-	["*", _star],
-	["*/", _star_slash],
-	["*/MOD", _star_slash_mod],
-	[".S", _dot_s],
-	["/", _slash],
-	["/MOD", _slash_mod],
-	["?", _question],
-	["?DUP", _q_dup],
-	["@", _fetch],
-	[">IN", _to_in],
-	["2*", _two_star],
-	["2/", _two_slash],
-	["2CONSTANT", _two_constant],
-	["2DROP", _two_drop],
-	["2DUP", _two_dup],
-	["2OVER", _two_over],
-	["2ROT", _two_rot],
-	["2SWAP", _two_swap],
-	["2VARIABLE", _two_variable],
-	["ABS", _abs],
-	["ALLOT", _allot],
-	["AND", _and],
-	["BL", _b_l],
-	["BUFFER:", _buffer_colon],
-	["C,", _c_comma],
-	["CELL+", _cell_plus],
-	["CELLS", _cells],
-	["CHAR+", _char_plus],
-	["CHARS", _chars],
-	["CMOVE", _c_move],
-	["CMOVE>", _c_move_up],
-	["COMPARE", _compare],
-	["CONSTANT", _constant],
-	["COUNT", _count],
-	["CREATE", _create],
-	["D.", _d_dot],
-	["D-", _d_minus],
-	["D+", _d_plus],
-	["D>S", _d_to_s],
-	["D2*", _d_two_star],
-	["D2/", _d_two_slash],
-	["DABS", _d_abs],
-	["DEPTH", _depth],
-	["DMAX", _d_max],
-	["DMIN", _d_min],
-	["DNEGATE", _d_negate],
-	["DROP", _drop],
-	["DUP", _dup],
-	["EMIT", _emit],
-	["EXECUTE", _execute],
-	["HERE", _here],
-	["INVERT", _invert],
-	["LSHIFT", _lshift],
-	["M-", _m_minus],
-	["M*", _m_star],
-	["M*/", _m_star_slash],
-	["M/", _m_slash],
-	["M+", _m_plus],
-	["MAX", _max],
-	["MIN", _min],
-	["MOD", _mod],
-	["MOVE", _move],
-	["NEGATE", _negate],
-	["NIP", _nip],
-	["OR", _or],
-	["OVER", _over],
-	["PARSE", _parse],
-	["PICK", _pick],
-	["ROT", _rot],
-	["RSHIFT", _rshift],
-	["S>D", _s_to_d],
-	["SM/REM", _sm_slash_rem],
-	["SOURCE", _source],
-	["SWAP", _swap],
-	["TO", _to],
-	["TUCK", _tuck],
-	["TYPE", _type],
-	["UM*", _um_star],
-	["UM/MOD", _um_slash_mod],
-	["UNUSED", _unused],
-	["VALUE", _value],
-	["VARIABLE", _variable],
-	["WORD", _word],
-	["WORDS", _words],
-	["XOR", _xor],
-]
+var _built_in_names:Array
 
 # list of built-in functions that have different
 # compiled (execution token) behavior. Only ADD new functions
@@ -183,6 +86,147 @@ var _pad_position := 0
 var _parse_pointer := 0
 var _terminal_buffer: Array = []
 var _buffer_index := 0
+
+func _init() -> void:
+	ram = ForthRAM.new(RAM_SIZE)
+	util = ForthUtil.new(self)
+	core = ForthCore.new(self)
+	_init_built_in_names()
+	_init_built_ins()
+	# set the terminal link in the dictionary
+	ram.set_int(_dict_p, -1)
+	# reset the buffer pointer
+	ram.set_word(BUFF_TO_IN, 0)
+	print(BANNER)
+
+func client_connected() -> void:
+	terminal_out.emit(BANNER + ForthTerminal.CR + ForthTerminal.LF)
+
+func _init_built_ins() -> void:
+	var addr: int
+	var token_count: int = DICT_VIRTUAL_START
+	for i in ForthStdWords.STANDARD_NAMES.size():
+		_built_in_address[ForthStdWords.STANDARD_NAMES[i]] = token_count
+		token_count += ForthRAM.CELL_SIZE
+	for i in _built_in_names.size():
+		var word: String = _built_in_names[i][0]
+		var f: Callable = _built_in_names[i][1]
+		# native functions are assigned virtual addresses, outside of
+		# the real memory map.
+		addr = _built_in_address[word]
+		_built_in_function_from_address[addr] = f
+		_address_from_built_in_function[f] = addr
+		_built_in_function[word] = f
+	# reset token count to point to the EXEC virtual addresses
+	token_count = DICT_VIRTUAL_EXEC_START
+	for f in _built_in_exec_functions:
+		_built_in_function_from_address[token_count] = f
+		_address_from_built_in_function[f] = token_count
+		token_count += ForthRAM.CELL_SIZE
+
+
+func _init_built_in_names() -> void:
+	_built_in_names = [
+		["(", core.left_parenthesis],
+		[".(", core.dot_left_parenthesis],
+		["\\", _back_slash],
+		["+", _plus],
+		["-", _minus],
+		[",", _comma],
+		[".", _dot],
+		["1+", _one_plus],
+		["1-", _one_minus],
+		["2+", _two_plus],
+		["2-", _two_minus],
+		["'", _tick],
+		["!", _store],
+		["*", _star],
+		["*/", _star_slash],
+		["*/MOD", _star_slash_mod],
+		[".S", _dot_s],
+		["/", _slash],
+		["/MOD", _slash_mod],
+		["?", _question],
+		["?DUP", _q_dup],
+		["@", _fetch],
+		[">IN", _to_in],
+		["2*", _two_star],
+		["2/", _two_slash],
+		["2CONSTANT", _two_constant],
+		["2DROP", two_drop],
+		["2DUP", _two_dup],
+		["2OVER", _two_over],
+		["2ROT", _two_rot],
+		["2SWAP", _two_swap],
+		["2VARIABLE", _two_variable],
+		["ABS", _abs],
+		["ALLOT", _allot],
+		["AND", _and],
+		["BL", _b_l],
+		["BUFFER:", _buffer_colon],
+		["C,", _c_comma],
+		["CELL+", _cell_plus],
+		["CELLS", _cells],
+		["CHAR+", _char_plus],
+		["CHARS", _chars],
+		["CMOVE", _c_move],
+		["CMOVE>", _c_move_up],
+		["COMPARE", _compare],
+		["CONSTANT", _constant],
+		["COUNT", _count],
+		["CREATE", _create],
+		["D.", _d_dot],
+		["D-", _d_minus],
+		["D+", _d_plus],
+		["D>S", _d_to_s],
+		["D2*", _d_two_star],
+		["D2/", _d_two_slash],
+		["DABS", _d_abs],
+		["DEPTH", _depth],
+		["DMAX", _d_max],
+		["DMIN", _d_min],
+		["DNEGATE", _d_negate],
+		["DROP", _drop],
+		["DUP", _dup],
+		["EMIT", _emit],
+		["EXECUTE", _execute],
+		["HERE", _here],
+		["INVERT", _invert],
+		["LSHIFT", _lshift],
+		["M-", _m_minus],
+		["M*", _m_star],
+		["M*/", _m_star_slash],
+		["M/", _m_slash],
+		["M+", _m_plus],
+		["MAX", _max],
+		["MIN", _min],
+		["MOD", _mod],
+		["MOVE", _move],
+		["NEGATE", _negate],
+		["NIP", _nip],
+		["OR", _or],
+		["OVER", _over],
+		["PARSE", parse],
+		["PICK", _pick],
+		["ROT", _rot],
+		["RSHIFT", _rshift],
+		["S>D", _s_to_d],
+		["SM/REM", _sm_slash_rem],
+		["SOURCE", _source],
+		["SWAP", _swap],
+		["TO", _to],
+		["TUCK", _tuck],
+		["TYPE", type],
+		["UM*", _um_star],
+		["UM/MOD", _um_slash_mod],
+		["UNUSED", _unused],
+		["VALUE", _value],
+		["VARIABLE", _variable],
+		["WORD", _word],
+		["WORDS", _words],
+		["XOR", _xor],
+	]
+
 
 
 # handle editing input strings in interactive mode
@@ -253,17 +297,6 @@ func terminal_in(text: String) -> void:
 		terminal_out.emit(echo_text)
 
 
-func init() -> void:
-	print(BANNER)
-	terminal_out.emit(BANNER + ForthTerminal.CR + ForthTerminal.LF)
-	ram = ForthRAM.new(RAM_SIZE)
-	util = ForthUtil.new(self)
-	_init_built_ins()
-	# set the terminal link in the dictionary
-	ram.set_int(_dict_p, -1)
-	# reset the buffer pointer
-	ram.set_word(BUFF_TO_IN, 0)
-
 
 # privates
 
@@ -280,11 +313,11 @@ func _interpret_terminal_line() -> void:
 		ram.set_byte(BUFF_SOURCE_START + i, bytes_input[i])
 	while true:
 		# call the Forth WORD, setting blank as delimiter
-		_push_word(ForthTerminal.BL.to_ascii_buffer()[0])
+		push_word(ForthTerminal.BL.to_ascii_buffer()[0])
 		_word()
 		_count()
-		var len: int = _pop_word()  # length of word
-		var caddr: int = _pop_word()  # start of word
+		var len: int = pop_word()  # length of word
+		var caddr: int = pop_word()  # start of word
 		# out of tokens?
 		if len == 0:
 			# reset the buffer pointer
@@ -294,7 +327,7 @@ func _interpret_terminal_line() -> void:
 		# t should be the next token
 		var found_entry = _find_in_dict(t)
 		if found_entry != 0:
-			_push_word(found_entry)
+			push_word(found_entry)
 			_execute()
 		elif t.to_upper() in _built_in_function:
 			_built_in_function[t.to_upper()].call()
@@ -302,11 +335,11 @@ func _interpret_terminal_line() -> void:
 		elif t.contains(".") and t.replace(".", "").is_valid_int():
 			var t_strip: String = t.replace(".", "")
 			var temp: int = t_strip.to_int()
-			_push_dword(temp)
+			push_dword(temp)
 		elif t.is_valid_int():
 			var temp: int = t.to_int()
 			# single-precision
-			_push_word(temp)
+			push_word(temp)
 		# nothing we recognize
 		else:
 			util.print_unknown_word(t)
@@ -346,28 +379,6 @@ func _select_buffered_command() -> String:
 	return ForthTerminal.CLREOL + ForthTerminal.CR + _terminal_pad
 
 
-func _init_built_ins() -> void:
-	var addr: int
-	var token_count: int = DICT_VIRTUAL_START
-	for i in ForthStdWords.STANDARD_NAMES.size():
-		_built_in_address[ForthStdWords.STANDARD_NAMES[i]] = token_count
-		token_count += ForthRAM.CELL_SIZE
-	for i in _built_in_names.size():
-		var word: String = _built_in_names[i][0]
-		var f: Callable = _built_in_names[i][1]
-		# native functions are assigned virtual addresses, outside of
-		# the real memory map.
-		addr = _built_in_address[word]
-		_built_in_function_from_address[addr] = f
-		_address_from_built_in_function[f] = addr
-		_built_in_function[word] = f
-	# reset token count to point to the EXEC virtual addresses
-	token_count = DICT_VIRTUAL_EXEC_START
-	for f in _built_in_exec_functions:
-		_built_in_function_from_address[token_count] = f
-		_address_from_built_in_function[f] = token_count
-		token_count += ForthRAM.CELL_SIZE
-
 
 # Find word in dictionary, starting at address of top
 # If found, returns the address of the first code field
@@ -381,15 +392,15 @@ func _find_in_dict(word: String) -> int:
 	# make a temporary pointer
 	var p: int = _dict_p
 	while p != -1:
-		_push_word(_dict_top)
+		push_word(_dict_top)
 		_count()  # search word in addr, n format
-		_push_word(p + ForthRAM.CELL_SIZE)
+		push_word(p + ForthRAM.CELL_SIZE)
 		_count()  # candidate word in addr, n format
 		_dup()  # copy the length
-		var n_length: int = _pop_word()
+		var n_length: int = pop_word()
 		_compare()
 		# is this the correct entry?
-		if _pop_word() == 0:
+		if pop_word() == 0:
 			# found it. Link address + link size + string length byte + string
 			return p + ForthRAM.CELL_SIZE + 1 + n_length
 		# not found, drill down to the next entry
@@ -398,75 +409,58 @@ func _find_in_dict(word: String) -> int:
 	return 0
 
 
-func _push_int(val: int) -> void:
+func push_int(val: int) -> void:
 	_ds_p -= ForthRAM.CELL_SIZE
 	ram.set_int(_ds_p, val)
 
 
-func _pop_int() -> int:
+func pop_int() -> int:
 	var t: int = ram.get_int(_ds_p)
 	_ds_p += ForthRAM.CELL_SIZE
 	return t
 
 
-func _push_word(val: int) -> void:
+func push_word(val: int) -> void:
 	_ds_p -= ForthRAM.CELL_SIZE
 	ram.set_word(_ds_p, val)
 
 
-func _pop_word() -> int:
+func pop_word() -> int:
 	var t: int = ram.get_word(_ds_p)
 	_ds_p += ForthRAM.CELL_SIZE
 	return t
 
 
-func _push_dint(val: int) -> void:
+func push_dint(val: int) -> void:
 	_ds_p -= ForthRAM.DCELL_SIZE
 	ram.set_dint(_ds_p, val)
 
 
-func _pop_dint() -> int:
+func pop_dint() -> int:
 	var t: int = ram.get_dint(_ds_p)
 	_ds_p += ForthRAM.DCELL_SIZE
 	return t
 
 
-func _push_dword(val: int) -> void:
+func push_dword(val: int) -> void:
 	_ds_p -= ForthRAM.DCELL_SIZE
 	ram.set_dword(_ds_p, val)
 
 
-func _pop_dword() -> int:
+func pop_dword() -> int:
 	var t: int = ram.get_dword(_ds_p)
 	_ds_p += ForthRAM.DCELL_SIZE
 	return t
 
 
 # built-ins
-# Comments
-func _left_parenthesis() -> void:
-	# Begin parsing a comment, terminated by ')' character
-	# ( - )
-	_push_word(")".to_ascii_buffer()[0])
-	_parse()
-	_two_drop()
-
-
-func _dot_left_parenthesis() -> void:
-	# Begin parsing a comment, terminated by ')'. Comment text
-	# will emit to the terminal.
-	# ( - )
-	_push_word(")".to_ascii_buffer()[0])
-	_parse()  # returns c-addr n
-	_type()
-
 
 func _back_slash() -> void:
 	# Begin parsing a comment, terminated by end of line
 	# ( - )
-	_push_word(ForthTerminal.CR.to_ascii_buffer()[0])
-	_parse()
-	_two_drop()
+	push_word(ForthTerminal.CR.to_ascii_buffer()[0])
+	parse()
+	two_drop()
 
 
 # STACK
@@ -474,23 +468,23 @@ func _q_dup() -> void:
 	# ( x - 0 | x x )
 	var t: int = ram.get_int(_ds_p)
 	if t != 0:
-		_push_word(t)
+		push_word(t)
 
 
 func _depth() -> void:
 	# ( - +n )
-	_push_word((DS_TOP - _ds_p) / ForthRAM.CELL_SIZE)
+	push_word((DS_TOP - _ds_p) / ForthRAM.CELL_SIZE)
 
 
 func _drop() -> void:
 	# ( x - )
-	_pop_word()
+	pop_word()
 
 
 func _dup() -> void:
 	# ( x - x x )
 	var t: int = ram.get_int(_ds_p)
-	_push_word(t)
+	push_word(t)
 
 
 func _nip() -> void:
@@ -546,17 +540,17 @@ func _tuck() -> void:
 	_ds_p -= ForthRAM.CELL_SIZE
 
 
-func _two_drop() -> void:
+func two_drop() -> void:
 	# remove the top pair of cells from the stack
 	# ( x1 x2 - )
-	_pop_dword()
+	pop_dword()
 
 
 func _two_dup() -> void:
 	# duplicate the top cell pair
 	# (x1 x2 - x1 x2 x1 x2 )
 	var t: int = ram.get_dword(_ds_p)
-	_push_dword(t)
+	push_dword(t)
 
 
 func _two_over() -> void:
@@ -590,14 +584,14 @@ func _two_swap() -> void:
 func _store() -> void:
 	# Store x in the cell at a-addr
 	# ( x a-addr - )
-	var addr: int = _pop_word()
-	ram.set_word(addr, _pop_word())
+	var addr: int = pop_word()
+	ram.set_word(addr, pop_word())
 
 
 func _fetch() -> void:
 	# Replace a-addr with the contents of the cell at a_addr
 	# ( a_addr - x )
-	_push_word(ram.get_word(_pop_word()))
+	push_word(ram.get_word(pop_word()))
 
 
 func _question() -> void:
@@ -613,19 +607,19 @@ func _tick() -> void:
 	# on the stack. Abort if name cannot be found.
 	# ( - xt ) <name>
 	# retrieve the name token
-	_push_word(ForthTerminal.BL.to_ascii_buffer()[0])
+	push_word(ForthTerminal.BL.to_ascii_buffer()[0])
 	_word()
 	_count()
-	var len: int = _pop_word()  # length
-	var caddr: int = _pop_word()  # start
+	var len: int = pop_word()  # length
+	var caddr: int = pop_word()  # start
 	var word: String = util.str_from_addr_n(caddr, len)
 	# look the name up
 	var token_addr = _find_in_dict(word)
 	# either in user dictionary, a built-in xt, or neither
 	if token_addr:
-		_push_word(token_addr)
+		push_word(token_addr)
 	elif word in _built_in_address:
-		_push_word(_built_in_address[word])
+		push_word(_built_in_address[word])
 	else:
 		util.print_unknown_word(word)
 
@@ -634,7 +628,7 @@ func _execute() -> void:
 	# Remove execution token xt from the stack and perform
 	# the execution behavior it identifies
 	# ( xt - )
-	var xt: int = _pop_word()
+	var xt: int = pop_word()
 	if xt in _built_in_function_from_address:
 		# this xt identifies a gdscript function
 		_built_in_function_from_address[xt].call()
@@ -642,7 +636,7 @@ func _execute() -> void:
 		# this is a physical address of an xt
 		_dict_ip = xt
 		# push the xt
-		_push_word(ram.get_word(xt))
+		push_word(ram.get_word(xt))
 		# recurse down a layer
 		_execute()
 	else:
@@ -660,11 +654,11 @@ func _dot_s() -> void:
 
 
 func _dot() -> void:
-	util.print_term(" " + str(_pop_int()))
+	util.print_term(" " + str(pop_int()))
 
 
 func _d_dot() -> void:
-	util.print_term(" " + str(_pop_dint()))
+	util.print_term(" " + str(pop_dint()))
 
 
 func _star() -> void:
@@ -838,7 +832,7 @@ func _d_to_s() -> void:
 	# Convert double to single, discarding MS cell.
 	# ( d - n )
 	# this assumes doubles are pushed in LS MS order
-	_pop_int()
+	pop_int()
 
 
 func _m_star() -> void:
@@ -1031,12 +1025,12 @@ func _word() -> void:
 	# containing the pased text as a counted string
 	# ( char - c-addr )
 	_dup()
-	var delim: int = _pop_word()
+	var delim: int = pop_word()
 	_source()
-	var source_size: int = _pop_word()
-	var source_start: int = _pop_word()
+	var source_size: int = pop_word()
+	var source_start: int = pop_word()
 	_to_in()
-	var ptraddr: int = _pop_word()
+	var ptraddr: int = pop_word()
 	while true:
 		var t: int = ram.get_byte(source_start + ram.get_word(ptraddr))
 		if t == delim:
@@ -1044,15 +1038,15 @@ func _word() -> void:
 			ram.set_word(ptraddr, ram.get_word(ptraddr) + 1)
 		else:
 			break
-	_parse()
-	var count: int = _pop_word()
-	var straddr: int = _pop_word()
+	parse()
+	var count: int = pop_word()
+	var straddr: int = pop_word()
 	var ret: int = straddr - 1
 	ram.set_byte(ret, count)
-	_push_word(ret)
+	push_word(ret)
 
 
-func _parse() -> void:
+func parse() -> void:
 	# Parse text to the first instance of char, returning the address
 	# and length of a temporary location containing the parsed text.
 	# Returns an address with one byte available in front for forming
@@ -1060,13 +1054,13 @@ func _parse() -> void:
 	# ( char - c_addr n )
 	var count: int = 0
 	var ptr: int = WORD_START + 1
-	var delim: int = _pop_word()
+	var delim: int = pop_word()
 	_source()
-	var source_size: int = _pop_word()
-	var source_start: int = _pop_word()
+	var source_size: int = pop_word()
+	var source_start: int = pop_word()
 	_to_in()
-	var ptraddr: int = _pop_word()
-	_push_word(ptr)  # parsed text begins here
+	var ptraddr: int = pop_word()
+	push_word(ptr)  # parsed text begins here
 	while true:
 		var t: int = ram.get_byte(source_start + ram.get_word(ptraddr))
 		# increment the input pointer
@@ -1079,13 +1073,13 @@ func _parse() -> void:
 			count += 1
 		else:
 			break
-	_push_word(count)
+	push_word(count)
 
 
 func _b_l() -> void:
 	# Return char, the ASCII character value of a space
 	# ( - char )
-	_push_word(int(ForthTerminal.BL))
+	push_word(int(ForthTerminal.BL))
 
 
 func _to_in() -> void:
@@ -1093,14 +1087,14 @@ func _to_in() -> void:
 	# from the start of the input buffer to the start of the current
 	# parse position
 	# ( - a-addr )
-	_push_word(BUFF_TO_IN)
+	push_word(BUFF_TO_IN)
 
 
 func _source() -> void:
 	# Return the address and length of the input buffer
 	# ( - c-addr u )
-	_push_word(BUFF_SOURCE_START)
-	_push_word(BUFF_SOURCE_SIZE)
+	push_word(BUFF_SOURCE_START)
+	push_word(BUFF_SOURCE_SIZE)
 
 
 # Strings
@@ -1109,33 +1103,33 @@ func _source() -> void:
 func _count() -> void:
 	# Return the length n, and address of the text portion of a counted string
 	# ( c_addr1 - c_addr2 u )
-	var addr: int = _pop_word()
-	_push_word(addr + 1)
-	_push_word(ram.get_byte(addr))
+	var addr: int = pop_word()
+	push_word(addr + 1)
+	push_word(ram.get_byte(addr))
 
 
 func _compare() -> void:
 	# Compare string to string (see details in docs)
 	# ( c-addr1 u1 c-addr2 u2 - n )
-	var n2: int = _pop_word()
-	var a2: int = _pop_word()
-	var n1: int = _pop_word()
-	var a1: int = _pop_word()
+	var n2: int = pop_word()
+	var a2: int = pop_word()
+	var n1: int = pop_word()
+	var a1: int = pop_word()
 	var s2: String = util.str_from_addr_n(a2, n2)
 	var s1: String = util.str_from_addr_n(a1, n1)
 	var ret: int = 0
 	if s1 == s2:
-		_push_word(ret)
+		push_word(ret)
 	elif s1 < s2:
-		_push_word(-1)
+		push_word(-1)
 	else:
-		_push_word(1)
+		push_word(1)
 
 
 func _here() -> void:
 	# Return address of the next available location in data-space
 	# ( - addr )
-	_push_word(_dict_top)
+	push_word(_dict_top)
 
 
 func _move() -> void:
@@ -1148,7 +1142,7 @@ func _move() -> void:
 	if a1 == a2 or u == 0:
 		# string doesn't need to move. Clean the stack and return.
 		_drop()
-		_two_drop()
+		two_drop()
 		return
 	if a1 > a2:
 		# potentially overlapping, source above dest
@@ -1162,9 +1156,9 @@ func _c_move() -> void:
 	# Copy u characters from addr1 to addr2. The copy proceeds from
 	# LOWER to HIGHER addresses.
 	# ( addr1 addr2 u - )
-	var u: int = _pop_word()
-	var a2: int = _pop_word()
-	var a1: int = _pop_word()
+	var u: int = pop_word()
+	var a2: int = pop_word()
+	var a1: int = pop_word()
 	var i: int = 0
 	# move in ascending order a1 -> a2, fast, then slow
 	while i < u:
@@ -1180,9 +1174,9 @@ func _c_move_up() -> void:
 	# Copy u characters from addr1 to addr2. The copy proceeds from
 	# HIGHER to LOWER addresses.
 	# ( addr1 addr2 u - )
-	var u: int = _pop_word()
-	var a2: int = _pop_word()
-	var a1: int = _pop_word()
+	var u: int = pop_word()
+	var a2: int = pop_word()
+	var a1: int = pop_word()
 	var i: int = u
 	# move in descending order a1 -> a2, fast, then slow
 	while i > 0:
@@ -1200,14 +1194,14 @@ func _c_move_up() -> void:
 func _comma() -> void:
 	# Reserve one cell of data space and store x in it.
 	# ( x - )
-	ram.set_word(_dict_top, _pop_word())
+	ram.set_word(_dict_top, pop_word())
 	_dict_top += ForthRAM.CELL_SIZE
 
 
 func _allot() -> void:
 	# Allocate u bytes of data space beginning at the next location.
 	# ( u - )
-	_dict_top += _pop_word()
+	_dict_top += pop_word()
 
 
 func _buffer_colon() -> void:
@@ -1222,28 +1216,28 @@ func _buffer_colon() -> void:
 func _c_comma() -> void:
 	# Rserve one byte of data space and store char in the byte
 	# ( char - )
-	ram.set_byte(_dict_top, _pop_word())
+	ram.set_byte(_dict_top, pop_word())
 	_dict_top += 1
 
 
 func _cell_plus() -> void:
 	# Add the size in bytes of a cell to a_addr1, returning a_addr2
 	# ( a-addr1 - a-addr2 )
-	_push_word(ForthRAM.CELL_SIZE)
+	push_word(ForthRAM.CELL_SIZE)
 	_plus()
 
 
 func _cells() -> void:
 	# Return n2, the size in bytes of n1 cells
 	# ( n1 - n2 )
-	_push_word(ForthRAM.CELL_SIZE)
+	push_word(ForthRAM.CELL_SIZE)
 	_star()
 
 
 func _char_plus() -> void:
 	# Add the size in bytes of a character to c_addr1, giving c-addr2
 	# ( c-addr1 - c-addr2 )
-	_push_word(1)
+	push_word(1)
 	_plus()
 
 
@@ -1266,16 +1260,16 @@ func _words() -> void:
 		# dictionary is not empty
 		var p: int = _dict_p
 		while p != -1:
-			_push_word(p + ForthRAM.CELL_SIZE)
+			push_word(p + ForthRAM.CELL_SIZE)
 			_count()  # search word in addr, n format
 			_dup()  # retrieve the size
-			word_len = _pop_word()
+			word_len = pop_word()
 			if col + word_len + 1 >= ForthTerminal.COLUMNS - 2:
 				util.print_term(ForthTerminal.CRLF)
 				col = 0
 			col += word_len + 1
 			# emit the dictionary entry name
-			_type()
+			type()
 			util.print_term(" ")
 			# drill down to the next entry
 			p = ram.get_int(p)
@@ -1296,11 +1290,11 @@ func _create_dict_entry_name() -> void:
 	# next byte in the entry.
 	# ( - )
 	# Grab the name
-	_push_word(ForthTerminal.BL.to_ascii_buffer()[0])
+	push_word(ForthTerminal.BL.to_ascii_buffer()[0])
 	_word()
 	_count()
-	var len: int = _pop_word()  # length
-	var caddr: int = _pop_word()  # start
+	var len: int = pop_word()  # length
+	var caddr: int = pop_word()  # start
 	# poke address of last link at next spot, but only if this isn't
 	# the very first spot in the dictionary
 	if _dict_top != _dict_p:
@@ -1312,9 +1306,9 @@ func _create_dict_entry_name() -> void:
 	ram.set_byte(_dict_top, len)
 	_dict_top += 1
 	# copy the name
-	_push_word(caddr)
-	_push_word(_dict_top)
-	_push_word(len)
+	push_word(caddr)
+	push_word(_dict_top)
+	push_word(len)
 	_move()
 	_dict_top += len
 
@@ -1331,7 +1325,7 @@ func _create() -> void:
 func _create_exec() -> void:
 	# execution time functionality of _create
 	# return address of cell after execution token
-	_push_word(_dict_ip + ForthRAM.CELL_SIZE)
+	push_word(_dict_ip + ForthRAM.CELL_SIZE)
 
 
 func _variable() -> void:
@@ -1357,14 +1351,14 @@ func _constant() -> void:
 	# copy the execution token
 	ram.set_word(_dict_top, _address_from_built_in_function[_constant_exec])
 	# store the constant
-	ram.set_word(_dict_top + ForthRAM.CELL_SIZE, _pop_word())
+	ram.set_word(_dict_top + ForthRAM.CELL_SIZE, pop_word())
 	_dict_top += ForthRAM.DCELL_SIZE  # two cells up
 
 
 func _constant_exec() -> void:
 	# execution time functionality of _constant
 	# return contents of cell after execution token
-	_push_word(ram.get_word(_dict_ip + ForthRAM.CELL_SIZE))
+	push_word(ram.get_word(_dict_ip + ForthRAM.CELL_SIZE))
 
 
 func _two_constant() -> void:
@@ -1374,14 +1368,14 @@ func _two_constant() -> void:
 	# copy the execution token
 	ram.set_word(_dict_top, _address_from_built_in_function[_two_constant_exec])
 	# store the constant
-	ram.set_dword(_dict_top + ForthRAM.CELL_SIZE, _pop_dword())
+	ram.set_dword(_dict_top + ForthRAM.CELL_SIZE, pop_dword())
 	_dict_top += ForthRAM.CELL_SIZE + ForthRAM.DCELL_SIZE
 
 
 func _two_constant_exec() -> void:
 	# execution time functionality of _two_constant
 	# return contents of double cell after execution token
-	_push_dword(ram.get_dword(_dict_ip + ForthRAM.CELL_SIZE))
+	push_dword(ram.get_dword(_dict_ip + ForthRAM.CELL_SIZE))
 
 
 func _value() -> void:
@@ -1391,25 +1385,25 @@ func _value() -> void:
 	# copy the execution token
 	ram.set_word(_dict_top, _address_from_built_in_function[_value_exec])
 	# store the initial value
-	ram.set_word(_dict_top + ForthRAM.CELL_SIZE, _pop_word())
+	ram.set_word(_dict_top + ForthRAM.CELL_SIZE, pop_word())
 	_dict_top += ForthRAM.DCELL_SIZE
 
 
 func _value_exec() -> void:
 	# execution time functionality of _value
 	# return contents of the cell after the execution token
-	_push_word(ram.get_word(_dict_ip + ForthRAM.CELL_SIZE))
+	push_word(ram.get_word(_dict_ip + ForthRAM.CELL_SIZE))
 
 
 func _to() -> void:
 	# Store x in the data space associated with name (defined by value)
 	# x TO <name> ( x - )
 	# get the name
-	_push_word(ForthTerminal.BL.to_ascii_buffer()[0])
+	push_word(ForthTerminal.BL.to_ascii_buffer()[0])
 	_word()
 	_count()
-	var len: int = _pop_word()  # length
-	var caddr: int = _pop_word()  # start
+	var len: int = pop_word()  # length
+	var caddr: int = pop_word()  # start
 	var word: String = util.str_from_addr_n(caddr, len)
 	var token_addr = _find_in_dict(word)
 	if not token_addr:
@@ -1417,7 +1411,7 @@ func _to() -> void:
 	else:
 		# adjust to data field location
 		token_addr += ForthRAM.CELL_SIZE
-		ram.set_word(token_addr, _pop_word())
+		ram.set_word(token_addr, pop_word())
 
 
 # Dictionary
@@ -1427,24 +1421,24 @@ func _unused() -> void:
 	# Return u, the number of bytes remaining in the memory area
 	# where dictionary entries are constructed.
 	# ( - u )
-	_push_word(DICT_TOP - _dict_top)
+	push_word(DICT_TOP - _dict_top)
 
 
 # Terminal I/O
 func _emit() -> void:
 	# Output one character from the LSB of the top item on stack.
 	# ( b - )
-	var c: int = _pop_word()
+	var c: int = pop_word()
 	util.print_term(char(c))
 
 
-func _type() -> void:
+func type() -> void:
 	# Output the characer string at c-addr, length u
 	# ( c-addr u - )
-	var l: int = _pop_word()
-	var s: int = _pop_word()
+	var l: int = pop_word()
+	var s: int = pop_word()
 	for i in l:
-		_push_word(ram.get_byte(s + i))
+		push_word(ram.get_byte(s + i))
 		_emit()
 
 # gdlint:ignore = max-file-lines
