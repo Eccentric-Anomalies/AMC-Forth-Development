@@ -8,17 +8,18 @@ extends RefCounted
 const CELL_SIZE := 4
 const DCELL_SIZE := CELL_SIZE * 2
 
-
 # buffer for all physical RAM
 var _ram := PackedByteArray()
 
 # forth ordering scratch
 var _d_scratch := PackedByteArray()
 
+
 # allocate memory for RAM and a DCELL_SIZE scratchpad
-func _init(size:int):
+func _init(size: int):
 	_ram.resize(size)
 	_d_scratch.resize(DCELL_SIZE)
+
 
 # convert int to standard forth ordering and vice versa
 func _d_swap(num: int) -> int:
@@ -55,6 +56,7 @@ func get_int(addr: int) -> int:
 func set_word(addr: int, val: int) -> void:
 	_ram.encode_u32(addr, val)
 
+
 func get_word(addr: int) -> int:
 	return _ram.decode_u32(addr)
 
@@ -77,7 +79,5 @@ func set_dword(addr: int, val: int) -> void:
 	_ram.encode_u64(addr, _d_swap(val))
 
 
-
 func get_dword(addr: int) -> int:
 	return _d_swap(_ram.decode_u64(addr))
-

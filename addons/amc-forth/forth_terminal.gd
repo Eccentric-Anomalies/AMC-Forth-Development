@@ -17,4 +17,3 @@ const LEFT := ESC + "[D"
 const CLREOL := ESC + "[2K"
 const COLUMNS := 80
 const ROWS := 24
-
