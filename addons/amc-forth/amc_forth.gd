@@ -33,6 +33,14 @@ const BUFF_TO_IN_TOP := BUFF_TO_IN + ForthRAM.CELL_SIZE
 const WORD_SIZE := 0x0100
 const WORD_START := BUFF_TO_IN_TOP
 const WORD_TOP := WORD_START + WORD_SIZE
+# BASE cell
+const BASE = WORD_TOP
+# DICT_TOP_PTR cell
+const DICT_TOP_PTR = BASE + ForthRAM.CELL_SIZE
+# DICT_PTR
+const DICT_PTR = DICT_TOP_PTR + ForthRAM.CELL_SIZE
+
+# Add more pointers here
 
 const TRUE := int(-1)
 const FALSE := int(0)
@@ -63,8 +71,8 @@ var string: ForthString
 var ds_p := DS_TOP
 
 # The Forth dictionary space
-var dict_p := DICT_START  # position of last link
-var dict_top := DICT_START  # position of next new link to create
+var dict_p: int  # position of last link  FIXME
+var dict_top: int  # position of next new link to create
 var dict_ip := 0  # code field pointer set to current execution point
 
 # Built-In names have a run-time definition
@@ -223,6 +231,9 @@ func create_dict_entry_name() -> void:
 	push_word(len)
 	core.move()
 	dict_top += len
+	# preserve the pointers
+	save_dict_p()
+	save_dict_top()
 
 
 # Forth Data Stack Push and Pop Routines
@@ -272,7 +283,27 @@ func pop_dword() -> int:
 	return t
 
 
-# privates
+# save the internal top of dict pointer to RAM
+func save_dict_top() -> void:
+	ram.set_word(DICT_TOP_PTR, dict_top)
+
+
+# save the internal dict pointer to RAM
+func save_dict_p() -> void:
+	ram.set_word(DICT_PTR, dict_p)
+
+
+# retrieve the internal top of dict pointer from RAM
+func restore_dict_top() -> void:
+	dict_top = ram.get_word(DICT_TOP_PTR)
+
+
+# retrieve the internal dict pointer from RAM
+func restore_dict_p() -> void:
+	dict_p = ram.get_word(DICT_PTR)
+
+
+# PRIVATES
 
 
 # Called when AMCForth.new() is executed
@@ -295,6 +326,14 @@ func _init() -> void:
 	ram.set_int(dict_p, -1)
 	# reset the buffer pointer
 	ram.set_word(BUFF_TO_IN, 0)
+	# set the base
+	core.decimal()
+	# initialize dictionary pointers and save them to RAM
+	# FIXME note these have to be initialized when re-loading state
+	dict_p = DICT_START  # position of last link
+	save_dict_p()
+	dict_top = DICT_START  # position of next new link to create
+	save_dict_top()
 	print(BANNER)
 
 

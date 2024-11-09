@@ -59,6 +59,8 @@ func comma() -> void:
 	# ( x - )
 	forth.ram.set_word(forth.dict_top, forth.pop_word())
 	forth.dict_top += ForthRAM.CELL_SIZE
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORD .
@@ -266,12 +268,34 @@ func f_abs() -> void:
 	# ( n - +n )
 	forth.ram.set_word(forth.ds_p, abs(forth.ram.get_int(forth.ds_p)))
 
+## @WORD ALIGN
+func align() -> void:
+	# If the data-space pointer is not aligned reserve space to align it
+	# ( - )
+	forth.push_word(forth.dict_top)
+	aligned()
+	forth.dict_top = forth.pop_word()
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORD ALIGNED
+func aligned() -> void:
+	# Return a-addr, the first aligned address greater than or equal to addr
+	# ( addr - a-addr )
+	var a:int = forth.pop_word()
+	if a % ForthRAM.CELL_SIZE:
+		a = a / ForthRAM.CELL_SIZE + ForthRAM.CELL_SIZE
+	forth.push_word(a)
+
 
 ## @WORD ALLOT
 func allot() -> void:
 	# Allocate u bytes of data space beginning at the next location.
 	# ( u - )
 	forth.dict_top += forth.pop_word()
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORD AND
@@ -286,6 +310,14 @@ func f_and() -> void:
 			& forth.ram.get_word(forth.ds_p - ForthRAM.CELL_SIZE)
 		)
 	)
+
+
+## @WORD BASE
+func base() -> void:
+	# Return a-addr, the address of a cell containing the current number
+	# conversion radix, between 2 and 36 inclusive.
+	# ( - a-addr )
+	forth.push_word(forth.BASE)
 
 
 ## @WORD BL
@@ -317,6 +349,8 @@ func c_comma() -> void:
 	# ( char - )
 	forth.ram.set_byte(forth.dict_top, forth.pop_word())
 	forth.dict_top += 1
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORD CHAR+
@@ -345,6 +379,8 @@ func constant() -> void:
 	# store the constant
 	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.pop_word())
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORDX CONSTANT
@@ -373,6 +409,8 @@ func create() -> void:
 		forth.dict_top, forth.address_from_built_in_function[create_exec]
 	)
 	forth.dict_top += ForthRAM.CELL_SIZE
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORDX CREATE
@@ -381,6 +419,14 @@ func create_exec() -> void:
 	# return address of cell after execution token
 	forth.push_word(forth.dict_ip + ForthRAM.CELL_SIZE)
 
+
+## @WORD DECIMAL
+func decimal() -> void:
+	# Sets BASE to 10
+	# ( - )
+	forth.push_word(10)
+	base()
+	store()
 
 ## @WORD DEPTH
 func depth() -> void:
@@ -714,6 +760,8 @@ func variable() -> void:
 	forth.core.create()
 	# make room for one cell
 	forth.dict_top += ForthRAM.CELL_SIZE
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORD XOR

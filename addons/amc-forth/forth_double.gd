@@ -27,6 +27,8 @@ func two_constant() -> void:
 	# store the constant
 	forth.ram.set_dword(forth.dict_top + ForthRAM.CELL_SIZE, forth.pop_dword())
 	forth.dict_top += ForthRAM.CELL_SIZE + ForthRAM.DCELL_SIZE
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORDX 2CONSTANT
@@ -43,6 +45,8 @@ func two_variable() -> void:
 	forth.core.create()
 	# make room for one cell
 	forth.dict_top += ForthRAM.DCELL_SIZE
+	# preserve dictionary state
+	forth.save_dict_top()
 
 
 ## @WORD D.

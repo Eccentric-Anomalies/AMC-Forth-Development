@@ -43,6 +43,15 @@ func buffer_colon() -> void:
 	forth.core.allot()
 
 
+## @WORD HEX
+func decimal() -> void:
+	# Sets BASE to 16
+	# ( - )
+	forth.push_word(16)
+	forth.core.base()
+	forth.core.store()
+
+
 ## @WORD NIP
 func nip() -> void:
 	# drop second item, leaving top unchanged
@@ -153,6 +162,8 @@ func value() -> void:
 	# store the initial value
 	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.pop_word())
 	forth.dict_top += ForthRAM.DCELL_SIZE
+	# preserve the state
+	forth.save_dict_top()
 
 
 ## @WORDX VALUE
