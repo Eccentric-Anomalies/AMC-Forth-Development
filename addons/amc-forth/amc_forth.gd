@@ -195,8 +195,10 @@ func find_in_dict(word: String) -> int:
 		string.compare()
 		# is this the correct entry?
 		if pop_word() == 0:
-			# found it. Link address + link size + string length byte + string
-			return p + ForthRAM.CELL_SIZE + 1 + n_length
+			# found it. Link address + link size + string length byte + string, aligned
+			push_word(p + ForthRAM.CELL_SIZE + 1 + n_length)
+			core.aligned()
+			return pop_word()
 		# not found, drill down to the next entry
 		p = ram.get_int(p)
 	# exhausted the dictionary, finding nothing
@@ -219,8 +221,11 @@ func create_dict_entry_name() -> void:
 	# the very first spot in the dictionary
 	if dict_top != dict_p:
 		ram.set_word(dict_top, dict_p)
+	# align the top pointer, so link will be word-aligned
+	core.align()
 	# move the top link
 	dict_p = dict_top
+	save_dict_p()
 	dict_top += ForthRAM.CELL_SIZE
 	# poke the name length
 	ram.set_byte(dict_top, len)
@@ -231,9 +236,7 @@ func create_dict_entry_name() -> void:
 	push_word(len)
 	core.move()
 	dict_top += len
-	# preserve the pointers
-	save_dict_p()
-	save_dict_top()
+	core.align() # will save dict_top
 
 
 # Forth Data Stack Push and Pop Routines

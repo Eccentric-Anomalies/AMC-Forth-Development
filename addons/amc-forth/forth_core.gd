@@ -286,7 +286,7 @@ func aligned() -> void:
 	# ( addr - a-addr )
 	var a:int = forth.pop_word()
 	if a % ForthRAM.CELL_SIZE:
-		a = a / ForthRAM.CELL_SIZE + ForthRAM.CELL_SIZE
+		a = (a / ForthRAM.CELL_SIZE + 1) * ForthRAM.CELL_SIZE
 	forth.push_word(a)
 
 
