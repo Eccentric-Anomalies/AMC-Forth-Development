@@ -1,4 +1,8 @@
 class_name ForthRAM
+## Definitions for working with "physical" RAM
+##
+## (1) Defines the size of a Forth cell and double-cell
+## (2) Functions for setting and getting numbers in RAM
 
 extends RefCounted
 

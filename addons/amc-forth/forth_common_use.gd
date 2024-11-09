@@ -10,42 +10,29 @@ extends ForthImplementationBase
 
 ## Initialize (executed automatically by ForthCommonUse.new())
 ##
-## (1) Append an array of <WORD>, <function> pairs to the Forth
-## list of built-in words (built_in_names).
-## (2) Append an array of <function> references to the Forth
-## list of built-in execution-time functions (if any)
+## All functions with "## @WORD <word>" comment will become
+## the default implementation for the built-in word.
+## All functions with "## @WORDX <word>" comment will become
+## the *compiled* implementation for the built-in word.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
-	(
-		forth
-		. built_in_names
-		. append_array(
-			[
-				["2+", two_plus],  # common use
-				["2-", two_minus],  # common use
-				["M-", m_minus],  # common use
-				["M/", m_slash],  # common use
-			]
-		)
-	)
-	forth.built_in_exec_functions.append_array([])
 
 
-## 2+
+## @WORD 2+
 func two_plus() -> void:
 	# Add two to n1, leaving n2
 	# ( n1 - n2 )
 	forth.ram.set_int(forth.ds_p, forth.ram.get_int(forth.ds_p) + 2)
 
 
-## 2-
+## @WORD 2-
 func two_minus() -> void:
 	# Subtract two from n1, leaving n2
 	# ( n1 - n2 )
 	forth.ram.set_int(forth.ds_p, forth.ram.get_int(forth.ds_p) - 2)
 
 
-## M-
+## @WORD M-
 func m_minus() -> void:
 	# Subtract n from d1 leaving the difference d2
 	# ( d1 n - d2 )
@@ -59,7 +46,7 @@ func m_minus() -> void:
 	)
 
 
-## M/
+## @WORD M/
 func m_slash() -> void:
 	# Divide d by n1 leaving the single precision quotient n2
 	# ( d n1 - n2 )

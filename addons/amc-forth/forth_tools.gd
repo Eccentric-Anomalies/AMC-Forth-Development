@@ -1,23 +1,21 @@
 class_name ForthTools
+## Define built-in Forth words in the TOOLS word set
+##
 
 extends ForthImplementationBase
 
 
+## Initialize (executed automatically by ForthCore.new())
+##
+## All functions with "## @WORD <word>" comment will become
+## the default implementation for the built-in word.
+## All functions with "## @WORDX <word>" comment will become
+## the *compiled* implementation for the built-in word.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
-	(
-		forth
-		. built_in_names
-		. append_array(
-			[
-				["?", question],  # tools
-				[".S", dot_s],  # tools
-				["WORDS", words],  # tools
-			]
-		)
-	)
 
 
+## @WORD ?
 func question() -> void:
 	# Fetch the contents of the given address and display
 	# ( a-addr - )
@@ -25,7 +23,7 @@ func question() -> void:
 	forth.core.dot()
 
 
-# Programmer Conveniences
+## @WORD .S
 func dot_s() -> void:
 	var pointer = forth.DS_TOP - ForthRAM.CELL_SIZE
 	forth.util.rprint_term("")
@@ -35,6 +33,7 @@ func dot_s() -> void:
 	forth.util.print_term(" <-Top")
 
 
+## @WORD WORDS
 func words() -> void:
 	# List all the definition names in the word list of the search order.
 	# Returns dictionary names, then built-in names.

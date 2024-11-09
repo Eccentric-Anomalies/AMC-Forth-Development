@@ -1,36 +1,39 @@
 class_name ForthUtil
+## Forth internal utilities
+##
 
 extends RefCounted
 
 var _forth: AMCForth
 
 
-# Create with a reference to AMCForth
+## Create with a reference to AMCForth
 func _init(forth: AMCForth):
 	_forth = forth
 
 
+## Send a newline character to the terminal out
 func emit_newline() -> void:
 	_forth.terminal_out.emit(ForthTerminal.CR + ForthTerminal.LF)
 
 
-# print, with newline
+## Send text to the terminal out, with a following newline
 func rprint_term(text: String) -> void:
 	print_term(text)
 	emit_newline()
 
 
-# print, without newline
+## Send text to the terminal out
 func print_term(text: String) -> void:
 	_forth.terminal_out.emit(text)
 
 
-# report an unknown word
+## Report an unrecognized Forth word
 func print_unknown_word(word: String) -> void:
 	rprint_term(" " + word + " ?")
 
 
-# gdscript String from address and length
+## Return a gdscript String from address and length
 func str_from_addr_n(addr: int, n: int) -> String:
 	var t: String = ""
 	for c in n:
@@ -38,7 +41,7 @@ func str_from_addr_n(addr: int, n: int) -> String:
 	return t
 
 
-# counted string from gdscript String
+## Create a Forth counted string frm a gdscript string
 func cstring_from_str(addr: int, s: String) -> void:
 	var n: int = addr
 	_forth.ram.set_byte(n, s.length())

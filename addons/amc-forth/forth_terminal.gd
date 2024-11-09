@@ -1,4 +1,6 @@
 class_name ForthTerminal
+## Define key codes for interacting with a terminal
+##
 
 extends RefCounted
 

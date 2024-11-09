@@ -5,112 +5,31 @@ class_name ForthCore  # gdlint:ignore = max-public-methods
 extends ForthImplementationBase
 
 
-## Initialize (executed automatically by ForthCoreExt.new())
+## Initialize (executed automatically by ForthCore.new())
 ##
-## (1) Append an array of <WORD>, <function> pairs to the Forth
-## list of built-in words (built_in_names).
-## (2) Append an array of <function> references to the Forth
-## list of built-in execution-time functions (if any)
+## All functions with "## @WORD <word>" comment will become
+## the default implementation for the built-in word.
+## All functions with "## @WORDX <word>" comment will become
+## the *compiled* implementation for the built-in word.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
-	(
-		forth
-		. built_in_names
-		. append_array(
-			[
-				["(", left_parenthesis],  # core
-				["+", plus],  # core
-				["-", minus],  # core
-				[",", comma],  # core
-				[".", dot],  # core
-				["1+", one_plus],  # core
-				["1-", one_minus],  # core
-				["'", tick],  # core
-				["!", store],  # core
-				["*", star],  # core
-				["*/", star_slash],  # core
-				["*/MOD", star_slash_mod],  # core
-				["/", slash],  # core
-				["/MOD", slash_mod],  # core
-				["?DUP", q_dup],  # core
-				["2*", two_star],  # core
-				["2/", two_slash],  # core
-				["2DROP", two_drop],  # core
-				["2DUP", two_dup],  # core
-				["2OVER", two_over],  # core
-				["2SWAP", two_swap],  # core
-				[">IN", to_in],  # core
-				["@", fetch],  # core
-				["ABS", f_abs],  # core
-				["ALLOT", allot],  # core
-				["AND", f_and],  # core
-				["BL", b_l],  # core
-				["CELL+", cell_plus],  # core
-				["CELLS", cells],  # core
-				["C,", c_comma],  # core
-				["CHAR+", char_plus],  # core
-				["CHARS", chars],  # core
-				["CONSTANT", constant],  # core
-				["COUNT", count],  # core
-				["CREATE", create],  # core
-				["DEPTH", depth],  # core
-				["DUP", dup],  # core
-				["DROP", drop],  # core
-				["EMIT", emit],  # core
-				["EXECUTE", execute],  # core
-				["HERE", here],  # core
-				["INVERT", invert],  # core
-				["LSHIFT", lshift],  # core
-				["M*", m_star],  # core
-				["MAX", max],  # core
-				["MIN", min],  # core
-				["MOD", mod],  # core
-				["MOVE", move],  # core
-				["NEGATE", negate],  # core
-				["OR", f_or],  # core
-				["OVER", over],  # core
-				["ROT", rot],  # core
-				["RSHIFT", rshift],  # core
-				["S>D", s_to_d],  # core
-				["SM/REM", sm_slash_rem],  # core
-				["SWAP", swap],  # core
-				["SOURCE", source],  # core
-				["TYPE", type],  # core
-				["UM*", um_star],  # core
-				["UM/MOD", um_slash_mod],  # core
-				["VARIABLE", variable],  # core
-				["XOR", xor],  # core
-				["WORD", word],  # core
-			]
-		)
-	)
-	(
-		forth
-		. built_in_exec_functions
-		. append_array(
-			[
-				constant_exec,
-				create_exec,
-			]
-		)
-	)
 
 
 ## Utility function for parsing comments
 func start_parenthesis() -> void:
 	forth.push_word(")".to_ascii_buffer()[0])
-	forth.parse()
+	forth.core_ext.parse()
 
 
-## (
+## @WORD (
 func left_parenthesis() -> void:
 	# Begin parsing a comment, terminated by ')' character
 	# ( - )
 	start_parenthesis()
-	forth.two_drop()
+	forth.core.two_drop()
 
 
-## +
+## @WORD +
 func plus() -> void:
 	# Add n1 to n2 leaving the sum n3
 	# ( n1 n2 - n3 )
@@ -122,7 +41,7 @@ func plus() -> void:
 	forth.ram.set_int(forth.ds_p, t)
 
 
-## -
+## @WORD -
 func minus() -> void:
 	# subtract n2 from n1, leaving the diference n3
 	# ( n1 n2 - n3 )
@@ -134,7 +53,7 @@ func minus() -> void:
 	forth.ram.set_int(forth.ds_p, t)
 
 
-## ,
+## @WORD ,
 func comma() -> void:
 	# Reserve one cell of data space and store x in it.
 	# ( x - )
@@ -142,26 +61,26 @@ func comma() -> void:
 	forth.dict_top += ForthRAM.CELL_SIZE
 
 
-## .
+## @WORD .
 func dot() -> void:
 	forth.util.print_term(" " + str(forth.pop_int()))
 
 
-## 1+
+## @WORD 1+
 func one_plus() -> void:
 	# Add one to n1, leaving n2
 	# ( n1 - n2 )
 	forth.ram.set_int(forth.ds_p, forth.ram.get_int(forth.ds_p) + 1)
 
 
-## 1-
+## @WORD 1-
 func one_minus() -> void:
 	# Subtract one from n1, leaving n2
 	# ( n1 - n2 )
 	forth.ram.set_int(forth.ds_p, forth.ram.get_int(forth.ds_p) - 1)
 
 
-## '
+## @WORD '
 func tick() -> void:
 	# Search the dictionary for name and leave its execution token
 	# on the stack. Abort if name cannot be found.
@@ -178,13 +97,15 @@ func tick() -> void:
 	# either in user dictionary, a built-in xt, or neither
 	if token_addr:
 		forth.push_word(token_addr)
-	elif word in forth.built_in_address:
-		forth.push_word(forth.built_in_address[word])
 	else:
-		forth.util.print_unknown_word(word)
+		token_addr = forth.xt_from_word(word)
+		if token_addr in forth.built_in_function_from_address:
+			forth.push_word(token_addr)
+		else:
+			forth.util.print_unknown_word(word)
 
 
-## !
+## @WORD !
 func store() -> void:
 	# Store x in the cell at a-addr
 	# ( x a-addr - )
@@ -192,7 +113,7 @@ func store() -> void:
 	forth.ram.set_word(addr, forth.pop_word())
 
 
-## *
+## @WORD *
 func star() -> void:
 	# Multiply n1 by n2 leaving the product n3
 	# ( n1 n2 - n3 )
@@ -204,7 +125,7 @@ func star() -> void:
 	forth.ram.set_int(forth.ds_p, t)
 
 
-## */
+## @WORD */
 func star_slash() -> void:
 	# Multiply n1 by n2 producing a double-cell result d.
 	# Divide d by n3, giving the single-cell quotient n4.
@@ -218,7 +139,7 @@ func star_slash() -> void:
 	forth.ram.set_int(forth.ds_p, q)
 
 
-## */MOD
+## @WORD */MOD
 func star_slash_mod() -> void:
 	# Multiply n1 by n2 producing a double-cell result d.
 	# Divide d by n3, giving the single-cell remainder n4
@@ -235,7 +156,7 @@ func star_slash_mod() -> void:
 	forth.ram.set_int(forth.ds_p + ForthRAM.CELL_SIZE, r)  # remainder
 
 
-## /
+## @WORD /
 func slash() -> void:
 	# divide n1 by n2, leaving the quotient n3
 	# ( n1 n2 - n3 )
@@ -247,7 +168,7 @@ func slash() -> void:
 	forth.ram.set_int(forth.ds_p, t)
 
 
-## /MOD
+## @WORD /MOD
 func slash_mod() -> void:
 	# divide n1 by n2, leaving the remainder n3 and quotient n4
 	# ( n1 n2 - n3 n4 )
@@ -263,7 +184,7 @@ func slash_mod() -> void:
 	forth.ram.set_int(forth.ds_p + ForthRAM.CELL_SIZE, r)
 
 
-## ?DUP
+## @WORD ?DUP
 func q_dup() -> void:
 	# ( x - 0 | x x )
 	var t: int = forth.ram.get_int(forth.ds_p)
@@ -271,7 +192,7 @@ func q_dup() -> void:
 		forth.push_word(t)
 
 
-## 2*
+## @WORD 2*
 func two_star() -> void:
 	# Return x2, result of shifting x1 one bit towards the MSB,
 	# filling the LSB with zero
@@ -279,7 +200,7 @@ func two_star() -> void:
 	forth.ram.set_int(forth.ds_p, forth.ram.get_int(forth.ds_p) << 1)
 
 
-## 2/
+## @WORD 2/
 func two_slash() -> void:
 	# Return x2, result of shifting x1 one bit towards LSB,
 	# leaving the MSB unchanged
@@ -287,14 +208,14 @@ func two_slash() -> void:
 	forth.ram.set_int(forth.ds_p, forth.ram.get_int(forth.ds_p) >> 1)
 
 
-## 2DROP
+## @WORD 2DROP
 func two_drop() -> void:
 	# remove the top pair of cells from the stack
 	# ( x1 x2 - )
 	forth.pop_dword()
 
 
-## 2DUP
+## @WORD 2DUP
 func two_dup() -> void:
 	# duplicate the top cell pair
 	# (x1 x2 - x1 x2 x1 x2 )
@@ -302,7 +223,7 @@ func two_dup() -> void:
 	forth.push_dword(t)
 
 
-## 2OVER
+## @WORD 2OVER
 func two_over() -> void:
 	# copy a cell pair x1 x2 to the top of the stack
 	# ( x1 x2 x3 x4 - x1 x2 x3 x4 x1 x2 )
@@ -312,7 +233,7 @@ func two_over() -> void:
 	)
 
 
-## 2SWAP
+## @WORD 2SWAP
 func two_swap() -> void:
 	# exchange the top two cell pairs
 	# ( x1 x2 x3 x4 - x3 x4 x1 x2 )
@@ -323,7 +244,7 @@ func two_swap() -> void:
 	forth.ram.set_dword(forth.ds_p, t)
 
 
-## >IN
+## @WORD >IN
 func to_in() -> void:
 	# Return address of a cell containing the offset, in characters,
 	# from the start of the input buffer to the start of the current
@@ -332,28 +253,28 @@ func to_in() -> void:
 	forth.push_word(forth.BUFF_TO_IN)
 
 
-## @
+## @WORD @
 func fetch() -> void:
 	# Replace a-addr with the contents of the cell at a_addr
 	# ( a_addr - x )
 	forth.push_word(forth.ram.get_word(forth.pop_word()))
 
 
-## ABS
+## @WORD ABS
 func f_abs() -> void:
 	# Replace the top stack item with its absolute value
 	# ( n - +n )
 	forth.ram.set_word(forth.ds_p, abs(forth.ram.get_int(forth.ds_p)))
 
 
-## ALLOT
+## @WORD ALLOT
 func allot() -> void:
 	# Allocate u bytes of data space beginning at the next location.
 	# ( u - )
 	forth.dict_top += forth.pop_word()
 
 
-## AND
+## @WORD AND
 func f_and() -> void:
 	# Return x3, the bit-wise logical and of x1 and x2
 	# ( x1 x2 - x3)
@@ -367,14 +288,14 @@ func f_and() -> void:
 	)
 
 
-## BL
+## @WORD BL
 func b_l() -> void:
 	# Return char, the ASCII character value of a space
 	# ( - char )
 	forth.push_word(int(ForthTerminal.BL))
 
 
-## CELL+
+## @WORD CELL+
 func cell_plus() -> void:
 	# Add the size in bytes of a cell to a_addr1, returning a_addr2
 	# ( a-addr1 - a-addr2 )
@@ -382,7 +303,7 @@ func cell_plus() -> void:
 	plus()
 
 
-## CELLS
+## @WORD CELLS
 func cells() -> void:
 	# Return n2, the size in bytes of n1 cells
 	# ( n1 - n2 )
@@ -390,7 +311,7 @@ func cells() -> void:
 	star()
 
 
-## C,
+## @WORD C,
 func c_comma() -> void:
 	# Rserve one byte of data space and store char in the byte
 	# ( char - )
@@ -398,7 +319,7 @@ func c_comma() -> void:
 	forth.dict_top += 1
 
 
-## CHAR+
+## @WORD CHAR+
 func char_plus() -> void:
 	# Add the size in bytes of a character to c_addr1, giving c-addr2
 	# ( c-addr1 - c-addr2 )
@@ -406,13 +327,13 @@ func char_plus() -> void:
 	plus()
 
 
-## CHARS
+## @WORD CHARS
 func chars() -> void:
 	# Return n2, the size in bytes of n1 characters. May be a no-op.
 	pass
 
 
-## CONSTANT
+## @WORD CONSTANT
 func constant() -> void:
 	# Create a dictionary entry for name, associated with constant x.
 	# ( x - )
@@ -426,14 +347,14 @@ func constant() -> void:
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
 
 
-## CONSTANT run-time implementation
+## @WORDX CONSTANT
 func constant_exec() -> void:
 	# execution time functionality of _constant
 	# return contents of cell after execution token
 	forth.push_word(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))
 
 
-## COUNT
+## @WORD COUNT
 func count() -> void:
 	# Return the length n, and address of the text portion of a counted string
 	# ( c_addr1 - c_addr2 u )
@@ -442,7 +363,7 @@ func count() -> void:
 	forth.push_word(forth.ram.get_byte(addr))
 
 
-## CREATE
+## @WORD CREATE
 func create() -> void:
 	# Construct a dictionary entry for the next token in the input stream
 	# Execution of *name* will return the address of its data space
@@ -454,33 +375,33 @@ func create() -> void:
 	forth.dict_top += ForthRAM.CELL_SIZE
 
 
-## CREATE run-time implementation
+## @WORDX CREATE
 func create_exec() -> void:
 	# execution time functionality of create
 	# return address of cell after execution token
 	forth.push_word(forth.dict_ip + ForthRAM.CELL_SIZE)
 
 
-## DEPTH
+## @WORD DEPTH
 func depth() -> void:
 	# ( - +n )
 	forth.push_word((forth.DS_TOP - forth.ds_p) / ForthRAM.CELL_SIZE)
 
 
-## DUP
+## @WORD DUP
 func dup() -> void:
 	# ( x - x x )
 	var t: int = forth.ram.get_int(forth.ds_p)
 	forth.push_word(t)
 
 
-## DROP
+## @WORD DROP
 func drop() -> void:
 	# ( x - )
 	forth.pop_word()
 
 
-## EMIT
+## @WORD EMIT
 func emit() -> void:
 	# Output one character from the LSB of the top item on stack.
 	# ( b - )
@@ -488,7 +409,7 @@ func emit() -> void:
 	forth.util.print_term(char(c))
 
 
-## EXECUTE
+## @WORD EXECUTE
 func execute() -> void:
 	# Remove execution token xt from the stack and perform
 	# the execution behavior it identifies
@@ -508,21 +429,21 @@ func execute() -> void:
 		forth.util.rprint_term(" Invalid execution token")
 
 
-## HERE
+## @WORD HERE
 func here() -> void:
 	# Return address of the next available location in data-space
 	# ( - addr )
 	forth.push_word(forth.dict_top)
 
 
-## INVERT
+## @WORD INVERT
 func invert() -> void:
 	# Invert all bits of x1, giving its logical inverse x2
 	# ( x1 - x2 )
 	forth.ram.set_word(forth.ds_p, ~forth.ram.get_word(forth.ds_p))
 
 
-## LSHIFT
+## @WORD LSHIFT
 func lshift() -> void:
 	# Perform a logical left shift of u places on x1, giving x2._add_constant_central_force
 	# Fill the vacated LSB bits with zero
@@ -537,7 +458,7 @@ func lshift() -> void:
 	)
 
 
-## M*
+## @WORD M*
 func m_star() -> void:
 	# Multiply n1 by n2, leaving the double result d.
 	# ( n1 n2 - d )
@@ -550,7 +471,7 @@ func m_star() -> void:
 	)
 
 
-## MAX
+## @WORD MAX
 func max() -> void:
 	# Return n3, the greater of n1 and n2
 	# ( n1 n2 - n3 )
@@ -565,7 +486,7 @@ func max() -> void:
 		)
 
 
-## MIN
+## @WORD MIN
 func min() -> void:
 	# Return n3, the lesser of n1 and n2
 	# ( n1 n2 - n3 )
@@ -580,7 +501,7 @@ func min() -> void:
 		)
 
 
-## MOD
+## @WORD MOD
 func mod() -> void:
 	# Divide n1 by n2, giving the remainder n3
 	# (n1 n2 - n3 )
@@ -594,7 +515,7 @@ func mod() -> void:
 	)
 
 
-## MOVE
+## @WORD MOVE
 func move() -> void:
 	# Copy u byes from a source starting at addr1 to the destination
 	# starting at addr2. This works even if the ranges overlap.
@@ -615,14 +536,14 @@ func move() -> void:
 		forth.string.c_move_up()
 
 
-## NEGATE
+## @WORD NEGATE
 func negate() -> void:
 	# Change the sign of the top stack value
 	# ( n - -n )
 	forth.ram.set_int(forth.ds_p, -forth.ram.get_int(forth.ds_p))
 
 
-## OR
+## @WORD OR
 func f_or() -> void:
 	# Return x3, the bit-wise inclusive or of x1 with x2
 	# ( x1 x2 - x3 )
@@ -636,7 +557,7 @@ func f_or() -> void:
 	)
 
 
-## OVER
+## @WORD OVER
 func over() -> void:
 	# place a copy of x1 on top of the stack
 	# ( x1 x2 - x1 x2 x1 )
@@ -646,7 +567,7 @@ func over() -> void:
 	)
 
 
-## ROT
+## @WORD ROT
 func rot() -> void:
 	# rotate the top three items on the stack
 	# ( x1 x2 x3 - x2 x3 x1 )
@@ -661,7 +582,7 @@ func rot() -> void:
 	forth.ram.set_int(forth.ds_p, t)
 
 
-## RSHIFT
+## @WORD RSHIFT
 func rshift() -> void:
 	# Perform a logical right shift of u places on x1, giving x2.
 	# Fill the vacated MSB bits with zeroes
@@ -676,7 +597,7 @@ func rshift() -> void:
 	)
 
 
-## S>D
+## @WORD S>D
 func s_to_d() -> void:
 	# Convert a single cell number n to its double equivalent d
 	# ( n - d )
@@ -685,7 +606,7 @@ func s_to_d() -> void:
 	forth.ram.set_dint(forth.ds_p, t)
 
 
-## SM/REM
+## @WORD SM/REM
 func sm_slash_rem() -> void:
 	# Divide d by n1, using symmetric division, giving quotient n3 and
 	# remainder n2. All arguments are signed.
@@ -699,7 +620,7 @@ func sm_slash_rem() -> void:
 	forth.ram.set_int(forth.ds_p + ForthRAM.CELL_SIZE, r)
 
 
-## SOURCE
+## @WORD SOURCE
 func source() -> void:
 	# Return the address and length of the input buffer
 	# ( - c-addr u )
@@ -707,7 +628,7 @@ func source() -> void:
 	forth.push_word(forth.BUFF_SOURCE_SIZE)
 
 
-## SWAP
+## @WORD SWAP
 func swap() -> void:
 	# exchange the top two items on the stack
 	# ( x1 x2 - x2 x1 )
@@ -718,7 +639,7 @@ func swap() -> void:
 	forth.ram.set_int(forth.ds_p, t)
 
 
-## WORD
+## @WORD WORD
 func word() -> void:
 	# Skip leading occurrences of the delimiter char. Parse text
 	# deliminted by char. Return the address of a temporary location
@@ -748,7 +669,7 @@ func word() -> void:
 	forth.push_word(ret)
 
 
-## TYPE
+## @WORD TYPE
 func type() -> void:
 	# Output the characer string at c-addr, length u
 	# ( c-addr u - )
@@ -759,7 +680,7 @@ func type() -> void:
 		emit()
 
 
-## UM*
+## @WORD UM*
 func um_star() -> void:
 	# Multiply u1 by u2, leaving the double-precision result ud
 	# ( u1 u2 - ud )
@@ -772,7 +693,7 @@ func um_star() -> void:
 	)
 
 
-## UM/MOD
+## @WORD UM/MOD
 func um_slash_mod() -> void:
 	# Divide ud by n1, leaving quotient n3 and remainder n2.
 	# All arguments and result are unsigned.
@@ -786,7 +707,7 @@ func um_slash_mod() -> void:
 	forth.ram.set_word(forth.ds_p + ForthRAM.CELL_SIZE, r)
 
 
-## VARIABLE
+## @WORD VARIABLE
 func variable() -> void:
 	# Create a dictionary entry for name associated with one cell of data
 	# ( - )
@@ -795,7 +716,7 @@ func variable() -> void:
 	forth.dict_top += ForthRAM.CELL_SIZE
 
 
-## XOR
+## @WORD XOR
 func xor() -> void:
 	# Return x3, the bit-wise exclusive or of x1 with x2
 	# ( x1 x2 - x3 )

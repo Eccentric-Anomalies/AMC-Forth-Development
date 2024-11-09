@@ -34,20 +34,23 @@ const WORD_SIZE := 0x0100
 const WORD_START := BUFF_TO_IN_TOP
 const WORD_TOP := WORD_START + WORD_SIZE
 
-# VIRTUAL addresses for built-in words
-const DICT_VIRTUAL_START := 0x01000000
-# VIRTUAL addresses for built-in execute-time functions
-const DICT_VIRTUAL_EXEC_START := 0x02000000
-
 const TRUE := int(-1)
 const FALSE := int(0)
 
 const MAX_BUFFER_SIZE := 20
 
+# Masks for built-in execution tokens
+const BUILT_IN_XT_MASK = 0x080 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
+const BUILT_IN_XTX_MASK = 0x040 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
+# Ensure we don't generate tokens that are larger than the CELL_SIZE
+const BUILT_IN_MASK = (
+	~(BUILT_IN_XT_MASK | BUILT_IN_XTX_MASK) & (0x100 ** ForthRAM.CELL_SIZE - 1)
+)
+
 # Reference to the physical memory and utilities
 var ram: ForthRAM
 var util: ForthUtil
-# Core Forth implementations
+# Core Forth word implementations
 var core: ForthCore
 var core_ext: ForthCoreExt
 var tools: ForthTools
@@ -80,8 +83,6 @@ var address_from_built_in_function: Dictionary = {}
 # get built-in function from "address"
 var built_in_function_from_address: Dictionary = {}
 
-# get built-in "address" from word
-var _built_in_address: Dictionary = {}
 # get built-in function from word
 var _built_in_function: Dictionary = {}
 
@@ -223,7 +224,9 @@ func create_dict_entry_name() -> void:
 	core.move()
 	dict_top += len
 
+
 # Forth Data Stack Push and Pop Routines
+
 
 func push_int(val: int) -> void:
 	ds_p -= ForthRAM.CELL_SIZE
@@ -271,12 +274,14 @@ func pop_dword() -> int:
 
 # privates
 
+
 # Called when AMCForth.new() is executed
 # This will cascade instantiation of all the Forth implementation classes
 # and initialize dictionaries for relating built-in words and addresses
 func _init() -> void:
 	ram = ForthRAM.new(RAM_SIZE)
 	util = ForthUtil.new(self)
+	# Create Forth word definitions
 	core = ForthCore.new(self)
 	core_ext = ForthCoreExt.new(self)
 	tools = ForthTools.new(self)
@@ -284,6 +289,7 @@ func _init() -> void:
 	double = ForthDouble.new(self)
 	double_ext = ForthDoubleExt.new(self)
 	string = ForthString.new(self)
+	# End Forth word definitions
 	_init_built_ins()
 	# set the terminal link in the dictionary
 	ram.set_int(dict_p, -1)
@@ -292,27 +298,37 @@ func _init() -> void:
 	print(BANNER)
 
 
+# generate execution tokens by hashing Forth Word
+func xt_from_word(word: String) -> int:
+	return BUILT_IN_XT_MASK + (BUILT_IN_MASK & word.hash())
+
+
+# generate run-time execution tokens by hashing Forth Word
+func _xtx_from_word(word: String) -> int:
+	return BUILT_IN_XTX_MASK + (BUILT_IN_MASK & word.hash())
+
+
 func _init_built_ins() -> void:
 	var addr: int
-	var token_count: int = DICT_VIRTUAL_START
-	for i in ForthStdWords.STANDARD_NAMES.size():
-		_built_in_address[ForthStdWords.STANDARD_NAMES[i]] = token_count
-		token_count += ForthRAM.CELL_SIZE
 	for i in built_in_names.size():
 		var word: String = built_in_names[i][0]
 		var f: Callable = built_in_names[i][1]
 		# native functions are assigned virtual addresses, outside of
 		# the real memory map.
-		addr = _built_in_address[word]
+		addr = xt_from_word(word)
+		assert(
+			not built_in_function_from_address.has(addr),
+			"Duplicate Forth word hash must be resolved."
+		)
 		built_in_function_from_address[addr] = f
 		address_from_built_in_function[f] = addr
 		_built_in_function[word] = f
-	# reset token count to point to the EXEC virtual addresses
-	token_count = DICT_VIRTUAL_EXEC_START
-	for f in built_in_exec_functions:
-		built_in_function_from_address[token_count] = f
-		address_from_built_in_function[f] = token_count
-		token_count += ForthRAM.CELL_SIZE
+	for i in built_in_exec_functions.size():
+		var word: String = built_in_exec_functions[i][0]
+		var f: Callable = built_in_exec_functions[i][1]
+		addr = _xtx_from_word(word)
+		built_in_function_from_address[addr] = f
+		address_from_built_in_function[f] = addr
 
 
 func _abort_line() -> void:

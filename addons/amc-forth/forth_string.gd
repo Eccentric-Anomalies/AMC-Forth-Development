@@ -1,23 +1,21 @@
 class_name ForthString
 
 extends ForthImplementationBase
+## Define built-in Forth words in the STRING word set
+##
 
 
+## Initialize (executed automatically by ForthCore.new())
+##
+## All functions with "## @WORD <word>" comment will become
+## the default implementation for the built-in word.
+## All functions with "## @WORDX <word>" comment will become
+## the *compiled* implementation for the built-in word.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
-	(
-		forth
-		. built_in_names
-		. append_array(
-			[
-				["CMOVE", c_move],  # string
-				["CMOVE>", c_move_up],  # string
-				["COMPARE", compare],  # string
-			]
-		)
-	)
 
 
+## @WORD CMOVE
 func c_move() -> void:
 	# Copy u characters from addr1 to addr2. The copy proceeds from
 	# LOWER to HIGHER addresses.
@@ -36,6 +34,7 @@ func c_move() -> void:
 			i += 1
 
 
+## @WORD CMOVE>
 func c_move_up() -> void:
 	# Copy u characters from addr1 to addr2. The copy proceeds from
 	# HIGHER to LOWER addresses.
@@ -54,6 +53,7 @@ func c_move_up() -> void:
 			forth.ram.set_byte(a2 + i, forth.ram.get_byte(a1 + i))
 
 
+## @WORD COMPARE
 func compare() -> void:
 	# Compare string to string (see details in docs)
 	# ( c-addr1 u1 c-addr2 u2 - n )
