@@ -52,6 +52,34 @@ func decimal() -> void:
 	forth.core.store()
 
 
+## @WORD MARKER <name>
+func marker() -> void:
+	# Create a dictionary definition for name, to be used as a deletion
+	# boundary. When <name> is executed, remove the definition for <name>
+	# and all subsequent definitions.
+	# ( - )
+	forth.create_dict_entry_name()
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[marker_exec]
+	)
+	# store the dict_p value in the next cell
+	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.dict_p)
+	forth.dict_top += ForthRAM.DCELL_SIZE
+	# preserve the state
+	forth.save_dict_top()
+
+
+## @WORDX MARKER
+func marker_exec() -> void:
+	# execution time functionality of marker
+	# set dict_p to the previous entry
+	forth.dict_top = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.dict_p = forth.ram.get_word(forth.dict_top)
+	forth.save_dict_top()
+	forth.save_dict_p()
+
+
 ## @WORD NIP
 func nip() -> void:
 	# drop second item, leaving top unchanged
@@ -168,6 +196,6 @@ func value() -> void:
 
 ## @WORDX VALUE
 func value_exec() -> void:
-	# execution time functionality of _value
+	# execution time functionality of value
 	# return contents of the cell after the execution token
 	forth.push_word(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))

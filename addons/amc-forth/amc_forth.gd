@@ -209,7 +209,7 @@ func create_dict_entry_name() -> void:
 	# Internal utility function for creating the start of
 	# a dictionary entry. The next thing to follow will be
 	# the execution token. Upon exit, dict_top will point to the
-	# next byte in the entry.
+	# aligned position of the execution token to be.
 	# ( - )
 	# Grab the name
 	push_word(ForthTerminal.BL.to_ascii_buffer()[0])
