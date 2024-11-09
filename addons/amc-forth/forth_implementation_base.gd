@@ -18,14 +18,14 @@ func _scan_definitions() -> void:
 	var src = get_script().source_code
 	var regex = RegEx.new()
 	# Compile built-in WORD functions
-	regex.compile("##\\s+@WORD\\s+([^\\s]+)\\s*\\n?\\r?func\\s+([^\\s(]+)")
+	regex.compile("##\\s+@WORD\\s+([^\\s]+).*\\n?\\r?func\\s+([^\\s(]+)")
 	var res = regex.search_all(src)
 	for item in res:
 		forth.built_in_names.append(
 			[item.strings[1], Callable(self, item.strings[2])]
 		)
 	# Compile built-in WORDX run-time execution functions
-	regex.compile("##\\s+@WORDX\\s+([^\\s]+)\\s*\\n?\\r?func\\s+([^\\s(]+)")
+	regex.compile("##\\s+@WORDX\\s+([^\\s]+).*\\n?\\r?func\\s+([^\\s(]+)")
 	res = regex.search_all(src)
 	for item in res:
 		forth.built_in_exec_functions.append(
