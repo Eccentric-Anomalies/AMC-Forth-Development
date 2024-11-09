@@ -51,7 +51,8 @@ func two_variable() -> void:
 
 ## @WORD D.
 func d_dot() -> void:
-	forth.util.print_term(" " + str(forth.pop_dint()))
+	var fmt:String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
+	forth.util.print_term(" " + fmt % forth.pop_dint())
 
 
 ## @WORD D-

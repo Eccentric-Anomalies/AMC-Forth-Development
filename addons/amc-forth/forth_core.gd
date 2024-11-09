@@ -65,7 +65,8 @@ func comma() -> void:
 
 ## @WORD .
 func dot() -> void:
-	forth.util.print_term(" " + str(forth.pop_int()))
+	var fmt:String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
+	forth.util.print_term(" " + fmt % forth.pop_int())
 
 
 ## @WORD 1+

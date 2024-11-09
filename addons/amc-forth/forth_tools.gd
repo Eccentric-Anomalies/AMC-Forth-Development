@@ -26,9 +26,10 @@ func question() -> void:
 ## @WORD .S
 func dot_s() -> void:
 	var pointer = forth.DS_TOP - ForthRAM.CELL_SIZE
+	var fmt:String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
 	forth.util.rprint_term("")
 	while pointer >= forth.ds_p:
-		forth.util.print_term(" " + str(forth.ram.get_int(pointer)))
+		forth.util.print_term(" " + fmt % forth.ram.get_int(pointer))
 		pointer -= ForthRAM.CELL_SIZE
 	forth.util.print_term(" <-Top")
 

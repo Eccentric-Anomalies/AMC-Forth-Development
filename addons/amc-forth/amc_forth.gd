@@ -374,8 +374,20 @@ func _abort_line() -> void:
 	ram.set_word(BUFF_TO_IN, 0)
 
 
+func _is_valid_int(word:String, base:int = 10) -> bool:
+	if base == 16:
+		return word.is_valid_hex_number()
+	return word.is_valid_int()
+
+func _to_int(word:String, base:int = 10) -> int:
+	if base == 16:
+		return word.hex_to_int()
+	return word.to_int()
+
+
 func _interpret_terminal_line() -> void:
 	var bytes_input: PackedByteArray = _terminal_pad.to_ascii_buffer()
+	var base:int = ram.get_word(BASE)
 	bytes_input.push_back(0)  # null terminate
 	# transfer to the RAM-based input buffer (accessible to the engine)
 	for i in bytes_input.size():
@@ -401,12 +413,12 @@ func _interpret_terminal_line() -> void:
 		elif t.to_upper() in _built_in_function:
 			_built_in_function[t.to_upper()].call()
 		# valid numeric value (double first)
-		elif t.contains(".") and t.replace(".", "").is_valid_int():
+		elif t.contains(".") and _is_valid_int(t.replace(".", ""), base):
 			var t_strip: String = t.replace(".", "")
-			var temp: int = t_strip.to_int()
+			var temp: int = _to_int(t_strip, base)
 			push_dword(temp)
-		elif t.is_valid_int():
-			var temp: int = t.to_int()
+		elif _is_valid_int(t, base):
+			var temp: int = _to_int(t, base)
 			# single-precision
 			push_word(temp)
 		# nothing we recognize
