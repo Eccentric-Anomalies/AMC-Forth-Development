@@ -173,6 +173,11 @@ func terminal_in(text: String) -> void:
 				if buffer_size == MAX_BUFFER_SIZE:
 					_terminal_buffer.pop_front()
 			_buffer_index = _terminal_buffer.size()
+			# refresh the line in the terminal
+			_pad_position = _terminal_pad.length()
+			terminal_out.emit(_refresh_edit_text())
+			echo_text = ""
+			# send the text to the Forth interpreter
 			_interpret_terminal_line()
 			_terminal_pad = ""
 			_pad_position = 0
