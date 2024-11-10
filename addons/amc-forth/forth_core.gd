@@ -234,8 +234,7 @@ func semi_colon() -> void:
 	forth.state = false
 	# insert the XT for the semi-colon
 	forth.ram.set_word(
-		forth.dict_top,
-		forth.address_from_built_in_function[semi_colon_exec]
+		forth.dict_top, forth.address_from_built_in_function[semi_colon_exec]
 	)
 	forth.dict_top += ForthRAM.CELL_SIZE
 	# preserve dictionary state
@@ -285,6 +284,35 @@ func two_dup() -> void:
 	# (x1 x2 - x1 x2 x1 x2 )
 	var t: int = forth.ram.get_dword(forth.ds_p)
 	forth.push_dword(t)
+
+
+## @WORD 2LITERAL
+func two_literal() -> void:
+	# At compile time, remove the top two numbers from the stack and compile
+	# into the current definition.
+	# ( - x x )  (runtime)
+	var literal_val1: int = forth.pop_word()
+	var literal_val2: int = forth.pop_word()
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[two_literal_exec]
+	)
+	# store the value
+	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, literal_val1)
+	forth.ram.set_word(forth.dict_top + ForthRAM.DCELL_SIZE, literal_val2)
+	forth.dict_top += ForthRAM.CELL_SIZE * 3  # three cells up
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX 2LITERAL
+func two_literal_exec() -> void:
+	# execution time functionality of literal
+	# return contents of cell after execution token
+	forth.push_word(forth.ram.get_word(forth.dict_ip + ForthRAM.DCELL_SIZE))
+	forth.push_word(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))
+	# advance the instruction pointer by one to skip over the data
+	forth.dict_ip += ForthRAM.DCELL_SIZE
 
 
 ## @WORD 2OVER
@@ -543,12 +571,14 @@ func execute() -> void:
 	else:
 		forth.util.rprint_term(" Invalid execution token")
 
+
 ## @WORD EXIT
 func exit() -> void:
 	# Return control to the calling definition in the ip-stack
 	# ( - )
 	# set a flag indicating exit has been called
 	forth.exit_flag = true
+
 
 ## @WORD HERE
 func here() -> void:
@@ -562,6 +592,32 @@ func invert() -> void:
 	# Invert all bits of x1, giving its logical inverse x2
 	# ( x1 - x2 )
 	forth.ram.set_word(forth.ds_p, ~forth.ram.get_word(forth.ds_p))
+
+
+## @WORD LITERAL
+func literal() -> void:
+	# At compile time, remove the top number from the stack and compile
+	# into the current definition.
+	# ( - x )  (runtime)
+	var literal_val: int = forth.pop_word()
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[literal_exec]
+	)
+	# store the value
+	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, literal_val)
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX LITERAL
+func literal_exec() -> void:
+	# execution time functionality of literal
+	# return contents of cell after execution token
+	forth.push_word(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))
+	# advance the instruction pointer by one to skip over the data
+	forth.dict_ip += ForthRAM.CELL_SIZE
 
 
 ## @WORD LSHIFT
