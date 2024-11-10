@@ -55,6 +55,11 @@ const BUILT_IN_MASK = (
 	~(BUILT_IN_XT_MASK | BUILT_IN_XTX_MASK) & (0x100 ** ForthRAM.CELL_SIZE - 1)
 )
 
+# Smudge bit mask
+const SMUDGE_BIT_MASK = 0x80
+# Largest name length
+const MAX_NAME_LENGTH = 0x7f
+
 # Reference to the physical memory and utilities
 var ram: ForthRAM
 var util: ForthUtil
@@ -75,7 +80,10 @@ var dict_p: int  # position of last link  FIXME
 var dict_top: int  # position of next new link to create
 var dict_ip := 0  # code field pointer set to current execution point
 
-# Built-In names have a run-time definition
+# Forth compile state
+var state:bool = false
+
+# Built-In names h ave a run-time definition
 # These are "<WORD>", <run-time function> pairs that are defined by each
 # Forth implementation class (e.g. ForthDouble, etc.)
 var built_in_names: Array = []
@@ -85,11 +93,16 @@ var built_in_names: Array = []
 # Forth implementation class (e.g. ForthDouble, etc.) when a
 # different *compiled* behavior is required
 var built_in_exec_functions: Array = []
+# List of built-in names that are IMMEDIATE by default
+var immediate_names: Array = []
 
 # get "address" from built-in function
 var address_from_built_in_function: Dictionary = {}
 # get built-in function from "address"
 var built_in_function_from_address: Dictionary = {}
+
+# Forth : exit flag (true if exit has been called)
+var exit_flag:bool = false
 
 # get built-in function from word
 var _built_in_function: Dictionary = {}
@@ -101,6 +114,8 @@ var _parse_pointer := 0
 var _terminal_buffer: Array = []
 var _buffer_index := 0
 
+# Forth : execution dict_ip stack
+var _dict_ip_stack: Array = []
 
 func client_connected() -> void:
 	terminal_out.emit(BANNER + ForthTerminal.CR + ForthTerminal.LF)
@@ -185,31 +200,39 @@ func find_in_dict(word: String) -> int:
 	util.cstring_from_str(dict_top, word)
 	# make a temporary pointer
 	var p: int = dict_p
-	while p != -1:
-		push_word(dict_top)
-		core.count()  # search word in addr, n format
-		push_word(p + ForthRAM.CELL_SIZE)
-		core.count()  # candidate word in addr, n format
-		core.dup()  # copy the length
-		var n_length: int = pop_word()
-		string.compare()
-		# is this the correct entry?
-		if pop_word() == 0:
-			# found it. Link address + link size + string length byte + string, aligned
-			push_word(p + ForthRAM.CELL_SIZE + 1 + n_length)
-			core.aligned()
-			return pop_word()
+	while p != -1:				# <empty>
+		push_word(dict_top)		# c-addr
+		core.count()  # search word in addr  # addr n
+		push_word(p + ForthRAM.CELL_SIZE) # entry name  # addr n c-addr
+		core.count()  # candidate word in addr			# addr n addr n
+		core.dup()  # copy the length					# addr n addr n n
+		var n_length: int = pop_word()					# addr n addr n
+		# only check if the entry has a clear smudge bit
+		if not (n_length & SMUDGE_BIT_MASK):
+			string.compare()							# n
+			# is this the correct entry?
+			if pop_word() == 0:							#
+				# found it. Link address + link size + string length byte + string, aligned
+				push_word(p + ForthRAM.CELL_SIZE + 1 + n_length)	# n
+				core.aligned()										# a
+				return pop_word()									#
+		else:
+			# clean up the stack
+			pop_dword()									# addr n
+			pop_dword()									#
 		# not found, drill down to the next entry
 		p = ram.get_int(p)
 	# exhausted the dictionary, finding nothing
 	return 0
 
 
-func create_dict_entry_name() -> void:
+func create_dict_entry_name(smudge:bool = false) -> int:
 	# Internal utility function for creating the start of
 	# a dictionary entry. The next thing to follow will be
 	# the execution token. Upon exit, dict_top will point to the
 	# aligned position of the execution token to be.
+	# Accepts an optional smudge state (default false).
+	# Returns the address of the name length byte or zero on fail.
 	# ( - )
 	# Grab the name
 	push_word(ForthTerminal.BL.to_ascii_buffer()[0])
@@ -217,27 +240,33 @@ func create_dict_entry_name() -> void:
 	core.count()
 	var len: int = pop_word()  # length
 	var caddr: int = pop_word()  # start
-	# poke address of last link at next spot, but only if this isn't
-	# the very first spot in the dictionary
-	if dict_top != dict_p:
-		ram.set_word(dict_top, dict_p)
-	# align the top pointer, so link will be word-aligned
-	core.align()
-	# move the top link
-	dict_p = dict_top
-	save_dict_p()
-	dict_top += ForthRAM.CELL_SIZE
-	# poke the name length
-	ram.set_byte(dict_top, len)
-	dict_top += 1
-	# copy the name
-	push_word(caddr)
-	push_word(dict_top)
-	push_word(len)
-	core.move()
-	dict_top += len
-	core.align() # will save dict_top
-
+	if len <= MAX_NAME_LENGTH:
+		# poke address of last link at next spot, but only if this isn't
+		# the very first spot in the dictionary
+		if dict_top != dict_p:
+			ram.set_word(dict_top, dict_p)
+		# align the top pointer, so link will be word-aligned
+		core.align()
+		# move the top link
+		dict_p = dict_top
+		save_dict_p()
+		dict_top += ForthRAM.CELL_SIZE
+		# poke the name length, with a smudge bit if needed
+		var smudge_bit:int = SMUDGE_BIT_MASK if smudge else 0
+		ram.set_byte(dict_top, len | smudge_bit)
+		# preserve the address of the length byte
+		var ret:int = dict_top
+		dict_top += 1
+		# copy the name
+		push_word(caddr)
+		push_word(dict_top)
+		push_word(len)
+		core.move()
+		dict_top += len
+		core.align() # will save dict_top
+		# the address of the name length byte
+		return ret
+	return 0
 
 # Forth Data Stack Push and Pop Routines
 
@@ -304,6 +333,17 @@ func restore_dict_top() -> void:
 # retrieve the internal dict pointer from RAM
 func restore_dict_p() -> void:
 	dict_p = ram.get_word(DICT_PTR)
+
+# dictionary instruction pointer manipulation
+# push the current dict_ip
+func push_ip() -> void:
+	_dict_ip_stack.push_back(dict_ip)
+
+func pop_ip() -> void:
+	dict_ip = _dict_ip_stack.pop_back()
+
+func ip_stack_size() -> int:
+	return _dict_ip_stack.size()
 
 
 # PRIVATES
@@ -387,7 +427,11 @@ func _to_int(word:String, base:int = 10) -> int:
 		return word.hex_to_int()
 	return word.to_int()
 
+# Given a word, determine if it is immediate or not.
+func _is_immediate(word:String) -> bool:
+	return word in immediate_names
 
+# Interpret the _terminal_pad content
 func _interpret_terminal_line() -> void:
 	var bytes_input: PackedByteArray = _terminal_pad.to_ascii_buffer()
 	var base:int = ram.get_word(BASE)
@@ -408,14 +452,18 @@ func _interpret_terminal_line() -> void:
 			_abort_line()
 			break
 		var t: String = util.str_from_addr_n(caddr, len)
-		# t should be the next token
-		var found_entry = find_in_dict(t)
-		if found_entry != 0:
-			push_word(found_entry)
-			core.execute()
-		elif t.to_upper() in _built_in_function:
-			_built_in_function[t.to_upper()].call()
-		# valid numeric value (double first)
+		# t should be the next token, try to get an execution token from it
+		var xt = find_in_dict(t)
+		if not xt and t.to_upper() in _built_in_function:
+			xt = xt_from_word(t.to_upper())
+		# an execution token exists
+		if xt != 0:
+			push_word(xt)
+			if state and not _is_immediate(t): # Compiling
+				core.comma() # store at the top of the current : definition
+			else:	# Not Compiling or immediate - just execute
+				core.execute()
+		# no valid token, so maybe valid numeric value (double first)
 		elif t.contains(".") and _is_valid_int(t.replace(".", ""), base):
 			var t_strip: String = t.replace(".", "")
 			var temp: int = _to_int(t_strip, base)

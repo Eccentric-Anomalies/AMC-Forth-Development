@@ -7,10 +7,11 @@ extends ForthImplementationBase
 
 ## Initialize (executed automatically by ForthCoreExt.new())
 ##
-## All functions with "## @WORD <word>" comment will become
+## (1) All functions with "## @WORD <word>" comment will become
 ## the default implementation for the built-in word.
-## All functions with "## @WORDX <word>" comment will become
+## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
+## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
@@ -58,16 +59,16 @@ func marker() -> void:
 	# boundary. When <name> is executed, remove the definition for <name>
 	# and all subsequent definitions.
 	# ( - )
-	forth.create_dict_entry_name()
-	# copy the execution token
-	forth.ram.set_word(
-		forth.dict_top, forth.address_from_built_in_function[marker_exec]
-	)
-	# store the dict_p value in the next cell
-	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.dict_p)
-	forth.dict_top += ForthRAM.DCELL_SIZE
-	# preserve the state
-	forth.save_dict_top()
+	if forth.create_dict_entry_name():
+		# copy the execution token
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[marker_exec]
+		)
+		# store the dict_p value in the next cell
+		forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.dict_p)
+		forth.dict_top += ForthRAM.DCELL_SIZE
+		# preserve the state
+		forth.save_dict_top()
 
 
 ## @WORDX MARKER
@@ -182,16 +183,17 @@ func unused() -> void:
 func value() -> void:
 	# Create a dictionary entry for name, associated with value x.
 	# ( x - )
-	forth.create_dict_entry_name()
-	# copy the execution token
-	forth.ram.set_word(
-		forth.dict_top, forth.address_from_built_in_function[value_exec]
-	)
-	# store the initial value
-	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.pop_word())
-	forth.dict_top += ForthRAM.DCELL_SIZE
-	# preserve the state
-	forth.save_dict_top()
+	var init_val:int = forth.pop_word()
+	if forth.create_dict_entry_name():
+		# copy the execution token
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[value_exec]
+		)
+		# store the initial value
+		forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, init_val)
+		forth.dict_top += ForthRAM.DCELL_SIZE
+		# preserve the state
+		forth.save_dict_top()
 
 
 ## @WORDX VALUE

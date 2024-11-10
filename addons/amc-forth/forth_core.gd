@@ -4,13 +4,16 @@ class_name ForthCore  # gdlint:ignore = max-public-methods
 
 extends ForthImplementationBase
 
+var _smudge_address: int = 0
+
 
 ## Initialize (executed automatically by ForthCore.new())
 ##
-## All functions with "## @WORD <word>" comment will become
+## (1) All functions with "## @WORD <word>" comment will become
 ## the default implementation for the built-in word.
-## All functions with "## @WORDX <word>" comment will become
+## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
+## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
@@ -65,7 +68,7 @@ func comma() -> void:
 
 ## @WORD .
 func dot() -> void:
-	var fmt:String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
+	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
 	forth.util.print_term(" " + fmt % forth.pop_int())
 
 
@@ -187,6 +190,64 @@ func slash_mod() -> void:
 	forth.ram.set_int(forth.ds_p + ForthRAM.CELL_SIZE, r)
 
 
+## @WORD : <name>
+func colon() -> void:
+	# Create a definition for name and enter compilation state
+	# ( - )
+	_smudge_address = forth.create_dict_entry_name(true)
+	if _smudge_address:
+		# enter compile state
+		forth.state = true
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[colon_exec]
+		)
+		forth.dict_top += ForthRAM.CELL_SIZE
+		# preserve dictionary state
+		forth.save_dict_top()
+
+
+## @WORDX :
+func colon_exec() -> void:
+	# Execution behavior of colon
+	# save the current stack level
+	while not forth.exit_flag:
+		# Step to the next item
+		forth.dict_ip += ForthRAM.CELL_SIZE
+		# get the next execution token
+		forth.push_word(forth.ram.get_word(forth.dict_ip))
+		# and do what it says to do!
+		execute()
+	# we are exiting. reset the flag.
+	forth.exit_flag = false
+
+
+## @WORD ; IMMEDIATE
+func semi_colon() -> void:
+	# Leave compilation state
+	# ( - )
+	# remove the smudge bit
+	forth.ram.set_byte(
+		_smudge_address,
+		forth.ram.get_byte(_smudge_address) & ~forth.SMUDGE_BIT_MASK
+	)
+	# clear compile state
+	forth.state = false
+	# insert the XT for the semi-colon
+	forth.ram.set_word(
+		forth.dict_top,
+		forth.address_from_built_in_function[semi_colon_exec]
+	)
+	forth.dict_top += ForthRAM.CELL_SIZE
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX ;
+func semi_colon_exec() -> void:
+	# Execution behavior of semi-colon
+	exit()
+
+
 ## @WORD ?DUP
 func q_dup() -> void:
 	# ( x - 0 | x x )
@@ -269,6 +330,7 @@ func f_abs() -> void:
 	# ( n - +n )
 	forth.ram.set_word(forth.ds_p, abs(forth.ram.get_int(forth.ds_p)))
 
+
 ## @WORD ALIGN
 func align() -> void:
 	# If the data-space pointer is not aligned reserve space to align it
@@ -284,7 +346,7 @@ func align() -> void:
 func aligned() -> void:
 	# Return a-addr, the first aligned address greater than or equal to addr
 	# ( addr - a-addr )
-	var a:int = forth.pop_word()
+	var a: int = forth.pop_word()
 	if a % ForthRAM.CELL_SIZE:
 		a = (a / ForthRAM.CELL_SIZE + 1) * ForthRAM.CELL_SIZE
 	forth.push_word(a)
@@ -372,16 +434,17 @@ func chars() -> void:
 func constant() -> void:
 	# Create a dictionary entry for name, associated with constant x.
 	# ( x - )
-	forth.create_dict_entry_name()
-	# copy the execution token
-	forth.ram.set_word(
-		forth.dict_top, forth.address_from_built_in_function[constant_exec]
-	)
-	# store the constant
-	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.pop_word())
-	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
-	# preserve dictionary state
-	forth.save_dict_top()
+	var init_val: int = forth.pop_word()
+	if forth.create_dict_entry_name():
+		# copy the execution token
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[constant_exec]
+		)
+		# store the constant
+		forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, init_val)
+		forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
+		# preserve dictionary state
+		forth.save_dict_top()
 
 
 ## @WORDX CONSTANT
@@ -405,13 +468,13 @@ func create() -> void:
 	# Construct a dictionary entry for the next token in the input stream
 	# Execution of *name* will return the address of its data space
 	# ( - )
-	forth.create_dict_entry_name()
-	forth.ram.set_word(
-		forth.dict_top, forth.address_from_built_in_function[create_exec]
-	)
-	forth.dict_top += ForthRAM.CELL_SIZE
-	# preserve dictionary state
-	forth.save_dict_top()
+	if forth.create_dict_entry_name():
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[create_exec]
+		)
+		forth.dict_top += ForthRAM.CELL_SIZE
+		# preserve dictionary state
+		forth.save_dict_top()
 
 
 ## @WORDX CREATE
@@ -428,6 +491,7 @@ func decimal() -> void:
 	forth.push_word(10)
 	base()
 	store()
+
 
 ## @WORD DEPTH
 func depth() -> void:
@@ -466,15 +530,25 @@ func execute() -> void:
 		# this xt identifies a gdscript function
 		forth.built_in_function_from_address[xt].call()
 	elif xt >= forth.DICT_START and xt < forth.DICT_TOP:
+		# save the current ip
+		forth.push_ip()
 		# this is a physical address of an xt
 		forth.dict_ip = xt
 		# push the xt
 		forth.push_word(forth.ram.get_word(xt))
 		# recurse down a layer
 		execute()
+		# restore our ip
+		forth.pop_ip()
 	else:
 		forth.util.rprint_term(" Invalid execution token")
 
+## @WORD EXIT
+func exit() -> void:
+	# Return control to the calling definition in the ip-stack
+	# ( - )
+	# set a flag indicating exit has been called
+	forth.exit_flag = true
 
 ## @WORD HERE
 func here() -> void:

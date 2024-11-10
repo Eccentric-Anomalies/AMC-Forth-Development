@@ -7,10 +7,11 @@ extends ForthImplementationBase
 
 ## Initialize (executed automatically by ForthCore.new())
 ##
-## All functions with "## @WORD <word>" comment will become
+## (1) All functions with "## @WORD <word>" comment will become
 ## the default implementation for the built-in word.
-## All functions with "## @WORDX <word>" comment will become
+## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
+## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 

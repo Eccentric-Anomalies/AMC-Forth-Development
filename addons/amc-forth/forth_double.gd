@@ -7,10 +7,11 @@ extends ForthImplementationBase
 
 ## Initialize (executed automatically by ForthDouble.new())
 ##
-## All functions with "## @WORD <word>" comment will become
+## (1) All functions with "## @WORD <word>" comment will become
 ## the default implementation for the built-in word.
-## All functions with "## @WORDX <word>" comment will become
+## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
+## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
@@ -19,16 +20,17 @@ func _init(_forth: AMCForth) -> void:
 func two_constant() -> void:
 	# Create a dictionary entry for name, associated with constant double d.
 	# ( d - )
-	forth.create_dict_entry_name()
-	# copy the execution token
-	forth.ram.set_word(
-		forth.dict_top, forth.address_from_built_in_function[two_constant_exec]
-	)
-	# store the constant
-	forth.ram.set_dword(forth.dict_top + ForthRAM.CELL_SIZE, forth.pop_dword())
-	forth.dict_top += ForthRAM.CELL_SIZE + ForthRAM.DCELL_SIZE
-	# preserve dictionary state
-	forth.save_dict_top()
+	var init_val:int = forth.pop_dword()
+	if forth.create_dict_entry_name():
+		# copy the execution token
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[two_constant_exec]
+		)
+		# store the constant
+		forth.ram.set_dword(forth.dict_top + ForthRAM.CELL_SIZE, init_val)
+		forth.dict_top += ForthRAM.CELL_SIZE + ForthRAM.DCELL_SIZE
+		# preserve dictionary state
+		forth.save_dict_top()
 
 
 ## @WORDX 2CONSTANT
