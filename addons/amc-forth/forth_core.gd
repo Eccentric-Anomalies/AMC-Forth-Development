@@ -99,12 +99,12 @@ func tick() -> void:
 	var caddr: int = forth.pop_word()  # start
 	var word: String = forth.util.str_from_addr_n(caddr, len)
 	# look the name up
-	var token_addr = forth.find_in_dict(word)
+	var token_addr_immediate = forth.find_in_dict(word)
 	# either in user dictionary, a built-in xt, or neither
-	if token_addr:
-		forth.push_word(token_addr)
+	if token_addr_immediate[0]:
+		forth.push_word(token_addr_immediate[0])
 	else:
-		token_addr = forth.xt_from_word(word)
+		var token_addr: int = forth.xt_from_word(word)
 		if token_addr in forth.built_in_function_from_address:
 			forth.push_word(token_addr)
 		else:
@@ -239,6 +239,12 @@ func semi_colon() -> void:
 	forth.dict_top += ForthRAM.CELL_SIZE
 	# preserve dictionary state
 	forth.save_dict_top()
+	# check for control flow stack integrity
+	if not forth.cf_stack_is_empty():
+		forth.util.rprint_term("Unbalanced control structure")
+		# empty the stack
+		while not forth.cf_stack_is_empty():
+			forth.cf_pop()
 
 
 ## @WORDX ;
@@ -359,6 +365,49 @@ func f_abs() -> void:
 	forth.ram.set_word(forth.ds_p, abs(forth.ram.get_int(forth.ds_p)))
 
 
+## @WORD AGAIN IMMEDIATE
+func again() -> void:
+	# Unconditionally branch back to the point immediately following
+	# the nearest previous BEGIN
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[again_exec]
+	)
+	# The link back
+	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop())
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
+
+
+## @WORDX AGAIN
+func again_exec() -> void:
+	# Unconditionally branch
+	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+
+
+## @WORD AHEAD IMMEDIATE
+func ahead() -> void:
+	# Place forward reference origin on the control flow stack.
+	# ( - orig )
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[ahead_exec]
+	)
+	# leave link address on the control stack
+	forth.cf_push(forth.dict_top + ForthRAM.CELL_SIZE)
+	# move up to finish
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX AHEAD
+func ahead_exec() -> void:
+	# Branch to ELSE if top of stack not TRUE
+	# ( x - )
+	# Skip ahead to the address in the next cell
+	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+
+
 ## @WORD ALIGN
 func align() -> void:
 	# If the data-space pointer is not aligned reserve space to align it
@@ -409,6 +458,14 @@ func base() -> void:
 	# conversion radix, between 2 and 36 inclusive.
 	# ( - a-addr )
 	forth.push_word(forth.BASE)
+
+
+## @WORD BEGIN IMMEDIATE
+func begin() -> void:
+	# Mark the destination of a backward branch.
+	# ( - )
+	# backwards by one cell, so execution will advance it to the right point
+	forth.cf_push(forth.dict_top - ForthRAM.CELL_SIZE)
 
 
 ## @WORD BL
@@ -540,6 +597,15 @@ func drop() -> void:
 	forth.pop_word()
 
 
+## @WORD ELSE IMMEDIATE
+func f_else() -> void:
+	# At compile time, originate the true branch and and resolve he false.
+	# ( - )
+	ahead()
+	forth.cf_stack_roll(1)
+	f_then()
+
+
 ## @WORD EMIT
 func emit() -> void:
 	# Output one character from the LSB of the top item on stack.
@@ -585,6 +651,47 @@ func here() -> void:
 	# Return address of the next available location in data-space
 	# ( - addr )
 	forth.push_word(forth.dict_top)
+
+
+## @WORD IF IMMEDIATE
+func f_if() -> void:
+	# Place forward reference origin on the control flow stack.
+	# ( - orig )
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[f_if_exec]
+	)
+	# leave link address on the control stack
+	forth.cf_push(forth.dict_top + ForthRAM.CELL_SIZE)
+	# move up to finish
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX IF
+func f_if_exec() -> void:
+	# Branch to ELSE if top of stack not TRUE
+	# ( x - )
+	if forth.pop_word() == 0:
+		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	else:
+		# TRUE, so skip over the link and continue executing
+		forth.dict_ip += ForthRAM.CELL_SIZE
+
+## @WORD IMMEDIATE
+	# Make the most recent definition an immediate word.
+	# ( - )
+	# This definition should be at the end of the dictionary
+	# Set the IMMEDIATE bit in the name length byte
+	if forth.dict_p != forth.dict_top:
+		# dictionary is not empty, get the length of the top entry name
+		var length_byte_addr = forth.dict_p + ForthRAM.CELL_SIZE
+		# set the immediate bit in the length byte
+		forth.ram.set_byte(
+			length_byte_addr,
+			forth.ram.get_byte(length_byte_addr) | forth.IMMEDIATE_BIT_MASK
+		)
 
 
 ## @WORD INVERT
@@ -744,6 +851,17 @@ func over() -> void:
 	)
 
 
+## @WORD POSTPONE IMMEDIATE
+func postpone() -> void:
+	# At compile time, add the compilation behavior of the following
+	# name, rather than its execution behavior.
+	# ( - )
+	# use tick to scan for the next word and obtain its execution token
+	tick()
+	# then store it in the current definition
+	comma()
+
+
 ## @WORD ROT
 func rot() -> void:
 	# rotate the top three items on the stack
@@ -814,6 +932,41 @@ func swap() -> void:
 		forth.ds_p + ForthRAM.CELL_SIZE, forth.ram.get_int(forth.ds_p)
 	)
 	forth.ram.set_int(forth.ds_p, t)
+
+
+## @WORD THEN IMMEDIATE
+func f_then() -> void:
+	# Place a reference to the this address at the address on the cf stack
+	# ( - )
+	# Note: this only places the forward reference to the position
+	# just before this (the caller will step to the next location).
+	# No f_then_exec function is needed.
+	forth.ram.set_word(forth.cf_pop(), forth.dict_top - ForthRAM.CELL_SIZE)
+
+
+## @WORD UNTIL IMMEDIATE
+func until() -> void:
+	# Conditionally branch back to the point immediately following
+	# the nearest previous BEGIN
+	# ( x - )
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[until_exec]
+	)
+	# The link back
+	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop())
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
+
+
+## @WORDX UNTIL
+func until_exec() -> void:
+	# ( x - )
+	# Conditional branch
+	if forth.pop_word() == 0:
+		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	else:
+		# TRUE, so skip over the link and continue executing
+		forth.dict_ip += ForthRAM.CELL_SIZE
 
 
 ## @WORD WORD
@@ -907,3 +1060,5 @@ func xor() -> void:
 			^ forth.ram.get_word(forth.ds_p - ForthRAM.CELL_SIZE)
 		)
 	)
+
+# gdlint:ignore = max-file-lines

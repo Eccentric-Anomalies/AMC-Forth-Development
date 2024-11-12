@@ -5,7 +5,7 @@ class_name ForthTools
 extends ForthImplementationBase
 
 
-## Initialize (executed automatically by ForthCore.new())
+## Initialize (executed automatically by ForthTools.new())
 ##
 ## (1) All functions with "## @WORD <word>" comment will become
 ## the default implementation for the built-in word.

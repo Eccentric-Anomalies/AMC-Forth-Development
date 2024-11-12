@@ -1,4 +1,4 @@
-class_name AMCForth
+class_name AMCForth  # gdlint:ignore = max-public-methods
 
 extends RefCounted
 
@@ -17,14 +17,9 @@ const DS_START := DICT_TOP  # start of the data stack
 const DS_WORDS_SIZE := 0x040
 const DS_WORDS_GUARD := 0x010  # extra words allocated to avoid exceptions
 const DS_TOP := DS_START + DS_WORDS_SIZE * ForthRAM.CELL_SIZE
-# Control Stack
-const CS_START := DS_TOP + DS_WORDS_GUARD * ForthRAM.CELL_SIZE  # start of control stack
-const CS_WORDS_SIZE := 0x020
-const CS_CELL_SIZE := 4
-const CS_TOP := CS_START + CS_WORDS_SIZE * CS_CELL_SIZE
 # Input Buffer
 const BUFF_SOURCE_SIZE := 0x0100  # bytes
-const BUFF_SOURCE_START := CS_TOP
+const BUFF_SOURCE_START := DS_TOP
 const BUFF_SOURCE_TOP := BUFF_SOURCE_START + BUFF_SOURCE_SIZE
 # Pointer to the parse position in the buffer
 const BUFF_TO_IN := BUFF_SOURCE_TOP
@@ -57,8 +52,10 @@ const BUILT_IN_MASK = (
 
 # Smudge bit mask
 const SMUDGE_BIT_MASK = 0x80
+# Immediate bit mask
+const IMMEDIATE_BIT_MASK = 0x40
 # Largest name length
-const MAX_NAME_LENGTH = 0x7f
+const MAX_NAME_LENGTH = 0x3f
 
 # Reference to the physical memory and utilities
 var ram: ForthRAM
@@ -67,6 +64,7 @@ var util: ForthUtil
 var core: ForthCore
 var core_ext: ForthCoreExt
 var tools: ForthTools
+var tools_ext: ForthToolsExt
 var common_use: ForthCommonUse
 var double: ForthDouble
 var double_ext: ForthDoubleExt
@@ -116,6 +114,9 @@ var _buffer_index := 0
 
 # Forth : execution dict_ip stack
 var _dict_ip_stack: Array = []
+
+# Forth: control flow stack
+var _control_flow_stack: Array = []
 
 
 func client_connected() -> void:
@@ -196,12 +197,13 @@ func terminal_in(text: String) -> void:
 
 
 # Find word in dictionary, starting at address of top
-# If found, returns the address of the first code field
-# If not found, returns zero
-func find_in_dict(word: String) -> int:
+# Returns a list consisting of:
+#  > the address of the first code field (zero if not found)
+#  > a boolean true if the word is defined as IMMEDIATE
+func find_in_dict(word: String) -> Array:
 	if dict_p == dict_top:
 		# dictionary is empty
-		return 0
+		return [0, false]
 	# stuff the search string in data memory
 	util.cstring_from_str(dict_top, word)
 	# make a temporary pointer
@@ -211,17 +213,20 @@ func find_in_dict(word: String) -> int:
 		core.count()  # search word in addr  # addr n
 		push_word(p + ForthRAM.CELL_SIZE)  # entry name  # addr n c-addr
 		core.count()  # candidate word in addr			# addr n addr n
-		core.dup()  # copy the length					# addr n addr n n
-		var n_length: int = pop_word()  # addr n addr n
+		var n_raw_length: int = pop_word()  # addr n addr
+		var n_length: int = (
+			n_raw_length & ~(SMUDGE_BIT_MASK | IMMEDIATE_BIT_MASK)
+		)
+		push_word(n_length)  # strip the SMUDGE and IMMEDIATE bits and restore # addr n addr n
 		# only check if the entry has a clear smudge bit
-		if not (n_length & SMUDGE_BIT_MASK):
+		if not (n_raw_length & SMUDGE_BIT_MASK):
 			string.compare()  # n
 			# is this the correct entry?
 			if pop_word() == 0:  #
 				# found it. Link address + link size + string length byte + string, aligned
 				push_word(p + ForthRAM.CELL_SIZE + 1 + n_length)  # n
 				core.aligned()  # a
-				return pop_word()  #
+				return [pop_word(), (n_raw_length & IMMEDIATE_BIT_MASK) != 0]  #
 		else:
 			# clean up the stack
 			pop_dword()  # addr n
@@ -229,7 +234,7 @@ func find_in_dict(word: String) -> int:
 		# not found, drill down to the next entry
 		p = ram.get_int(p)
 	# exhausted the dictionary, finding nothing
-	return 0
+	return [0, false]
 
 
 func create_dict_entry_name(smudge: bool = false) -> int:
@@ -352,8 +357,37 @@ func pop_ip() -> void:
 	dict_ip = _dict_ip_stack.pop_back()
 
 
-func ip_stack_size() -> int:
-	return _dict_ip_stack.size()
+func ip_stack_is_empty() -> bool:
+	return _dict_ip_stack.size() == 0
+
+
+# compiled word control flow stack
+# push a word
+func cf_push(addr: int) -> void:
+	_control_flow_stack.push_front(addr)
+
+
+# pop a word
+func cf_pop() -> int:
+	if not cf_stack_is_empty():
+		return _control_flow_stack.pop_front()
+	util.rprint_term("Unbalanced control structure")
+	return 0
+
+
+# control flow stack is empty
+func cf_stack_is_empty() -> bool:
+	return _control_flow_stack.size() == 0
+
+
+# control flow stack PICK (implements CS-PICK)
+func cf_stack_pick(item: int) -> void:
+	cf_push(_control_flow_stack[item])
+
+
+# control flow stack ROLL (implements CS-ROLL)
+func cf_stack_roll(item: int) -> void:
+	cf_push(_control_flow_stack.pop_at(item))
 
 
 # PRIVATES
@@ -369,6 +403,7 @@ func _init() -> void:
 	core = ForthCore.new(self)
 	core_ext = ForthCoreExt.new(self)
 	tools = ForthTools.new(self)
+	tools_ext = ForthToolsExt.new(self)
 	common_use = ForthCommonUse.new(self)
 	double = ForthDouble.new(self)
 	double_ext = ForthDoubleExt.new(self)
@@ -466,13 +501,14 @@ func _interpret_terminal_line() -> void:
 			break
 		var t: String = util.str_from_addr_n(caddr, len)
 		# t should be the next token, try to get an execution token from it
-		var xt = find_in_dict(t)
-		if not xt and t.to_upper() in _built_in_function:
-			xt = xt_from_word(t.to_upper())
+		var xt_immediate = find_in_dict(t)
+		if not xt_immediate[0] and t.to_upper() in _built_in_function:
+			xt_immediate = [xt_from_word(t.to_upper()), false]
 		# an execution token exists
-		if xt != 0:
-			push_word(xt)
-			if state and not _is_immediate(t):  # Compiling
+		if xt_immediate[0] != 0:
+			push_word(xt_immediate[0])
+			# check if it is a built-in immediate or dictionary immediate before storing
+			if state and not (_is_immediate(t) or xt_immediate[1]):  # Compiling
 				core.comma()  # store at the top of the current : definition
 			else:  # Not Compiling or immediate - just execute
 				core.execute()

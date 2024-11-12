@@ -145,13 +145,12 @@ func to() -> void:
 	var len: int = forth.pop_word()  # length
 	var caddr: int = forth.pop_word()  # start
 	var word: String = forth.util.str_from_addr_n(caddr, len)
-	var token_addr = forth.find_in_dict(word)
-	if not token_addr:
+	var token_addr_immediate = forth.find_in_dict(word)
+	if not token_addr_immediate[0]:
 		forth.util.print_unknown_word(word)
 	else:
 		# adjust to data field location
-		token_addr += ForthRAM.CELL_SIZE
-		forth.ram.set_word(token_addr, forth.pop_word())
+		forth.ram.set_word(token_addr_immediate[0] + ForthRAM.CELL_SIZE, forth.pop_word())
 
 
 ## @WORD TUCK
