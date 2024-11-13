@@ -11,6 +11,11 @@ extends RefCounted
 # if 4, use (encode|decode)_(s|u)32 and (encode|decode)_(s_u)64
 const CELL_SIZE := 4
 const DCELL_SIZE := CELL_SIZE * 2
+const CELL_BITS := CELL_SIZE * 8
+const DCELL_BITS := CELL_BITS * 2
+const CELL_MAX := 2 ** CELL_BITS
+const CELL_MSB_MASK := CELL_MAX >> 1
+const CELL_MASK := CELL_MAX - 1
 
 # buffer for all physical RAM
 var _ram := PackedByteArray()

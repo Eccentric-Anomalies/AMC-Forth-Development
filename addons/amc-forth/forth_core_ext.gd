@@ -29,7 +29,7 @@ func dot_left_parenthesis() -> void:
 func back_slash() -> void:
 	# Begin parsing a comment, terminated by end of line
 	# ( - )
-	forth.push_word(ForthTerminal.CR.to_ascii_buffer()[0])
+	forth.push(ForthTerminal.CR.to_ascii_buffer()[0])
 	parse()
 	forth.two_drop()
 
@@ -48,7 +48,7 @@ func buffer_colon() -> void:
 func decimal() -> void:
 	# Sets BASE to 16
 	# ( - )
-	forth.push_word(16)
+	forth.push(16)
 	forth.core.base()
 	forth.core.store()
 
@@ -85,9 +85,7 @@ func marker_exec() -> void:
 func nip() -> void:
 	# drop second item, leaving top unchanged
 	# ( x1 x2 - x2 )
-	var t: int = forth.ram.get_int(forth.ds_p)
-	forth.ds_p += ForthRAM.CELL_SIZE
-	forth.ram.set_int(forth.ds_p, t)
+	forth.data_stack.pop_at(-2)
 
 
 ## @WORD PARSE
@@ -99,13 +97,13 @@ func parse() -> void:
 	# ( char - c_addr n )
 	var count: int = 0
 	var ptr: int = forth.WORD_START + 1
-	var delim: int = forth.pop_word()
+	var delim: int = forth.pop()
 	forth.core.source()
-	var source_size: int = forth.pop_word()
-	var source_start: int = forth.pop_word()
+	var source_size: int = forth.pop()
+	var source_start: int = forth.pop()
 	forth.core.to_in()
-	var ptraddr: int = forth.pop_word()
-	forth.push_word(ptr)  # parsed text begins here
+	var ptraddr: int = forth.pop()
+	forth.push(ptr)  # parsed text begins here
 	while true:
 		var t: int = forth.ram.get_byte(
 			source_start + forth.ram.get_word(ptraddr)
@@ -120,7 +118,7 @@ func parse() -> void:
 			count += 1
 		else:
 			break
-	forth.push_word(count)
+	forth.push(count)
 
 
 ## @WORD PICK
@@ -128,10 +126,11 @@ func pick() -> void:
 	# place a copy of the nth stack entry on top of the stack
 	# zeroth item is the top of the stack so 0 pick is dup
 	# ( +n - x )
-	var t: int = forth.ram.get_int(forth.ds_p)
-	forth.ram.set_int(
-		forth.ds_p, forth.ram.get_int(forth.ds_p + (t + 1) * ForthRAM.CELL_SIZE)
-	)
+	var n = forth.pop()
+	if n >= forth.data_stack.size():
+		forth.util.rprint_term(" PICK outside data stack")
+	else:
+		forth.push(forth.data_stack[-n - 1])
 
 
 ## @WORD TO
@@ -139,35 +138,29 @@ func to() -> void:
 	# Store x in the data space associated with name (defined by value)
 	# x TO <name> ( x - )
 	# get the name
-	forth.push_word(ForthTerminal.BL.to_ascii_buffer()[0])
+	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
 	forth.core.word()
 	forth.core.count()
-	var len: int = forth.pop_word()  # length
-	var caddr: int = forth.pop_word()  # start
+	var len: int = forth.pop()  # length
+	var caddr: int = forth.pop()  # start
 	var word: String = forth.util.str_from_addr_n(caddr, len)
 	var token_addr_immediate = forth.find_in_dict(word)
 	if not token_addr_immediate[0]:
 		forth.util.print_unknown_word(word)
 	else:
 		# adjust to data field location
-		forth.ram.set_word(token_addr_immediate[0] + ForthRAM.CELL_SIZE, forth.pop_word())
+		forth.ram.set_word(
+			token_addr_immediate[0] + ForthRAM.CELL_SIZE,
+			forth.pop()
+		)
 
 
 ## @WORD TUCK
 func tuck() -> void:
 	# place a copy of the top stack item below the second stack item
 	# ( x1 x2 - x2 x1 x2 )
-	forth.ram.set_int(
-		forth.ds_p - ForthRAM.CELL_SIZE, forth.ram.get_int(forth.ds_p)
-	)
-	forth.ram.set_int(
-		forth.ds_p, forth.ram.get_int(forth.ds_p + ForthRAM.CELL_SIZE)
-	)
-	forth.ram.set_int(
-		forth.ds_p + ForthRAM.CELL_SIZE,
-		forth.ram.get_int(forth.ds_p - ForthRAM.CELL_SIZE)
-	)
-	forth.ds_p -= ForthRAM.CELL_SIZE
+	forth.core.swap()
+	forth.push(forth.data_stack[-2])
 
 
 ## @WORD UNUSED
@@ -175,14 +168,14 @@ func unused() -> void:
 	# Return u, the number of bytes remaining in the memory area
 	# where dictionary entries are constructed.
 	# ( - u )
-	forth.push_word(forth.DICT_TOP - forth.dict_top)
+	forth.push(forth.DICT_TOP - forth.dict_top)
 
 
 ## @WORD VALUE
 func value() -> void:
 	# Create a dictionary entry for name, associated with value x.
 	# ( x - )
-	var init_val:int = forth.pop_word()
+	var init_val: int = forth.pop()
 	if forth.create_dict_entry_name():
 		# copy the execution token
 		forth.ram.set_word(
@@ -199,4 +192,6 @@ func value() -> void:
 func value_exec() -> void:
 	# execution time functionality of value
 	# return contents of the cell after the execution token
-	forth.push_word(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))
+	forth.push(
+		forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	)
