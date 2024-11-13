@@ -16,7 +16,7 @@ func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
 
-## @WORD
+## @WORD 2ROT
 func two_rot() -> void:
 	# rotate the top three cell pairs on the stack
 	# ( x1 x2 x3 x4 x5 x6 - x3 x4 x5 x6 x1 x2 )
