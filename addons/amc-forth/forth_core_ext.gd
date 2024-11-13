@@ -44,6 +44,13 @@ func buffer_colon() -> void:
 	forth.core.allot()
 
 
+## @WORD FALSE
+func f_false() -> void:
+	# Return a false value, single-cell all bits clear
+	# ( - flag )
+	forth.push_word(forth.FALSE)
+
+
 ## @WORD HEX
 func decimal() -> void:
 	# Sets BASE to 16
@@ -152,6 +159,12 @@ func to() -> void:
 		# adjust to data field location
 		forth.ram.set_word(token_addr_immediate[0] + ForthRAM.CELL_SIZE, forth.pop_word())
 
+
+## @WORD TRUE
+func f_true() -> void:
+	# Return a true value, single-cell all bits set
+	# ( - flag )
+	forth.push_word(forth.TRUE)
 
 ## @WORD TUCK
 func tuck() -> void:
