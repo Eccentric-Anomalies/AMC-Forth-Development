@@ -118,6 +118,10 @@ var _dict_ip_stack: Array = []
 # Forth: control flow stack
 var _control_flow_stack: Array = []
 
+# pForth
+var _pipe
+var _thread
+var _info
 
 func client_connected() -> void:
 	terminal_out.emit(BANNER + ForthTerminal.CR + ForthTerminal.LF)
@@ -125,6 +129,13 @@ func client_connected() -> void:
 
 # handle editing input strings in interactive mode
 func terminal_in(text: String) -> void:
+	var cmd = text + "\n"
+	var buffer = cmd.to_utf8_buffer()
+	_pipe.store_buffer(buffer)
+
+
+
+func old_terminal_in(text: String) -> void:
 	var in_str: String = text
 	var echo_text: String = ""
 	var buffer_size := _terminal_buffer.size()
@@ -423,6 +434,30 @@ func _init() -> void:
 	dict_top = DICT_START  # position of next new link to create
 	save_dict_top()
 	print(BANNER)
+	# Tap into pForth
+	_info = OS.execute_with_pipe("pforth.exe", PackedStringArray([]))
+	if _info.size():
+		print("pforth.exe running")
+		_pipe = _info["stdio"]
+		_thread = Thread.new()
+		_thread.start(_thread_func)
+		#get_window().close_requested.connect(clean_func)
+
+
+func _thread_func():
+	print("thread started")
+	while _pipe.is_open() and _pipe.get_error() == OK:
+		print(" get_8")
+		_add_char.call_deferred(char(_pipe.get_8()))
+
+
+func _add_char(c):
+	print("received: ", c)
+
+
+func clean_func():
+	_pipe.close()
+	_thread.wait_to_finish()
 
 
 # generate execution tokens by hashing Forth Word
