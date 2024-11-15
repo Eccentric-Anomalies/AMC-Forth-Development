@@ -44,13 +44,6 @@ func buffer_colon() -> void:
 	forth.core.allot()
 
 
-## @WORD FALSE
-func f_false() -> void:
-	# Return a false value, single-cell all bits clear
-	# ( - flag )
-	forth.push(forth.FALSE)
-
-
 ## @WORD HEX
 func decimal() -> void:
 	# Sets BASE to 16
@@ -58,6 +51,13 @@ func decimal() -> void:
 	forth.push(16)
 	forth.core.base()
 	forth.core.store()
+
+
+## @WORD FALSE
+func f_false() -> void:
+	# Return a false value, single-cell all bits clear
+	# ( - flag )
+	forth.push(forth.FALSE)
 
 
 ## @WORD MARKER <name>
@@ -168,12 +168,6 @@ func f_true() -> void:
 	# ( - flag )
 	forth.push(forth.TRUE)
 
-
-## @WORD TRUE
-func f_true() -> void:
-	# Return a true value, single-cell all bits set
-	# ( - flag )
-	forth.push_word(forth.TRUE)
 
 ## @WORD TUCK
 func tuck() -> void:

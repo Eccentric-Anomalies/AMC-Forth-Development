@@ -807,9 +807,7 @@ func rshift() -> void:
 	# ( x1 u - x2 )
 	var u: int = forth.pop()
 	forth.data_stack[forth.ds_p] = (
-		(forth.data_stack[forth.ds_p] >> u)
-		& ~ForthRAM.CELL_MSB_MASK
-		& ForthRAM.CELL_MASK
+		(forth.data_stack[forth.ds_p] >> u) & ~ForthRAM.CELL_MAX_NEGATIVE
 	)
 
 
@@ -928,7 +926,12 @@ func type() -> void:
 func um_star() -> void:
 	# Multiply u1 by u2, leaving the double-precision result ud
 	# ( u1 u2 - ud )
-	forth.push_dword(forth.pop() * forth.pop())
+	forth.push_dword(
+		(
+			(forth.pop() & ~ForthRAM.CELL_MAX_NEGATIVE)
+			* (forth.pop() & ~ForthRAM.CELL_MAX_NEGATIVE)
+		)
+	)
 
 
 ## @WORD UM/MOD
@@ -936,7 +939,8 @@ func um_slash_mod() -> void:
 	# Divide ud by n1, leaving quotient n3 and remainder n2.
 	# All arguments and result are unsigned.
 	# ( d u1 - u2 u3 )
-	var u1: int = forth.pop()
+	var u1: int = forth.pop() & ~ForthRAM.CELL_MAX_NEGATIVE
+	# there is no gdscript way of treating this as unsigned
 	var d: int = forth.pop_dword()
 	forth.push(d % u1)
 	forth.push(d / u1)
