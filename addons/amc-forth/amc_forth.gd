@@ -12,14 +12,9 @@ const RAM_SIZE := 0x10000  # BYTES
 const DICT_START := 0x0100  # BYTES
 const DICT_SIZE := 0x08000
 const DICT_TOP := DICT_START + DICT_SIZE
-# Data Stack
-const DS_START := DICT_TOP  # start of the data stack
-const DS_WORDS_SIZE := 0x040
-const DS_WORDS_GUARD := 0x010  # extra words allocated to avoid exceptions
-const DS_TOP := DS_START + DS_WORDS_SIZE * ForthRAM.CELL_SIZE
 # Input Buffer
 const BUFF_SOURCE_SIZE := 0x0100  # bytes
-const BUFF_SOURCE_START := DS_TOP
+const BUFF_SOURCE_START := DICT_TOP
 const BUFF_SOURCE_TOP := BUFF_SOURCE_START + BUFF_SOURCE_SIZE
 # Pointer to the parse position in the buffer
 const BUFF_TO_IN := BUFF_SOURCE_TOP
@@ -41,6 +36,9 @@ const TRUE := int(-1)
 const FALSE := int(0)
 
 const MAX_BUFFER_SIZE := 20
+
+const DATA_STACK_SIZE := 100
+const DATA_STACK_TOP := DATA_STACK_SIZE - 1
 
 # Masks for built-in execution tokens
 const BUILT_IN_XT_MASK = 0x080 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
@@ -71,7 +69,6 @@ var double_ext: ForthDoubleExt
 var string: ForthString
 
 # The Forth data stack pointer is in byte units
-var ds_p := DS_TOP
 
 # The Forth dictionary space
 var dict_p: int  # position of last link  FIXME
@@ -101,6 +98,12 @@ var built_in_function_from_address: Dictionary = {}
 
 # Forth : exit flag (true if exit has been called)
 var exit_flag: bool = false
+
+# Forth: data stack
+var data_stack: PackedInt64Array
+var ds_p: int
+
+var _data_stack_underflow: bool = false
 
 # get built-in function from word
 var _built_in_function: Dictionary = {}
@@ -209,24 +212,24 @@ func find_in_dict(word: String) -> Array:
 	# make a temporary pointer
 	var p: int = dict_p
 	while p != -1:  # <empty>
-		push_word(dict_top)  # c-addr
+		push(dict_top)  # c-addr
 		core.count()  # search word in addr  # addr n
-		push_word(p + ForthRAM.CELL_SIZE)  # entry name  # addr n c-addr
+		push(p + ForthRAM.CELL_SIZE)  # entry name  # addr n c-addr
 		core.count()  # candidate word in addr			# addr n addr n
-		var n_raw_length: int = pop_word()  # addr n addr
+		var n_raw_length: int = pop()  # addr n addr
 		var n_length: int = (
 			n_raw_length & ~(SMUDGE_BIT_MASK | IMMEDIATE_BIT_MASK)
 		)
-		push_word(n_length)  # strip the SMUDGE and IMMEDIATE bits and restore # addr n addr n
+		push(n_length)  # strip the SMUDGE and IMMEDIATE bits and restore # addr n addr n
 		# only check if the entry has a clear smudge bit
 		if not (n_raw_length & SMUDGE_BIT_MASK):
 			string.compare()  # n
 			# is this the correct entry?
-			if pop_word() == 0:  #
+			if pop() == 0:  #
 				# found it. Link address + link size + string length byte + string, aligned
-				push_word(p + ForthRAM.CELL_SIZE + 1 + n_length)  # n
+				push(p + ForthRAM.CELL_SIZE + 1 + n_length)  # n
 				core.aligned()  # a
-				return [pop_word(), (n_raw_length & IMMEDIATE_BIT_MASK) != 0]  #
+				return [pop(), (n_raw_length & IMMEDIATE_BIT_MASK) != 0]  #
 		else:
 			# clean up the stack
 			pop_dword()  # addr n
@@ -246,11 +249,11 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 	# Returns the address of the name length byte or zero on fail.
 	# ( - )
 	# Grab the name
-	push_word(ForthTerminal.BL.to_ascii_buffer()[0])
+	push(ForthTerminal.BL.to_ascii_buffer()[0])
 	core.word()
 	core.count()
-	var len: int = pop_word()  # length
-	var caddr: int = pop_word()  # start
+	var len: int = pop()  # length
+	var caddr: int = pop()  # start
 	if len <= MAX_NAME_LENGTH:
 		# poke address of last link at next spot, but only if this isn't
 		# the very first spot in the dictionary
@@ -269,9 +272,9 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 		var ret: int = dict_top
 		dict_top += 1
 		# copy the name
-		push_word(caddr)
-		push_word(dict_top)
-		push_word(len)
+		push(caddr)
+		push(dict_top)
+		push(len)
 		core.move()
 		dict_top += len
 		core.align()  # will save dict_top
@@ -283,48 +286,63 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 # Forth Data Stack Push and Pop Routines
 
 
-func push_int(val: int) -> void:
-	ds_p -= ForthRAM.CELL_SIZE
-	ram.set_int(ds_p, val)
+func push(val: int) -> void:
+	ds_p -= 1
+	data_stack[ds_p] = val
 
 
-func pop_int() -> int:
-	var t: int = ram.get_int(ds_p)
-	ds_p += ForthRAM.CELL_SIZE
-	return t
-
-
-func push_word(val: int) -> void:
-	ds_p -= ForthRAM.CELL_SIZE
-	ram.set_word(ds_p, val)
-
-
-func pop_word() -> int:
-	var t: int = ram.get_word(ds_p)
-	ds_p += ForthRAM.CELL_SIZE
-	return t
+func pop() -> int:
+	if ds_p < DATA_STACK_SIZE:
+		ds_p += 1
+		return data_stack[ds_p - 1]
+	util.rprint_term(" Data stack underflow")
+	return 0
 
 
 func push_dint(val: int) -> void:
-	ds_p -= ForthRAM.DCELL_SIZE
-	ram.set_dint(ds_p, val)
+	var t: Array = ram.split_64(val)
+	push(t[1])
+	push(t[0])
 
 
 func pop_dint() -> int:
-	var t: int = ram.get_dint(ds_p)
-	ds_p += ForthRAM.DCELL_SIZE
-	return t
+	return ram.combine_64(pop(), pop())
 
 
-func push_dword(val: int) -> void:
-	ds_p -= ForthRAM.DCELL_SIZE
-	ram.set_dword(ds_p, val)
+# top of stack is 0, next dint is at 2, etc.
+func get_dint(index: int) -> int:
+	return ram.combine_64(
+		data_stack[ds_p + index], data_stack[ds_p + index + 1]
+	)
+
+
+func set_dint(index: int, value: int) -> void:
+	var s: Array = ram.split_64(value)
+	data_stack[ds_p + index] = s[0]
+	data_stack[ds_p + index + 1] = s[1]
+
+
+func push_dword(value: int) -> void:
+	var s: Array = ram.split_64(value)
+	push(s[1])
+	push(s[0])
+
+
+func set_dword(index: int, value: int) -> void:
+	var s: Array = ram.split_64(value)
+	data_stack[ds_p + index] = s[0]
+	data_stack[ds_p + index + 1] = s[1]
 
 
 func pop_dword() -> int:
-	var t: int = ram.get_dword(ds_p)
-	ds_p += ForthRAM.DCELL_SIZE
-	return t
+	return ram.combine_64(pop(), pop())
+
+
+# top of stack is -1, next dint is at -3, etc.
+func get_dword(index: int) -> int:
+	return ram.combine_64(
+		data_stack[ds_p + index], data_stack[ds_p + index + 1]
+	)
 
 
 # save the internal top of dict pointer to RAM
@@ -410,6 +428,9 @@ func _init() -> void:
 	string = ForthString.new(self)
 	# End Forth word definitions
 	_init_built_ins()
+	# Initialize the data stack
+	data_stack.resize(DATA_STACK_SIZE)
+	ds_p = DATA_STACK_SIZE  # empty
 	# set the terminal link in the dictionary
 	ram.set_int(dict_p, -1)
 	# reset the buffer pointer
@@ -489,11 +510,11 @@ func _interpret_terminal_line() -> void:
 		ram.set_byte(BUFF_SOURCE_START + i, bytes_input[i])
 	while true:
 		# call the Forth WORD, setting blank as delimiter
-		push_word(ForthTerminal.BL.to_ascii_buffer()[0])
+		push(ForthTerminal.BL.to_ascii_buffer()[0])
 		core.word()
 		core.count()
-		var len: int = pop_word()  # length of word
-		var caddr: int = pop_word()  # start of word
+		var len: int = pop()  # length of word
+		var caddr: int = pop()  # start of word
 		# out of tokens?
 		if len == 0:
 			# reset the buffer pointer
@@ -506,7 +527,7 @@ func _interpret_terminal_line() -> void:
 			xt_immediate = [xt_from_word(t.to_upper()), false]
 		# an execution token exists
 		if xt_immediate[0] != 0:
-			push_word(xt_immediate[0])
+			push(xt_immediate[0])
 			# check if it is a built-in immediate or dictionary immediate before storing
 			if state and not (_is_immediate(t) or xt_immediate[1]):  # Compiling
 				core.comma()  # store at the top of the current : definition
@@ -523,7 +544,7 @@ func _interpret_terminal_line() -> void:
 		elif _is_valid_int(t, base):
 			var temp: int = _to_int(t, base)
 			# single-precision
-			push_word(temp)
+			push(temp)
 			# compile it, if necessary
 			if state:
 				core.literal()
@@ -533,14 +554,14 @@ func _interpret_terminal_line() -> void:
 			_abort_line()
 			return  # not ok
 		# check the stack
-		if ds_p < DS_START + DS_WORDS_GUARD:
+		if ds_p < 0:
 			util.rprint_term(" Data stack overflow")
-			ds_p = DS_START + DS_WORDS_GUARD
+			ds_p = DATA_STACK_SIZE
 			_abort_line()
 			return  # not ok
-		if ds_p > DS_TOP:
+		if ds_p > DATA_STACK_SIZE:
 			util.rprint_term(" Data stack underflow")
-			ds_p = DS_TOP
+			ds_p = DATA_STACK_SIZE
 			_abort_line()
 			return  # not ok
 	util.rprint_term(" ok")

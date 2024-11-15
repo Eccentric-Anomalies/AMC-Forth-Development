@@ -20,11 +20,11 @@ func _init(_forth: AMCForth) -> void:
 func cs_pick() -> void:
 	# Place copy of the uth CS entry on top of the CS stack
 	# ( i*x u - i*x x_u )
-	forth.cf_stack_pick(forth.pop_word())
+	forth.cf_stack_pick(forth.pop())
 
 
 ## WORD@ CS-ROLL IMMEDIATE
 func cs_roll() -> void:
 	# Place copy of the uth CS entry on top of the CS stack
 	# ( i*x u - i*x x_u )
-	forth.cf_stack_roll(forth.pop_word())
+	forth.cf_stack_roll(forth.pop())

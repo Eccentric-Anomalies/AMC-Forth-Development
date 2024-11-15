@@ -26,12 +26,12 @@ func question() -> void:
 
 ## @WORD .S
 func dot_s() -> void:
-	var pointer = forth.DS_TOP - ForthRAM.CELL_SIZE
-	var fmt:String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
+	var pointer = forth.DATA_STACK_TOP
+	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
 	forth.util.rprint_term("")
 	while pointer >= forth.ds_p:
-		forth.util.print_term(" " + fmt % forth.ram.get_int(pointer))
-		pointer -= ForthRAM.CELL_SIZE
+		forth.util.print_term(" " + fmt % forth.data_stack[pointer])
+		pointer -= 1
 	forth.util.print_term(" <-Top")
 
 
@@ -47,10 +47,10 @@ func words() -> void:
 		# dictionary is not empty
 		var p: int = forth.dict_p
 		while p != -1:
-			forth.push_word(p + ForthRAM.CELL_SIZE)
+			forth.push(p + ForthRAM.CELL_SIZE)
 			forth.core.count()  # search word in addr, n format
 			forth.core.dup()  # retrieve the size
-			word_len = forth.pop_word()
+			word_len = forth.pop()
 			if col + word_len + 1 >= ForthTerminal.COLUMNS - 2:
 				forth.util.print_term(ForthTerminal.CRLF)
 				col = 0
