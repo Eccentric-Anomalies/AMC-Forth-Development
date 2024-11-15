@@ -169,6 +169,12 @@ func f_true() -> void:
 	forth.push(forth.TRUE)
 
 
+## @WORD TRUE
+func f_true() -> void:
+	# Return a true value, single-cell all bits set
+	# ( - flag )
+	forth.push_word(forth.TRUE)
+
 ## @WORD TUCK
 func tuck() -> void:
 	# place a copy of the top stack item below the second stack item
