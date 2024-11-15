@@ -67,16 +67,16 @@ func dot() -> void:
 func one_plus() -> void:
 	# Add one to n1, leaving n2
 	# ( n1 - n2 )
-	forth.data_stack[-1] += 1
-	forth.data_stack[-1] &= ForthRAM.CELL_MASK
+	forth.data_stack[forth.ds_p] += 1
+	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
 
 
 ## @WORD 1-
 func one_minus() -> void:
 	# Subtract one from n1, leaving n2
 	# ( n1 - n2 )
-	forth.data_stack[-1] -= 1
-	forth.data_stack[-1] &= ForthRAM.CELL_MASK
+	forth.data_stack[forth.ds_p] -= 1
+	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
 
 
 ## @WORD '
@@ -116,7 +116,7 @@ func store() -> void:
 func star() -> void:
 	# Multiply n1 by n2 leaving the product n3
 	# ( n1 n2 - n3 )
-	forth.push((forth.pop() * forth.pop()) & ForthRAM.CELL_MASK)
+	forth.push(forth.ram.truncate_to_cell(forth.pop() * forth.pop()))
 
 
 ## @WORD */
@@ -224,7 +224,7 @@ func semi_colon_exec() -> void:
 ## @WORD ?DUP
 func q_dup() -> void:
 	# ( x - 0 | x x )
-	var n: int = forth.data_stack[-1]
+	var n: int = forth.data_stack[forth.ds_p]
 	if n != 0:
 		forth.push(n)
 
@@ -234,7 +234,7 @@ func two_star() -> void:
 	# Return x2, result of shifting x1 one bit towards the MSB,
 	# filling the LSB with zero
 	# ( x1 - x2 )
-	forth.data_stack[-1] <<= 1
+	forth.push(forth.ram.truncate_to_cell(forth.pop() << 1))
 
 
 ## @WORD 2/
@@ -242,10 +242,10 @@ func two_slash() -> void:
 	# Return x2, result of shifting x1 one bit towards LSB,
 	# leaving the MSB unchanged
 	# ( x1 - x2 )
-	var msb: int = forth.data_stack[-1] & ForthRAM.CELL_MSB_MASK
-	var n: int = forth.data_stack[-1]
+	var msb: int = forth.data_stack[forth.ds_p] & ForthRAM.CELL_MSB_MASK
+	var n: int = forth.data_stack[forth.ds_p]
 	# preserve msbit
-	forth.data_stack[-1] = (n >> 1) | msb
+	forth.data_stack[forth.ds_p] = (n >> 1) | msb
 
 
 ## @WORD 2DROP
@@ -260,8 +260,8 @@ func two_drop() -> void:
 func two_dup() -> void:
 	# duplicate the top cell pair
 	# (x1 x2 - x1 x2 x1 x2 )
-	var x2: int = forth.data_stack[-1]
-	var x1: int = forth.data_stack[-2]
+	var x2: int = forth.data_stack[forth.ds_p]
+	var x1: int = forth.data_stack[forth.ds_p + 1]
 	forth.push(x1)
 	forth.push(x2)
 
@@ -299,8 +299,8 @@ func two_literal_exec() -> void:
 func two_over() -> void:
 	# copy a cell pair x1 x2 to the top of the stack
 	# ( x1 x2 x3 x4 - x1 x2 x3 x4 x1 x2 )
-	var x2: int = forth.data_stack[-3]
-	var x1: int = forth.data_stack[-4]
+	var x2: int = forth.data_stack[forth.ds_p + 2]
+	var x1: int = forth.data_stack[forth.ds_p + 3]
 	forth.push(x1)
 	forth.push(x2)
 
@@ -309,12 +309,12 @@ func two_over() -> void:
 func two_swap() -> void:
 	# exchange the top two cell pairs
 	# ( x1 x2 x3 x4 - x3 x4 x1 x2 )
-	var x2: int = forth.data_stack[-3]
-	var x1: int = forth.data_stack[-4]
-	forth.data_stack[-4] = forth.data_stack[-2]
-	forth.data_stack[-3] = forth.data_stack[-1]
-	forth.data_stack[-2] = x1
-	forth.data_stack[-1] = x2
+	var x2: int = forth.data_stack[forth.ds_p + 2]
+	var x1: int = forth.data_stack[forth.ds_p + 3]
+	forth.data_stack[forth.ds_p + 3] = forth.data_stack[forth.ds_p + 1]
+	forth.data_stack[forth.ds_p + 2] = forth.data_stack[forth.ds_p]
+	forth.data_stack[forth.ds_p + 1] = x1
+	forth.data_stack[forth.ds_p] = x2
 
 
 ## @WORD >IN
@@ -337,7 +337,7 @@ func fetch() -> void:
 func f_abs() -> void:
 	# Replace the top stack item with its absolute value
 	# ( n - +n )
-	forth.data_stack[-1] = abs(forth.data_stack[-1])
+	forth.data_stack[forth.ds_p] = abs(forth.data_stack[forth.ds_p])
 
 
 ## @WORD AGAIN IMMEDIATE
@@ -555,7 +555,7 @@ func depth() -> void:
 ## @WORD DUP
 func dup() -> void:
 	# ( x - x x )
-	forth.push(forth.data_stack[-1])
+	forth.push(forth.data_stack[forth.ds_p])
 
 
 ## @WORD DROP
@@ -665,7 +665,7 @@ func f_if_exec() -> void:
 func invert() -> void:
 	# Invert all bits of x1, giving its logical inverse x2
 	# ( x1 - x2 )
-	forth.data_stack[-1] = ~forth.data_stack[-1]
+	forth.data_stack[forth.ds_p] = ~forth.data_stack[forth.ds_p]
 
 
 ## @WORD LITERAL
@@ -699,9 +699,8 @@ func lshift() -> void:
 	# Perform a logical left shift of u places on x1, giving x2._add_constant_central_force
 	# Fill the vacated LSB bits with zero
 	# (x1 u - x2 )
-	var u: int = forth.pop()
-	forth.data_stack[-1] <<= u
-	forth.data_stack[-1] &= ForthRAM.CELL_MASK
+	swap()
+	forth.push(forth.ram.truncate_to_cell(forth.pop() << forth.pop()))
 
 
 ## @WORD M*
@@ -716,8 +715,8 @@ func max() -> void:
 	# Return n3, the greater of n1 and n2
 	# ( n1 n2 - n3 )
 	var n2: int = forth.pop()
-	if n2 > forth.data_stack[-1]:
-		forth.data_stack[-1] = n2
+	if n2 > forth.data_stack[forth.ds_p]:
+		forth.data_stack[forth.ds_p] = n2
 
 
 ## @WORD MIN
@@ -725,8 +724,8 @@ func min() -> void:
 	# Return n3, the lesser of n1 and n2
 	# ( n1 n2 - n3 )
 	var n2: int = forth.pop()
-	if n2 < forth.data_stack[-1]:
-		forth.data_stack[-1] = n2
+	if n2 < forth.data_stack[forth.ds_p]:
+		forth.data_stack[forth.ds_p] = n2
 
 
 ## @WORD MOD
@@ -742,9 +741,9 @@ func move() -> void:
 	# Copy u byes from a source starting at addr1 to the destination
 	# starting at addr2. This works even if the ranges overlap.
 	# ( addr1 addr2 u - )
-	var a1: int = forth.data_stack[-3]
-	var a2: int = forth.data_stack[-2]
-	var u: int = forth.data_stack[-1]
+	var a1: int = forth.data_stack[forth.ds_p + 2]
+	var a2: int = forth.data_stack[forth.ds_p + 1]
+	var u: int = forth.data_stack[forth.ds_p]
 	if a1 == a2 or u == 0:
 		# string doesn't need to move. Clean the stack and return.
 		drop()
@@ -763,7 +762,7 @@ func move() -> void:
 func negate() -> void:
 	# Change the sign of the top stack value
 	# ( n - -n )
-	forth.data_stack[-1] = -forth.data_stack[-1]
+	forth.data_stack[forth.ds_p] = -forth.data_stack[forth.ds_p]
 
 
 ## @WORD OR
@@ -777,7 +776,7 @@ func f_or() -> void:
 func over() -> void:
 	# place a copy of x1 on top of the stack
 	# ( x1 x2 - x1 x2 x1 )
-	forth.push(forth.data_stack[-2])
+	forth.push(forth.data_stack[forth.ds_p + 1])
 
 
 ## @WORD POSTPONE IMMEDIATE
@@ -795,10 +794,10 @@ func postpone() -> void:
 func rot() -> void:
 	# rotate the top three items on the stack
 	# ( x1 x2 x3 - x2 x3 x1 )
-	var t: int = forth.data_stack[-3]
-	forth.data_stack[-3] = forth.data_stack[-2]
-	forth.data_stack[-2] = forth.data_stack[-1]
-	forth.data_stack[-1] = t
+	var t: int = forth.data_stack[forth.ds_p + 2]
+	forth.data_stack[forth.ds_p + 2] = forth.data_stack[forth.ds_p + 1]
+	forth.data_stack[forth.ds_p + 1] = forth.data_stack[forth.ds_p]
+	forth.data_stack[forth.ds_p] = t
 
 
 ## @WORD RSHIFT
@@ -807,8 +806,8 @@ func rshift() -> void:
 	# Fill the vacated MSB bits with zeroes
 	# ( x1 u - x2 )
 	var u: int = forth.pop()
-	forth.data_stack[-1] = (
-		(forth.data_stack[-1] >> u)
+	forth.data_stack[forth.ds_p] = (
+		(forth.data_stack[forth.ds_p] >> u)
 		& ~ForthRAM.CELL_MSB_MASK
 		& ForthRAM.CELL_MASK
 	)
@@ -844,9 +843,9 @@ func source() -> void:
 func swap() -> void:
 	# exchange the top two items on the stack
 	# ( x1 x2 - x2 x1 )
-	var x1: int = forth.data_stack[-2]
-	forth.data_stack[-2] = forth.data_stack[-1]
-	forth.data_stack[-1] = x1
+	var x1: int = forth.data_stack[forth.ds_p + 1]
+	forth.data_stack[forth.ds_p + 1] = forth.data_stack[forth.ds_p]
+	forth.data_stack[forth.ds_p] = x1
 
 
 ## @WORD THEN IMMEDIATE

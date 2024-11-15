@@ -37,7 +37,8 @@ const FALSE := int(0)
 
 const MAX_BUFFER_SIZE := 20
 
-const DATA_STACK_SIZE := 50
+const DATA_STACK_SIZE := 100
+const DATA_STACK_TOP := DATA_STACK_SIZE - 1
 
 # Masks for built-in execution tokens
 const BUILT_IN_XT_MASK = 0x080 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
@@ -99,7 +100,8 @@ var built_in_function_from_address: Dictionary = {}
 var exit_flag: bool = false
 
 # Forth: data stack
-var data_stack: Array = []
+var data_stack: PackedInt64Array
+var ds_p: int
 
 var _data_stack_underflow: bool = false
 
@@ -227,10 +229,7 @@ func find_in_dict(word: String) -> Array:
 				# found it. Link address + link size + string length byte + string, aligned
 				push(p + ForthRAM.CELL_SIZE + 1 + n_length)  # n
 				core.aligned()  # a
-				return [
-					pop(),
-					(n_raw_length & IMMEDIATE_BIT_MASK) != 0
-				]  #
+				return [pop(), (n_raw_length & IMMEDIATE_BIT_MASK) != 0]  #
 		else:
 			# clean up the stack
 			pop_dword()  # addr n
@@ -288,52 +287,62 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 
 
 func push(val: int) -> void:
-	data_stack.push_back(val)
+	ds_p -= 1
+	data_stack[ds_p] = val
 
 
 func pop() -> int:
-	if not data_stack.is_empty():
-		return data_stack.pop_back()
+	if ds_p < DATA_STACK_SIZE:
+		ds_p += 1
+		return data_stack[ds_p - 1]
 	util.rprint_term(" Data stack underflow")
 	return 0
 
 
 func push_dint(val: int) -> void:
-	push(val & ForthRAM.CELL_MASK)
-	push(val / ForthRAM.CELL_MAX)
+	var t: Array = ram.split_64(val)
+	push(t[1])
+	push(t[0])
 
 
 func pop_dint() -> int:
-	return pop() * ForthRAM.CELL_MAX + pop()
+	return ram.combine_64(pop(), pop())
 
 
-# top of stack is -1, next dint is at -3, etc.
+# top of stack is 0, next dint is at 2, etc.
 func get_dint(index: int) -> int:
-	return data_stack[index] * ForthRAM.CELL_MAX + data_stack[index - 1]
+	return ram.combine_64(
+		data_stack[ds_p + index], data_stack[ds_p + index + 1]
+	)
 
 
 func set_dint(index: int, value: int) -> void:
-	data_stack[index] = value / ForthRAM.CELL_MAX
-	data_stack[index - 1] = value & ForthRAM.CELL_MASK
+	var s: Array = ram.split_64(value)
+	data_stack[ds_p + index] = s[0]
+	data_stack[ds_p + index + 1] = s[1]
 
-# tested
-func push_dword(val: int) -> void:
-	push((val << ForthRAM.CELL_BITS) >> ForthRAM.CELL_BITS)
-	push(val >> ForthRAM.CELL_BITS)
+
+func push_dword(value: int) -> void:
+	var s: Array = ram.split_64(value)
+	push(s[1])
+	push(s[0])
 
 
 func set_dword(index: int, value: int) -> void:
-	data_stack[index] = value / ForthRAM.CELL_MAX
-	data_stack[index - 1] = value & ForthRAM.CELL_MASK
+	var s: Array = ram.split_64(value)
+	data_stack[ds_p + index] = s[0]
+	data_stack[ds_p + index + 1] = s[1]
 
-# Fails on negative
+
 func pop_dword() -> int:
-	return ((pop() * ForthRAM.CELL_MAX) & ~ForthRAM.CELL_MASK) + (pop() & ForthRAM.CELL_MASK)
+	return ram.combine_64(pop(), pop())
 
 
 # top of stack is -1, next dint is at -3, etc.
 func get_dword(index: int) -> int:
-	return data_stack[index] * ForthRAM.CELL_MAX + data_stack[index - 1]
+	return ram.combine_64(
+		data_stack[ds_p + index], data_stack[ds_p + index + 1]
+	)
 
 
 # save the internal top of dict pointer to RAM
@@ -419,6 +428,9 @@ func _init() -> void:
 	string = ForthString.new(self)
 	# End Forth word definitions
 	_init_built_ins()
+	# Initialize the data stack
+	data_stack.resize(DATA_STACK_SIZE)
+	ds_p = DATA_STACK_SIZE  # empty
 	# set the terminal link in the dictionary
 	ram.set_int(dict_p, -1)
 	# reset the buffer pointer
@@ -542,12 +554,16 @@ func _interpret_terminal_line() -> void:
 			_abort_line()
 			return  # not ok
 		# check the stack
-		if data_stack.size() > DATA_STACK_SIZE:
-			data_stack.clear()
+		if ds_p < 0:
 			util.rprint_term(" Data stack overflow")
+			ds_p = DATA_STACK_SIZE
 			_abort_line()
 			return  # not ok
-		# Gdscript runtime will flag underflows in subtle ways
+		if ds_p > DATA_STACK_SIZE:
+			util.rprint_term(" Data stack underflow")
+			ds_p = DATA_STACK_SIZE
+			_abort_line()
+			return  # not ok
 	util.rprint_term(" ok")
 
 

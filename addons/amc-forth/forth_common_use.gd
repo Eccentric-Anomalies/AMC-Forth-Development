@@ -22,16 +22,16 @@ func _init(_forth: AMCForth) -> void:
 func two_plus() -> void:
 	# Add two to n1, leaving n2
 	# ( n1 - n2 )
-	forth.data_stack[-1] += 2
-	forth.data_stack[-1] &= ForthRAM.CELL_MASK
+	forth.data_stack[forth.ds_p] += 2
+	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
 
 
 ## @WORD 2-
 func two_minus() -> void:
 	# Subtract two from n1, leaving n2
 	# ( n1 - n2 )
-	forth.data_stack[-1] -= 2
-	forth.data_stack[-1] &= ForthRAM.CELL_MASK
+	forth.data_stack[forth.ds_p] -= 2
+	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
 
 
 ## @WORD M-

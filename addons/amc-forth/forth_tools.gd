@@ -26,10 +26,12 @@ func question() -> void:
 
 ## @WORD .S
 func dot_s() -> void:
+	var pointer = forth.DATA_STACK_TOP
 	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
 	forth.util.rprint_term("")
-	for d in forth.data_stack:
-		forth.util.print_term(" " + fmt % d)
+	while pointer >= forth.ds_p:
+		forth.util.print_term(" " + fmt % forth.data_stack[pointer])
+		pointer -= 1
 	forth.util.print_term(" <-Top")
 
 

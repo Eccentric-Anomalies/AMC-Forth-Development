@@ -77,14 +77,14 @@ func d_plus() -> void:
 func d_two_star() -> void:
 	# Multiply d1 by 2, leaving the result d2
 	# ( d1 - d2 )
-	forth.set_dint(-1, forth.get_dint(-1) * 2)
+	forth.set_dint(0, forth.get_dint(0) * 2)
 
 
 ## @WORD D2/
 func d_two_slash() -> void:
 	# Divide d1 by 2, leaving the result d2
 	# ( d1 - d2 )
-	forth.set_dint(-1, forth.get_dint(-1) / 2)
+	forth.set_dint(0, forth.get_dint(0) / 2)
 
 
 ## @WORD D>S
@@ -99,7 +99,7 @@ func d_to_s() -> void:
 func d_abs() -> void:
 	# Replace the top stack item with its absolute value
 	# ( d - +d )
-	forth.set_dint(-1, abs(forth.get_dint(-1)))
+	forth.set_dint(0, abs(forth.get_dint(0)))
 
 
 ## @WORD DMAX
@@ -107,8 +107,8 @@ func d_max() -> void:
 	# Return d3, the greater of d1 and d2
 	# ( d1 d2 - d3 )
 	var d2: int = forth.pop_dint()
-	if d2 > forth.get_dint(-1):
-		forth.set_dint(-1, d2)
+	if d2 > forth.get_dint(0):
+		forth.set_dint(0, d2)
 
 
 ## @WORD DMIN
@@ -116,15 +116,15 @@ func d_min() -> void:
 	# Return d3, the lesser of d1 and d2
 	# ( d1 d2 - d3 )
 	var d2: int = forth.pop_dint()
-	if d2 < forth.get_dint(-1):
-		forth.set_dint(-1, d2)
+	if d2 < forth.get_dint(0):
+		forth.set_dint(0, d2)
 
 
 ## @WORD DNEGATE
 func d_negate() -> void:
 	# Change the sign of the top stack value
 	# ( d - -d )
-	forth.set_dint(-1, -forth.get_dint(-1))
+	forth.set_dint(0, -forth.get_dint(0))
 
 
 ## @WORD M*/

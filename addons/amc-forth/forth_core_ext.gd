@@ -44,6 +44,13 @@ func buffer_colon() -> void:
 	forth.core.allot()
 
 
+## @WORD FALSE
+func f_false() -> void:
+	# Return a false value, single-cell all bits clear
+	# ( - flag )
+	forth.push(forth.FALSE)
+
+
 ## @WORD HEX
 func decimal() -> void:
 	# Sets BASE to 16
@@ -85,7 +92,8 @@ func marker_exec() -> void:
 func nip() -> void:
 	# drop second item, leaving top unchanged
 	# ( x1 x2 - x2 )
-	forth.data_stack.pop_at(-2)
+	forth.core.swap()
+	forth.core.drop()
 
 
 ## @WORD PARSE
@@ -150,9 +158,15 @@ func to() -> void:
 	else:
 		# adjust to data field location
 		forth.ram.set_word(
-			token_addr_immediate[0] + ForthRAM.CELL_SIZE,
-			forth.pop()
+			token_addr_immediate[0] + ForthRAM.CELL_SIZE, forth.pop()
 		)
+
+
+## @WORD TRUE
+func f_true() -> void:
+	# Return a true value, single-cell all bits set
+	# ( - flag )
+	forth.push(forth.TRUE)
 
 
 ## @WORD TUCK
@@ -160,7 +174,7 @@ func tuck() -> void:
 	# place a copy of the top stack item below the second stack item
 	# ( x1 x2 - x2 x1 x2 )
 	forth.core.swap()
-	forth.push(forth.data_stack[-2])
+	forth.push(forth.data_stack[forth.ds_p + 1])
 
 
 ## @WORD UNUSED
@@ -192,6 +206,4 @@ func value() -> void:
 func value_exec() -> void:
 	# execution time functionality of value
 	# return contents of the cell after the execution token
-	forth.push(
-		forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
-	)
+	forth.push(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))

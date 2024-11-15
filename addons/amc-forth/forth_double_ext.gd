@@ -20,7 +20,7 @@ func _init(_forth: AMCForth) -> void:
 func two_rot() -> void:
 	# rotate the top three cell pairs on the stack
 	# ( x1 x2 x3 x4 x5 x6 - x3 x4 x5 x6 x1 x2 )
-	var t: int = forth.get_dint(-5)
-	forth.set_dint(-5, forth.get_dint(-3))
-	forth.set_dint(-3, forth.get_dint(-1))
-	forth.set_dint(-1, t)
+	var t: int = forth.get_dint(4)
+	forth.set_dint(4, forth.get_dint(2))
+	forth.set_dint(2, forth.get_dint(0))
+	forth.set_dint(0, t)

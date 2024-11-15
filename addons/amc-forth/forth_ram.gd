@@ -16,6 +16,8 @@ const DCELL_BITS := CELL_BITS * 2
 const CELL_MAX := 2 ** CELL_BITS
 const CELL_MSB_MASK := CELL_MAX >> 1
 const CELL_MASK := CELL_MAX - 1
+const CELL_MAX_POSITIVE = (2 ** (CELL_BITS - 1)) - 1
+const CELL_MAX_NEGATIVE = -(CELL_MAX_POSITIVE + 1)
 
 # buffer for all physical RAM
 var _ram := PackedByteArray()
@@ -37,6 +39,29 @@ func _d_swap(num: int) -> int:
 	_d_scratch.encode_s32(0, _d_scratch.decode_s32(CELL_SIZE))
 	_d_scratch.encode_s32(CELL_SIZE, t)
 	return _d_scratch.decode_s64(0)
+
+
+# 32 to 64-bit conversions
+
+
+# convert int to [hi, lo] 32-bit words
+func split_64(val: int) -> Array:
+	_d_scratch.encode_s64(0, val)
+	return [_d_scratch.decode_s32(4), _d_scratch.decode_s32(0)]
+
+
+# convert (hi, lo) to 64-bit int
+func combine_64(hi: int, lo: int) -> int:
+	_d_scratch.encode_s32(4, hi)
+	_d_scratch.encode_s32(0, lo)
+	return _d_scratch.decode_s64(0)
+
+
+# return just the cell-sized low-order portion of 64-bit int
+func truncate_to_cell(val: int) -> int:
+	if val > CELL_MAX_POSITIVE or val < CELL_MAX_NEGATIVE:
+		return split_64(val)[1]
+	return val
 
 
 # Data stack and RAM helpers
