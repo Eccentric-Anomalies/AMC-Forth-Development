@@ -1,5 +1,8 @@
 extends Node2D
 
+signal port_99(value:int)
+signal input_100(value:int)
+
 const REQUIRED_FEATURES = [
 	255,
 	251,
@@ -41,7 +44,10 @@ var output_buffer := ""
 func _ready() -> void:
 	_start_listening()
 	forth = AMCForth.new()
-	forth.connect("terminal_out", _on_forth_output)
+	forth.terminal_out.connect(_on_forth_output)
+	forth.add_output_signal(99, port_99)  # FIXME test purposes
+	port_99.connect(_on_port_99_output)		# FIXME output test
+	forth.add_input_signal(100, input_100)  # FIXME input test
 
 
 func _process(_delta: float) -> void:
@@ -91,3 +97,12 @@ func _start_listening() -> void:
 
 func _on_forth_output(text: String) -> void:
 	output_buffer += text
+
+# output test FIXME
+func _on_port_99_output(value: int):
+	print(value)
+
+func _unhandled_input(event):
+	if event is InputEventKey:
+		if event.pressed and event.keycode == KEY_0:
+			input_100.emit(666)

@@ -25,11 +25,20 @@ const WORD_SIZE := 0x0100
 const WORD_START := BUFF_TO_IN_TOP
 const WORD_TOP := WORD_START + WORD_SIZE
 # BASE cell
-const BASE = WORD_TOP
+const BASE := WORD_TOP
 # DICT_TOP_PTR cell
-const DICT_TOP_PTR = BASE + ForthRAM.CELL_SIZE
+const DICT_TOP_PTR := BASE + ForthRAM.CELL_SIZE
 # DICT_PTR
-const DICT_PTR = DICT_TOP_PTR + ForthRAM.CELL_SIZE
+const DICT_PTR := DICT_TOP_PTR + ForthRAM.CELL_SIZE
+
+# IO SPACE - cell-sized ports identified by port # ranging from 0 to 255
+const IO_OUT_PORT_QTY := 0x0100
+const IO_OUT_TOP:= RAM_SIZE
+const IO_OUT_START:= IO_OUT_TOP - IO_OUT_PORT_QTY * ForthRAM.CELL_SIZE
+const IO_IN_PORT_QTY := 0x0100
+const IO_IN_TOP := IO_OUT_START
+const IO_IN_START := IO_IN_TOP - IO_IN_PORT_QTY * ForthRAM.CELL_SIZE
+
 
 # Add more pointers here
 
@@ -68,6 +77,7 @@ var common_use: ForthCommonUse
 var double: ForthDouble
 var double_ext: ForthDoubleExt
 var string: ForthString
+var amc_ext: ForthAMCExt
 
 # The Forth data stack pointer is in byte units
 
@@ -103,6 +113,13 @@ var exit_flag: bool = false
 # Forth: data stack
 var data_stack: PackedInt64Array
 var ds_p: int
+
+# Output handlers
+var output_port_map:Dictionary = {}
+# Input event list
+var input_port_events:Array = []
+# Input event map
+var input_port_map:Dictionary = {}
 
 var _data_stack_underflow: bool = false
 
@@ -290,9 +307,31 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 		return ret
 	return 0
 
+# Forth Input and Output Interface
+
+# Register an output signal handler (port triggers message out)
+# Message will fire with Forth OUT ( x p - )
+func add_output_signal(port:int, s:Signal) -> void:
+	output_port_map[port] = s
+
+
+# Register an input signal handler (message in triggers input action)
+# Register a handler function with Forth LISTEN ( p xt - )
+func add_input_signal(port:int, s:Signal) -> void:
+
+	var signal_receiver = func(value:int) -> void: _insert_new_event(port, value)
+
+	s.connect(signal_receiver)
+
+
+# Utility function to add an input event to the queue
+func _insert_new_event(port: int, value:int) -> void:
+	var item = [port, value]
+	if not item in input_port_events:
+		input_port_events.push_front(item)
+
 
 # Forth Data Stack Push and Pop Routines
-
 
 func push(val: int) -> void:
 	ds_p -= 1
@@ -425,7 +464,7 @@ func cf_stack_roll(item: int) -> void:
 func _init() -> void:
 	ram = ForthRAM.new(RAM_SIZE)
 	util = ForthUtil.new(self)
-	# Create Forth word definitions
+	# Instantiate Forth word definitions
 	core = ForthCore.new(self)
 	core_ext = ForthCoreExt.new(self)
 	tools = ForthTools.new(self)
@@ -434,6 +473,7 @@ func _init() -> void:
 	double = ForthDouble.new(self)
 	double_ext = ForthDoubleExt.new(self)
 	string = ForthString.new(self)
+	amc_ext = ForthAMCExt.new(self)
 	# End Forth word definitions
 	_init_built_ins()
 	# Initialize the data stack
@@ -465,10 +505,19 @@ func _init() -> void:
 
 func _input_thread() -> void:
 	while true:
-		_input_ready.wait()
-		_output_done = false
-		_interpret_terminal_line()
-		_output_done = true
+		if not _input_ready.try_wait():
+			if input_port_events.size(): # FIXME THIS HAS TO BE PROTECTED FROM EXECUTING CONSTANTLy
+				print(input_port_events) # FIXME
+				var evt = input_port_events.pop_back()
+				if evt[0] in input_port_map:
+					push(evt[1])  # store the value
+					push(input_port_map[evt[0]]) # push the xt
+					core.execute()
+			# END FIXME this must happen after a context switch
+		else:
+			_output_done = false
+			_interpret_terminal_line()
+			_output_done = true
 
 
 # generate execution tokens by hashing Forth Word
