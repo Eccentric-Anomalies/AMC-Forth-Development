@@ -3,6 +3,7 @@ class_name AMCForth  # gdlint:ignore = max-public-methods
 extends RefCounted
 
 signal terminal_out(text: String)
+signal terminal_in_ready
 
 const BANNER := "AMC Forth"
 
@@ -121,9 +122,18 @@ var _dict_ip_stack: Array = []
 # Forth: control flow stack
 var _control_flow_stack: Array = []
 
+# Thread data
+var _thread: Thread
+var _input_ready: Semaphore
+var _output_done: bool
 
 func client_connected() -> void:
 	terminal_out.emit(BANNER + ForthTerminal.CR + ForthTerminal.LF)
+
+
+# pause until Forth is ready to accept inupt
+func is_ready_for_input() -> bool:
+	return _output_done
 
 
 # handle editing input strings in interactive mode
@@ -181,10 +191,8 @@ func terminal_in(text: String) -> void:
 			_pad_position = _terminal_pad.length()
 			terminal_out.emit(_refresh_edit_text())
 			echo_text = ""
-			# send the text to the Forth interpreter
-			_interpret_terminal_line()
-			_terminal_pad = ""
-			_pad_position = 0
+			# text is ready for the Forth interpreter
+			_input_ready.post()
 			in_str = in_str.erase(0, ForthTerminal.CR.length())
 		# not a control character(s)
 		else:
@@ -443,7 +451,24 @@ func _init() -> void:
 	save_dict_p()
 	dict_top = DICT_START  # position of next new link to create
 	save_dict_top()
+	# Launch the AMC Forth thread
+	_thread = Thread.new()
+	# feed a test loop into the dictionary
+	_terminal_pad = ": LOOPN BEGIN 1- DUP IF FALSE ELSE TRUE THEN UNTIL DROP ;"
+	_interpret_terminal_line()
+	# end test
+	_input_ready = Semaphore.new()
+	_thread.start(_input_thread, Thread.PRIORITY_LOW)
+	_output_done = true
 	print(BANNER)
+
+
+func _input_thread() -> void:
+	while true:
+		_input_ready.wait()
+		_output_done = false
+		_interpret_terminal_line()
+		_output_done = true
 
 
 # generate execution tokens by hashing Forth Word
@@ -503,6 +528,8 @@ func _is_immediate(word: String) -> bool:
 # Interpret the _terminal_pad content
 func _interpret_terminal_line() -> void:
 	var bytes_input: PackedByteArray = _terminal_pad.to_ascii_buffer()
+	_terminal_pad = ""
+	_pad_position = 0
 	var base: int = ram.get_word(BASE)
 	bytes_input.push_back(0)  # null terminate
 	# transfer to the RAM-based input buffer (accessible to the engine)

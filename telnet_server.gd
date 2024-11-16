@@ -51,33 +51,35 @@ func _process(_delta: float) -> void:
 			server.stop()  # do not listen now
 			connection.set_no_delay(true)
 			forth.client_connected()
-	else:  # not listening.. connected
-		if connection:
-			var connect_status = connection.get_status()
-			if connect_status == StreamPeerTCP.Status.STATUS_ERROR:
-				connection.disconnect_from_host()
-				_start_listening()
-			elif connect_status == StreamPeerTCP.Status.STATUS_CONNECTED:
-				# stuff waiting to go out?
-				if output_buffer.length():
-					connection.put_data(output_buffer.to_ascii_buffer())
-					output_buffer = ""
-				# stuff waiting to come in?
-				var bytes_available: int = connection.get_available_bytes()
-				if bytes_available > 0:
-					var raw_data = connection.get_data(bytes_available)
-					# crude check for telnet negotiation
-					if raw_data[0] == 0 and raw_data[1][0] == 255:
-						if not negotiation_complete:
-							# We ask for no terminal echo
-							connection.put_data(REQUIRED_FEATURES)
-							# ignore further messages and hope for the best
-							negotiation_complete = true
-					# just retrieve the text and pass to forth
-					else:
-						var instr: String = raw_data[1].get_string_from_ascii()
+	elif connection:  # not listening.. connected
+		var connect_status = connection.get_status()
+		if connect_status == StreamPeerTCP.Status.STATUS_ERROR:
+			connection.disconnect_from_host()
+			_start_listening()
+		elif connect_status == StreamPeerTCP.Status.STATUS_CONNECTED:
+			# stuff waiting to go out?
+			if output_buffer.length():
+				connection.put_data(output_buffer.to_ascii_buffer())
+				output_buffer = ""
+			# stuff waiting to come in?
+			var bytes_available: int = connection.get_available_bytes()
+			if bytes_available > 0:
+				var raw_data = connection.get_data(bytes_available)
+				# crude check for telnet negotiation
+				if raw_data[0] == 0 and raw_data[1][0] == 255:
+					if not negotiation_complete:
+						# We ask for no terminal echo
+						connection.put_data(REQUIRED_FEATURES)
+						# ignore further messages and hope for the best
+						negotiation_complete = true
+				# just retrieve the text and pass to forth
+				else:
+					var instr: String = raw_data[1].get_string_from_ascii()
+					if forth.is_ready_for_input():
 						forth.terminal_in(instr)
-
+					else:
+						# discard any input while the forth UI is busy
+						instr = ""
 
 func _start_listening() -> void:
 	var err: Error = server.listen(listen_port, bind_address)
