@@ -38,7 +38,13 @@ const IO_OUT_START:= IO_OUT_TOP - IO_OUT_PORT_QTY * ForthRAM.CELL_SIZE
 const IO_IN_PORT_QTY := 0x0100
 const IO_IN_TOP := IO_OUT_START
 const IO_IN_START := IO_IN_TOP - IO_IN_PORT_QTY * ForthRAM.CELL_SIZE
-
+const IO_IN_MAP_TOP := IO_IN_START
+# xt for every port that is being listened on
+const IO_IN_MAP_START := IO_IN_MAP_TOP - IO_IN_PORT_QTY * ForthRAM.CELL_SIZE
+# PERIODIC TIMER SPACE
+const PERIODIC_TIMER_QTY := 0x080	# Timer IDs 0-127, stored as @addr: msec, xt
+const PERIODIC_TOP := IO_IN_START
+const PERIODIC_START := PERIODIC_TOP - PERIODIC_TIMER_QTY * ForthRAM.CELL_SIZE * 2
 
 # Add more pointers here
 
@@ -89,7 +95,11 @@ var dict_ip := 0  # code field pointer set to current execution point
 # Forth compile state
 var state: bool = false
 
-# Built-In names h ave a run-time definition
+# Forth source ID
+var source_id: int = 0  # 0 default, -1 ram buffer
+var source_id_stack: Array = []
+
+# Built-In names have a run-time definition
 # These are "<WORD>", <run-time function> pairs that are defined by each
 # Forth implementation class (e.g. ForthDouble, etc.)
 var built_in_names: Array = []
@@ -106,6 +116,9 @@ var immediate_names: Array = []
 var address_from_built_in_function: Dictionary = {}
 # get built-in function from "address"
 var built_in_function_from_address: Dictionary = {}
+# get built-in function from word
+var built_in_function: Dictionary = {}
+
 
 # Forth : exit flag (true if exit has been called)
 var exit_flag: bool = false
@@ -118,13 +131,8 @@ var ds_p: int
 var output_port_map:Dictionary = {}
 # Input event list
 var input_port_events:Array = []
-# Input event map
-var input_port_map:Dictionary = {}
 
 var _data_stack_underflow: bool = false
-
-# get built-in function from word
-var _built_in_function: Dictionary = {}
 
 # terminal scratchpad and buffer
 var _terminal_pad: String = ""
@@ -329,6 +337,8 @@ func _insert_new_event(port: int, value:int) -> void:
 	var item = [port, value]
 	if not item in input_port_events:
 		input_port_events.push_front(item)
+		# bump the semaphore count
+		_input_ready.post()
 
 
 # Forth Data Stack Push and Pop Routines
@@ -462,6 +472,8 @@ func cf_stack_roll(item: int) -> void:
 # This will cascade instantiation of all the Forth implementation classes
 # and initialize dictionaries for relating built-in words and addresses
 func _init() -> void:
+	# the top of the dictionary can't overlap the high-memory stuff
+	assert(DICT_TOP < PERIODIC_START)
 	ram = ForthRAM.new(RAM_SIZE)
 	util = ForthUtil.new(self)
 	# Instantiate Forth word definitions
@@ -478,6 +490,7 @@ func _init() -> void:
 	_init_built_ins()
 	# Initialize the data stack
 	data_stack.resize(DATA_STACK_SIZE)
+	data_stack.fill(0)
 	ds_p = DATA_STACK_SIZE  # empty
 	# set the terminal link in the dictionary
 	ram.set_int(dict_p, -1)
@@ -505,16 +518,18 @@ func _init() -> void:
 
 func _input_thread() -> void:
 	while true:
-		if not _input_ready.try_wait():
-			if input_port_events.size(): # FIXME THIS HAS TO BE PROTECTED FROM EXECUTING CONSTANTLy
-				print(input_port_events) # FIXME
-				var evt = input_port_events.pop_back()
-				if evt[0] in input_port_map:
-					push(evt[1])  # store the value
-					push(input_port_map[evt[0]]) # push the xt
-					core.execute()
-			# END FIXME this must happen after a context switch
+		_input_ready.wait()
+		# preferentially handle input port signals
+		if input_port_events.size():
+			var evt = input_port_events.pop_back()
+			# only execute if Forth is listening on this port
+			var xt:int = ram.get_word(IO_IN_MAP_START + evt[0]*ForthRAM.CELL_SIZE)
+			if xt:
+				push(evt[1])  # store the value
+				push(xt) # push the xt
+				core.execute()
 		else:
+			# no input events, must be terminal input line
 			_output_done = false
 			_interpret_terminal_line()
 			_output_done = true
@@ -544,7 +559,7 @@ func _init_built_ins() -> void:
 		)
 		built_in_function_from_address[addr] = f
 		address_from_built_in_function[f] = addr
-		_built_in_function[word] = f
+		built_in_function[word] = f
 	for i in built_in_exec_functions.size():
 		var word: String = built_in_exec_functions[i][0]
 		var f: Callable = built_in_exec_functions[i][1]
@@ -553,24 +568,24 @@ func _init_built_ins() -> void:
 		address_from_built_in_function[f] = addr
 
 
-func _abort_line() -> void:
+func reset_buff_to_in() -> void:
 	ram.set_word(BUFF_TO_IN, 0)
 
 
-func _is_valid_int(word: String, base: int = 10) -> bool:
+func is_valid_int(word: String, base: int = 10) -> bool:
 	if base == 16:
 		return word.is_valid_hex_number()
 	return word.is_valid_int()
 
 
-func _to_int(word: String, base: int = 10) -> int:
+func to_int(word: String, base: int = 10) -> int:
 	if base == 16:
 		return word.hex_to_int()
 	return word.to_int()
 
 
 # Given a word, determine if it is immediate or not.
-func _is_immediate(word: String) -> bool:
+func is_immediate(word: String) -> bool:
 	return word in immediate_names
 
 
@@ -579,67 +594,11 @@ func _interpret_terminal_line() -> void:
 	var bytes_input: PackedByteArray = _terminal_pad.to_ascii_buffer()
 	_terminal_pad = ""
 	_pad_position = 0
-	var base: int = ram.get_word(BASE)
 	bytes_input.push_back(0)  # null terminate
 	# transfer to the RAM-based input buffer (accessible to the engine)
 	for i in bytes_input.size():
 		ram.set_byte(BUFF_SOURCE_START + i, bytes_input[i])
-	while true:
-		# call the Forth WORD, setting blank as delimiter
-		push(ForthTerminal.BL.to_ascii_buffer()[0])
-		core.word()
-		core.count()
-		var len: int = pop()  # length of word
-		var caddr: int = pop()  # start of word
-		# out of tokens?
-		if len == 0:
-			# reset the buffer pointer
-			_abort_line()
-			break
-		var t: String = util.str_from_addr_n(caddr, len)
-		# t should be the next token, try to get an execution token from it
-		var xt_immediate = find_in_dict(t)
-		if not xt_immediate[0] and t.to_upper() in _built_in_function:
-			xt_immediate = [xt_from_word(t.to_upper()), false]
-		# an execution token exists
-		if xt_immediate[0] != 0:
-			push(xt_immediate[0])
-			# check if it is a built-in immediate or dictionary immediate before storing
-			if state and not (_is_immediate(t) or xt_immediate[1]):  # Compiling
-				core.comma()  # store at the top of the current : definition
-			else:  # Not Compiling or immediate - just execute
-				core.execute()
-		# no valid token, so maybe valid numeric value (double first)
-		elif t.contains(".") and _is_valid_int(t.replace(".", ""), base):
-			var t_strip: String = t.replace(".", "")
-			var temp: int = _to_int(t_strip, base)
-			push_dword(temp)
-			# compile it, if necessary
-			if state:
-				core.two_literal()
-		elif _is_valid_int(t, base):
-			var temp: int = _to_int(t, base)
-			# single-precision
-			push(temp)
-			# compile it, if necessary
-			if state:
-				core.literal()
-		# nothing we recognize
-		else:
-			util.print_unknown_word(t)
-			_abort_line()
-			return  # not ok
-		# check the stack
-		if ds_p < 0:
-			util.rprint_term(" Data stack overflow")
-			ds_p = DATA_STACK_SIZE
-			_abort_line()
-			return  # not ok
-		if ds_p > DATA_STACK_SIZE:
-			util.rprint_term(" Data stack underflow")
-			ds_p = DATA_STACK_SIZE
-			_abort_line()
-			return  # not ok
+	core.evaluate()
 	util.rprint_term(" ok")
 
 
