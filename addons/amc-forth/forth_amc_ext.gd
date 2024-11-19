@@ -46,7 +46,7 @@ func _get_port_address() -> void:
 
 ## @WORD LISTEN
 func listen() -> void:
-	# add a lookup entry for the port p, to execute <word>
+	# add a lookup entry for the IO port p, to execute <word>
 	# ( p - )
 	# usage: <port> LISTEN .  ( print port value when received )
 	# convert port to address
@@ -57,9 +57,50 @@ func listen() -> void:
 
 ## @WORD UNLISTEN
 func unlisten() -> void:
-	# remove a lookup entry for the port p
+	# remove a lookup entry for the IO port p
 	# ( p - )
 	_get_port_address()
 	forth.push(0)
 	forth.core.swap()
 	forth.core.store()
+
+func _get_timer_address() -> void:
+	# Utility to accept timer id and leave the start address of
+	# its msec, xt pair
+	# ( id - addr )
+	forth.push(ForthRAM.CELL_SIZE)
+	forth.core.two_star()
+	forth.core.star()
+	forth.push(forth.PERIODIC_START)
+	forth.core.plus()
+
+## @WORD P-TIMER
+func p_timer() -> void:
+	# start a periodic timer with id i, and interval n (msec) that
+	# calls execution token given by <name>. Does nothing if the id
+	# is in use.
+	# ( i n - )  <name>
+	forth.core.swap()		# ( i n - n i )
+	forth.core.dup() 		# ( n i - n i i )
+	var id:int = forth.pop() # ( n i i - n i )
+	_get_timer_address()	# ( n i - n addr )
+	forth.core.tick() 		# ( n addr - n addr xt )
+	var xt:int = forth.pop()
+	var addr:int = forth.pop()
+	var ms:int = forth.pop() # ( - )
+	if ms and not forth.ram.get_int(addr):	# only if non-zero and nothing already there
+		forth.ram.set_int(addr, ms)
+		forth.ram.set_int(addr + ForthRAM.CELL_SIZE, xt)
+		forth.start_periodic_timer(id, ms, xt)
+
+## @WORD P-STOP
+func p_stop() -> void:
+	# stop a periodic timer with id i.
+	# ( i - )
+	_get_timer_address()	# ( i - addr )
+	var addr = forth.pop()	# ( addr - )
+	# clear the entries for the given timer id
+	forth.ram.set_int(addr, 0)
+	forth.ram.set_int(addr + ForthRAM.CELL_SIZE, 0)
+	# the next time this timer expires, the system will find nothing
+	# here for the ID, and it will be cancelled.

@@ -443,6 +443,13 @@ func b_l() -> void:
 	forth.push(int(ForthTerminal.BL))
 
 
+## @WORD CR
+func c_r() -> void:
+	# Emit characters to generate a newline on the terminal
+	# ( -  )
+	forth.util.print_term(ForthTerminal.CRLF)
+
+
 ## @WORD CELL+
 func cell_plus() -> void:
 	# Add the size in bytes of a cell to a_addr1, returning a_addr2

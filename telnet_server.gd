@@ -43,7 +43,7 @@ var output_buffer := ""
 
 func _ready() -> void:
 	_start_listening()
-	forth = AMCForth.new()
+	forth = AMCForth.new(self)
 	forth.terminal_out.connect(_on_forth_output)
 	forth.add_output_signal(99, port_99)  # FIXME test purposes
 	port_99.connect(_on_port_99_output)		# FIXME output test

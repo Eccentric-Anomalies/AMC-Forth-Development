@@ -131,6 +131,13 @@ var ds_p: int
 var output_port_map:Dictionary = {}
 # Input event list
 var input_port_events:Array = []
+# Periodic timer list
+var periodic_timer_map:Dictionary = {}
+# Timer events queue
+var timer_events:Array = []
+
+# Owning Node
+var _node
 
 var _data_stack_underflow: bool = false
 
@@ -341,6 +348,34 @@ func _insert_new_event(port: int, value:int) -> void:
 		_input_ready.post()
 
 
+# Start a periodic timer with id to call an execution token
+# This is only called from within Forth code!
+func start_periodic_timer(id:int, msec:int, xt:int) -> void:
+
+	var signal_receiver = func() -> void: _handle_timeout(id)
+
+	# save info
+	var timer:= Timer.new()
+	periodic_timer_map[id] = [msec, xt, timer]
+	timer.wait_time = msec / 1000.0
+	timer.autostart = true
+	timer.connect("timeout", signal_receiver)
+	_node.call_deferred("add_child", timer)
+
+# Utility function to service periodic timer expirations
+func _handle_timeout(id:int) -> void:
+	if not id in timer_events:	# don't allow timer events to stack..
+		timer_events.push_front(id)
+		# bump the semaphore count
+		_input_ready.post()
+
+# Stop a timer
+func _remove_timer(id:int) -> void:
+	if id in periodic_timer_map:
+		var timer:Timer = periodic_timer_map[id][2]
+		timer.stop()
+		_node.remove_child(timer)
+
 # Forth Data Stack Push and Pop Routines
 
 func push(val: int) -> void:
@@ -471,7 +506,9 @@ func cf_stack_roll(item: int) -> void:
 # Called when AMCForth.new() is executed
 # This will cascade instantiation of all the Forth implementation classes
 # and initialize dictionaries for relating built-in words and addresses
-func _init() -> void:
+func _init(node:Node) -> void:
+	# save the instantiating node
+	_node = node
 	# the top of the dictionary can't overlap the high-memory stuff
 	assert(DICT_TOP < PERIODIC_START)
 	ram = ForthRAM.new(RAM_SIZE)
@@ -528,6 +565,16 @@ func _input_thread() -> void:
 				push(evt[1])  # store the value
 				push(xt) # push the xt
 				core.execute()
+		# followed by timer timeouts
+		elif timer_events.size():
+			var id = timer_events.pop_back()
+			# only execute if Forth is still listening on this id
+			var xt:int = ram.get_word(PERIODIC_START + (id*2 + 1)*ForthRAM.CELL_SIZE)
+			if xt:
+				push(xt)
+				core.execute()
+			else: # not listening any longer. remove the timer.
+				call_deferred("_remove_timer", id)
 		else:
 			# no input events, must be terminal input line
 			_output_done = false
