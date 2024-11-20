@@ -589,6 +589,7 @@ func emit() -> void:
 	var c: int = forth.pop()
 	forth.util.print_term(char(c))
 
+
 ## @WORD EVALUATE
 func evaluate() -> void:
 	# Save the current input soruce specification, set SOURCE_ID to -1,
@@ -907,11 +908,13 @@ func source() -> void:
 	forth.push(forth.BUFF_SOURCE_START)
 	forth.push(forth.BUFF_SOURCE_SIZE)
 
+
 ## @WORD SPACE
 func space() -> void:
 	# Display one space on the current output device
 	# ( - )
 	forth.util.print_term(ForthTerminal.BL)
+
 
 ## @WORD SPACES
 func spaces() -> void:
@@ -919,6 +922,7 @@ func spaces() -> void:
 	# ( u - )
 	for i in forth.pop():
 		forth.util.print_term(ForthTerminal.BL)
+
 
 ## @WORD SWAP
 func swap() -> void:

@@ -15,13 +15,14 @@ extends ForthImplementationBase
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
+
 ## @WORD AT-XY
 func at_x_y() -> void:
 	# Configure output device so next character display will appear
 	# at column u1, row u2 of the output area (origin in upper left)
 	# ( u1 u2 - )
-	var u2:int = forth.pop()
-	var u1:int = forth.pop()
+	var u2: int = forth.pop()
+	var u1: int = forth.pop()
 	forth.util.print_term(ForthTerminal.ESC + "[%d;%dH" % [u1, u2])
 
 
