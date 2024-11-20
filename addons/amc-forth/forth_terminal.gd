@@ -17,5 +17,6 @@ const DOWN := ESC + "[B"
 const RIGHT := ESC + "[C"
 const LEFT := ESC + "[D"
 const CLREOL := ESC + "[2K"
+const CLRSCR := ESC + "[2J"
 const COLUMNS := 80
 const ROWS := 24

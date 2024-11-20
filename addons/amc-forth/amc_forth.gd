@@ -84,6 +84,7 @@ var double: ForthDouble
 var double_ext: ForthDoubleExt
 var string: ForthString
 var amc_ext: ForthAMCExt
+var facility: ForthFacility
 
 # The Forth data stack pointer is in byte units
 
@@ -523,6 +524,7 @@ func _init(node:Node) -> void:
 	double_ext = ForthDoubleExt.new(self)
 	string = ForthString.new(self)
 	amc_ext = ForthAMCExt.new(self)
+	facility = ForthFacility.new(self)
 	# End Forth word definitions
 	_init_built_ins()
 	# Initialize the data stack

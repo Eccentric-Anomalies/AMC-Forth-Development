@@ -36,7 +36,7 @@ func left_parenthesis() -> void:
 func plus() -> void:
 	# Add n1 to n2 leaving the sum n3
 	# ( n1 n2 - n3 )
-	forth.push((forth.pop() + forth.pop()) & ForthRAM.CELL_MASK)
+	forth.push(forth.ram.truncate_to_cell(forth.pop() + forth.pop()))
 
 
 ## @WORD -
@@ -44,7 +44,7 @@ func minus() -> void:
 	# subtract n2 from n1, leaving the diference n3
 	# ( n1 n2 - n3 )
 	var n: int = forth.pop()
-	forth.push((forth.pop() - n) & ForthRAM.CELL_MASK)
+	forth.push(forth.ram.truncate_to_cell(forth.pop() - n))
 
 
 ## @WORD ,
@@ -67,6 +67,8 @@ func dot() -> void:
 func one_plus() -> void:
 	# Add one to n1, leaving n2
 	# ( n1 - n2 )
+	forth.push(1)
+	plus()
 	forth.data_stack[forth.ds_p] += 1
 	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
 
@@ -75,8 +77,8 @@ func one_plus() -> void:
 func one_minus() -> void:
 	# Subtract one from n1, leaving n2
 	# ( n1 - n2 )
-	forth.data_stack[forth.ds_p] -= 1
-	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
+	forth.push(1)
+	minus()
 
 
 ## @WORD '
@@ -125,7 +127,7 @@ func star_slash() -> void:
 	# Divide d by n3, giving the single-cell quotient n4.
 	# ( n1 n2 n3 - n4 )
 	var d: int = forth.pop()
-	forth.push((forth.pop() * forth.pop() / d) & ForthRAM.CELL_MASK)
+	forth.push(forth.ram.truncate_to_cell(forth.pop() * forth.pop() / d))
 
 
 ## @WORD */MOD
@@ -905,6 +907,18 @@ func source() -> void:
 	forth.push(forth.BUFF_SOURCE_START)
 	forth.push(forth.BUFF_SOURCE_SIZE)
 
+## @WORD SPACE
+func space() -> void:
+	# Display one space on the current output device
+	# ( - )
+	forth.util.print_term(ForthTerminal.BL)
+
+## @WORD SPACES
+func spaces() -> void:
+	# Display u spaces on the current output device
+	# ( u - )
+	for i in forth.pop():
+		forth.util.print_term(ForthTerminal.BL)
 
 ## @WORD SWAP
 func swap() -> void:
