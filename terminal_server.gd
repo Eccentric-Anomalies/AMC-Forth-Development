@@ -30,6 +30,9 @@ const REQUIRED_FEATURES = [
 	3
 ]
 
+const SCREEN_WIDTH := 80
+const SCREEN_HEIGHT := 24
+
 @export var listen_port: int = 23
 @export var bind_address: String = "127.0.0.1"
 
@@ -40,6 +43,9 @@ var output_buffer := ""
 
 @onready var server: TCPServer = TCPServer.new()
 
+var _screen_ram:PackedInt32Array
+
+
 
 func _ready() -> void:
 	_start_listening()
@@ -48,9 +54,23 @@ func _ready() -> void:
 	forth.add_output_signal(99, port_99)  # FIXME test purposes
 	port_99.connect(_on_port_99_output)  # FIXME output test
 	forth.add_input_signal(100, input_100)  # FIXME input test
+	# shader setup
+	_screen_ram = PackedInt32Array()
+	_screen_ram.resize(SCREEN_WIDTH * SCREEN_HEIGHT)
+	var hello:String = "Hello, world! ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789"
+	hello = hello + hello + hello + hello + hello + hello
+	var hello_bytes:= hello.to_ascii_buffer()
+	for i in hello_bytes.size():
+		_screen_ram[i] = hello_bytes[i]
+	$Screen.material.set_shader_parameter("ram", _screen_ram)
 
 
 func _process(_delta: float) -> void:
+	# perform periodic telnet processing
+	_telnet_process()
+
+
+func _telnet_process() -> void:
 	if server.is_listening():
 		if server.is_connection_available():
 			connection = server.take_connection()

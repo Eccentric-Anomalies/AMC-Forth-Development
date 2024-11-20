@@ -14,3 +14,9 @@ config/name="AMC Forth Development"
 run/main_scene="res://terminal_server.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=800
+window/size/viewport_height=480
+window/size/resizable=false
