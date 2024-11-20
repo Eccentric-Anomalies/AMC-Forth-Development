@@ -26,6 +26,15 @@ var _ram := PackedByteArray()
 var _d_scratch := PackedByteArray()
 
 
+# save ram state
+func save_state(config:ConfigFile) -> void:
+	config.set_value("ram", "image", _ram)
+
+# restore ram state
+func load_state(config:ConfigFile) -> void:
+	_ram = config.get_value("ram", "image")
+
+
 # allocate memory for RAM and a DCELL_SIZE scratchpad
 func _init(size: int):
 	_ram.resize(size)

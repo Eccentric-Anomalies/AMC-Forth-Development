@@ -36,7 +36,7 @@ func left_parenthesis() -> void:
 func plus() -> void:
 	# Add n1 to n2 leaving the sum n3
 	# ( n1 n2 - n3 )
-	forth.push((forth.pop() + forth.pop()) & ForthRAM.CELL_MASK)
+	forth.push(forth.ram.truncate_to_cell(forth.pop() + forth.pop()))
 
 
 ## @WORD -
@@ -44,7 +44,7 @@ func minus() -> void:
 	# subtract n2 from n1, leaving the diference n3
 	# ( n1 n2 - n3 )
 	var n: int = forth.pop()
-	forth.push((forth.pop() - n) & ForthRAM.CELL_MASK)
+	forth.push(forth.ram.truncate_to_cell(forth.pop() - n))
 
 
 ## @WORD ,
@@ -67,6 +67,8 @@ func dot() -> void:
 func one_plus() -> void:
 	# Add one to n1, leaving n2
 	# ( n1 - n2 )
+	forth.push(1)
+	plus()
 	forth.data_stack[forth.ds_p] += 1
 	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
 
@@ -75,8 +77,8 @@ func one_plus() -> void:
 func one_minus() -> void:
 	# Subtract one from n1, leaving n2
 	# ( n1 - n2 )
-	forth.data_stack[forth.ds_p] -= 1
-	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
+	forth.push(1)
+	minus()
 
 
 ## @WORD '
@@ -125,7 +127,7 @@ func star_slash() -> void:
 	# Divide d by n3, giving the single-cell quotient n4.
 	# ( n1 n2 n3 - n4 )
 	var d: int = forth.pop()
-	forth.push((forth.pop() * forth.pop() / d) & ForthRAM.CELL_MASK)
+	forth.push(forth.ram.truncate_to_cell(forth.pop() * forth.pop() / d))
 
 
 ## @WORD */MOD
@@ -443,6 +445,13 @@ func b_l() -> void:
 	forth.push(int(ForthTerminal.BL))
 
 
+## @WORD CR
+func c_r() -> void:
+	# Emit characters to generate a newline on the terminal
+	# ( -  )
+	forth.util.print_term(ForthTerminal.CRLF)
+
+
 ## @WORD CELL+
 func cell_plus() -> void:
 	# Add the size in bytes of a cell to a_addr1, returning a_addr2
@@ -579,6 +588,69 @@ func emit() -> void:
 	# ( b - )
 	var c: int = forth.pop()
 	forth.util.print_term(char(c))
+
+
+## @WORD EVALUATE
+func evaluate() -> void:
+	# Save the current input soruce specification, set SOURCE_ID to -1,
+	# Use c-addr, u as the buffer start and interpret.
+	# ( i*x c-addr u - j*x )
+	var base: int = forth.ram.get_word(forth.BASE)
+	forth.source_id_stack.push_back(forth.source_id)
+	forth.source_id = -1
+	forth.reset_buff_to_in()
+	while true:
+		# call the Forth WORD, setting blank as delimiter
+		forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
+		word()
+		count()
+		var len: int = forth.pop()  # length of word
+		var caddr: int = forth.pop()  # start of word
+		# out of tokens?
+		if len == 0:
+			break
+		var t: String = forth.util.str_from_addr_n(caddr, len)
+		# t should be the next token, try to get an execution token from it
+		var xt_immediate = forth.find_in_dict(t)
+		if not xt_immediate[0] and t.to_upper() in forth.built_in_function:
+			xt_immediate = [forth.xt_from_word(t.to_upper()), false]
+		# an execution token exists
+		if xt_immediate[0] != 0:
+			forth.push(xt_immediate[0])
+			# check if it is a built-in immediate or dictionary immediate before storing
+			if forth.state and not (forth.is_immediate(t) or xt_immediate[1]):  # Compiling
+				forth.core.comma()  # store at the top of the current : definition
+			else:  # Not Compiling or immediate - just execute
+				forth.core.execute()
+		# no valid token, so maybe valid numeric value (double first)
+		elif t.contains(".") and forth.is_valid_int(t.replace(".", ""), base):
+			var t_strip: String = t.replace(".", "")
+			var temp: int = forth.to_int(t_strip, base)
+			forth.push_dword(temp)
+			# compile it, if necessary
+			if forth.state:
+				two_literal()
+		elif forth.is_valid_int(t, base):
+			var temp: int = forth.to_int(t, base)
+			# single-precision
+			forth.push(temp)
+			# compile it, if necessary
+			if forth.state:
+				literal()
+		# nothing we recognize
+		else:
+			forth.util.print_unknown_word(t)
+			break  # not ok
+		# check the stack
+		if forth.ds_p < 0:
+			forth.util.rprint_term(" Data stack overflow")
+			forth.ds_p = AMCForth.DATA_STACK_SIZE
+			break  # not ok
+		if forth.ds_p > AMCForth.DATA_STACK_SIZE:
+			forth.util.rprint_term(" Data stack underflow")
+			forth.ds_p = AMCForth.DATA_STACK_SIZE
+			break  # not ok
+	forth.source_id = forth.source_id_stack.pop_back()
 
 
 ## @WORD EXECUTE
@@ -837,6 +909,21 @@ func source() -> void:
 	forth.push(forth.BUFF_SOURCE_SIZE)
 
 
+## @WORD SPACE
+func space() -> void:
+	# Display one space on the current output device
+	# ( - )
+	forth.util.print_term(ForthTerminal.BL)
+
+
+## @WORD SPACES
+func spaces() -> void:
+	# Display u spaces on the current output device
+	# ( u - )
+	for i in forth.pop():
+		forth.util.print_term(ForthTerminal.BL)
+
+
 ## @WORD SWAP
 func swap() -> void:
 	# exchange the top two items on the stack
@@ -884,7 +971,7 @@ func until_exec() -> void:
 ## @WORD WORD
 func word() -> void:
 	# Skip leading occurrences of the delimiter char. Parse text
-	# deliminted by char. Return the address of a temporary location
+	# delimited by char. Return the address of a temporary location
 	# containing the pased text as a counted string
 	# ( char - c-addr )
 	dup()

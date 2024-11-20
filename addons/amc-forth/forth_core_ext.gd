@@ -140,6 +140,12 @@ func pick() -> void:
 	else:
 		forth.push(forth.data_stack[-n - 1])
 
+## @WORD SOURCE-ID
+func source_id() -> void:
+	# Return a value indicating current input source.
+	# Value is 0: default user input, -1: character string.
+	# ( - n )
+	forth.push(forth.source_id)
 
 ## @WORD TO
 func to() -> void:

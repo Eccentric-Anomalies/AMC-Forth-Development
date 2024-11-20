@@ -3,8 +3,10 @@ class_name AMCForth  # gdlint:ignore = max-public-methods
 extends RefCounted
 
 signal terminal_out(text: String)
+signal terminal_in_ready
 
 const BANNER := "AMC Forth"
+const CONFIG_FILE_NAME = "user://ForthState.cfg"
 
 # Memory Map
 const RAM_SIZE := 0x10000  # BYTES
@@ -24,11 +26,28 @@ const WORD_SIZE := 0x0100
 const WORD_START := BUFF_TO_IN_TOP
 const WORD_TOP := WORD_START + WORD_SIZE
 # BASE cell
-const BASE = WORD_TOP
+const BASE := WORD_TOP
 # DICT_TOP_PTR cell
-const DICT_TOP_PTR = BASE + ForthRAM.CELL_SIZE
+const DICT_TOP_PTR := BASE + ForthRAM.CELL_SIZE
 # DICT_PTR
-const DICT_PTR = DICT_TOP_PTR + ForthRAM.CELL_SIZE
+const DICT_PTR := DICT_TOP_PTR + ForthRAM.CELL_SIZE
+
+# IO SPACE - cell-sized ports identified by port # ranging from 0 to 255
+const IO_OUT_PORT_QTY := 0x0100
+const IO_OUT_TOP := RAM_SIZE
+const IO_OUT_START := IO_OUT_TOP - IO_OUT_PORT_QTY * ForthRAM.CELL_SIZE
+const IO_IN_PORT_QTY := 0x0100
+const IO_IN_TOP := IO_OUT_START
+const IO_IN_START := IO_IN_TOP - IO_IN_PORT_QTY * ForthRAM.CELL_SIZE
+const IO_IN_MAP_TOP := IO_IN_START
+# xt for every port that is being listened on
+const IO_IN_MAP_START := IO_IN_MAP_TOP - IO_IN_PORT_QTY * ForthRAM.CELL_SIZE
+# PERIODIC TIMER SPACE
+const PERIODIC_TIMER_QTY := 0x080  # Timer IDs 0-127, stored as @addr: msec, xt
+const PERIODIC_TOP := IO_IN_START
+const PERIODIC_START := (
+	PERIODIC_TOP - PERIODIC_TIMER_QTY * ForthRAM.CELL_SIZE * 2
+)
 
 # Add more pointers here
 
@@ -67,6 +86,8 @@ var common_use: ForthCommonUse
 var double: ForthDouble
 var double_ext: ForthDoubleExt
 var string: ForthString
+var amc_ext: ForthAMCExt
+var facility: ForthFacility
 
 # The Forth data stack pointer is in byte units
 
@@ -78,7 +99,11 @@ var dict_ip := 0  # code field pointer set to current execution point
 # Forth compile state
 var state: bool = false
 
-# Built-In names h ave a run-time definition
+# Forth source ID
+var source_id: int = 0  # 0 default, -1 ram buffer
+var source_id_stack: Array = []
+
+# Built-In names have a run-time definition
 # These are "<WORD>", <run-time function> pairs that are defined by each
 # Forth implementation class (e.g. ForthDouble, etc.)
 var built_in_names: Array = []
@@ -95,6 +120,8 @@ var immediate_names: Array = []
 var address_from_built_in_function: Dictionary = {}
 # get built-in function from "address"
 var built_in_function_from_address: Dictionary = {}
+# get built-in function from word
+var built_in_function: Dictionary = {}
 
 # Forth : exit flag (true if exit has been called)
 var exit_flag: bool = false
@@ -103,10 +130,22 @@ var exit_flag: bool = false
 var data_stack: PackedInt64Array
 var ds_p: int
 
-var _data_stack_underflow: bool = false
+# Output handlers
+var output_port_map: Dictionary = {}
+# Input event list
+var input_port_events: Array = []
+# Periodic timer list
+var periodic_timer_map: Dictionary = {}
+# Timer events queue
+var timer_events: Array = []
 
-# get built-in function from word
-var _built_in_function: Dictionary = {}
+# Owning Node
+var _node
+
+# State file
+var _config: ConfigFile
+
+var _data_stack_underflow: bool = false
 
 # terminal scratchpad and buffer
 var _terminal_pad: String = ""
@@ -121,9 +160,39 @@ var _dict_ip_stack: Array = []
 # Forth: control flow stack
 var _control_flow_stack: Array = []
 
+# Thread data
+var _thread: Thread
+var _input_ready: Semaphore
+var _output_done: bool
+
 
 func client_connected() -> void:
 	terminal_out.emit(BANNER + ForthTerminal.CR + ForthTerminal.LF)
+
+
+# pause until Forth is ready to accept inupt
+func is_ready_for_input() -> bool:
+	return _output_done
+
+
+# preserve Forth memory and state
+func save_snapshot() -> void:
+	_config.clear()
+	ram.save_state(_config)
+	_config.save(CONFIG_FILE_NAME)
+
+
+# restore Forth memory and state
+func load_snapshot() -> void:
+	# stop all periodic timers
+	_remove_all_timers()
+	_config.load(CONFIG_FILE_NAME)
+	ram.load_state(_config)
+	# restore shadowed registers
+	restore_dict_p()
+	restore_dict_top()
+	# start all configured periodic timers
+	_restore_all_timers()
 
 
 # handle editing input strings in interactive mode
@@ -181,10 +250,8 @@ func terminal_in(text: String) -> void:
 			_pad_position = _terminal_pad.length()
 			terminal_out.emit(_refresh_edit_text())
 			echo_text = ""
-			# send the text to the Forth interpreter
-			_interpret_terminal_line()
-			_terminal_pad = ""
-			_pad_position = 0
+			# text is ready for the Forth interpreter
+			_input_ready.post()
 			in_str = in_str.erase(0, ForthTerminal.CR.length())
 		# not a control character(s)
 		else:
@@ -281,6 +348,87 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 		# the address of the name length byte
 		return ret
 	return 0
+
+
+# Forth Input and Output Interface
+
+
+# Register an output signal handler (port triggers message out)
+# Message will fire with Forth OUT ( x p - )
+func add_output_signal(port: int, s: Signal) -> void:
+	output_port_map[port] = s
+
+
+# Register an input signal handler (message in triggers input action)
+# Register a handler function with Forth LISTEN ( p xt - )
+func add_input_signal(port: int, s: Signal) -> void:
+	var signal_receiver = func(value: int) -> void: _insert_new_event(
+		port, value
+	)
+
+	s.connect(signal_receiver)
+
+
+# Utility function to add an input event to the queue
+func _insert_new_event(port: int, value: int) -> void:
+	var item = [port, value]
+	if not item in input_port_events:
+		input_port_events.push_front(item)
+		# bump the semaphore count
+		_input_ready.post()
+
+
+# Start a periodic timer with id to call an execution token
+# This is only called from within Forth code!
+func start_periodic_timer(id: int, msec: int, xt: int) -> void:
+	var signal_receiver = func() -> void: _handle_timeout(id)
+
+	# save info
+	var timer := Timer.new()
+	periodic_timer_map[id] = [msec, xt, timer]
+	timer.wait_time = msec / 1000.0
+	timer.autostart = true
+	timer.connect("timeout", signal_receiver)
+	_node.call_deferred("add_child", timer)
+
+
+# Utility function to service periodic timer expirations
+func _handle_timeout(id: int) -> void:
+	if not id in timer_events:  # don't allow timer events to stack..
+		timer_events.push_front(id)
+		# bump the semaphore count
+		_input_ready.post()
+
+
+# Stop a timer without erasing the map entry
+func _stop_timer(id: int) -> void:
+	var timer: Timer = periodic_timer_map[id][2]
+	timer.stop()
+	_node.remove_child(timer)
+
+
+# Stop a single timer
+func _remove_timer(id: int) -> void:
+	if id in periodic_timer_map:
+		_stop_timer(id)
+		periodic_timer_map.erase(id)
+
+
+# Stop all timers
+func _remove_all_timers() -> void:
+	for id in periodic_timer_map:
+		_stop_timer(id)
+	periodic_timer_map.clear()
+
+
+# Create and start all configured timers
+func _restore_all_timers() -> void:
+	for id in PERIODIC_TIMER_QTY:
+		var addr: int = PERIODIC_START + ForthRAM.CELL_SIZE * 2 * id
+		var msec: int = ram.get_int(addr)
+		var xt: int = ram.get_int(addr + ForthRAM.CELL_SIZE)
+		if xt:
+			start_periodic_timer(id, msec, xt)
 
 
 # Forth Data Stack Push and Pop Routines
@@ -414,10 +562,16 @@ func cf_stack_roll(item: int) -> void:
 # Called when AMCForth.new() is executed
 # This will cascade instantiation of all the Forth implementation classes
 # and initialize dictionaries for relating built-in words and addresses
-func _init() -> void:
+func _init(node: Node) -> void:
+	# save the instantiating node
+	_node = node
+	# create a config file
+	_config = ConfigFile.new()
+	# the top of the dictionary can't overlap the high-memory stuff
+	assert(DICT_TOP < PERIODIC_START)
 	ram = ForthRAM.new(RAM_SIZE)
 	util = ForthUtil.new(self)
-	# Create Forth word definitions
+	# Instantiate Forth word definitions
 	core = ForthCore.new(self)
 	core_ext = ForthCoreExt.new(self)
 	tools = ForthTools.new(self)
@@ -426,10 +580,13 @@ func _init() -> void:
 	double = ForthDouble.new(self)
 	double_ext = ForthDoubleExt.new(self)
 	string = ForthString.new(self)
+	amc_ext = ForthAMCExt.new(self)
+	facility = ForthFacility.new(self)
 	# End Forth word definitions
 	_init_built_ins()
 	# Initialize the data stack
 	data_stack.resize(DATA_STACK_SIZE)
+	data_stack.fill(0)
 	ds_p = DATA_STACK_SIZE  # empty
 	# set the terminal link in the dictionary
 	ram.set_int(dict_p, -1)
@@ -443,7 +600,46 @@ func _init() -> void:
 	save_dict_p()
 	dict_top = DICT_START  # position of next new link to create
 	save_dict_top()
+	# Launch the AMC Forth thread
+	_thread = Thread.new()
+	# end test
+	_input_ready = Semaphore.new()
+	_thread.start(_input_thread, Thread.PRIORITY_LOW)
+	_output_done = true
 	print(BANNER)
+
+
+func _input_thread() -> void:
+	while true:
+		_input_ready.wait()
+		# preferentially handle input port signals
+		if input_port_events.size():
+			var evt = input_port_events.pop_back()
+			# only execute if Forth is listening on this port
+			var xt: int = ram.get_word(
+				IO_IN_MAP_START + evt[0] * ForthRAM.CELL_SIZE
+			)
+			if xt:
+				push(evt[1])  # store the value
+				push(xt)  # push the xt
+				core.execute()
+		# followed by timer timeouts
+		elif timer_events.size():
+			var id = timer_events.pop_back()
+			# only execute if Forth is still listening on this id
+			var xt: int = ram.get_word(
+				PERIODIC_START + (id * 2 + 1) * ForthRAM.CELL_SIZE
+			)
+			if xt:
+				push(xt)
+				core.execute()
+			else:  # not listening any longer. remove the timer.
+				call_deferred("_remove_timer", id)
+		else:
+			# no input events, must be terminal input line
+			_output_done = false
+			_interpret_terminal_line()
+			_output_done = true
 
 
 # generate execution tokens by hashing Forth Word
@@ -470,7 +666,7 @@ func _init_built_ins() -> void:
 		)
 		built_in_function_from_address[addr] = f
 		address_from_built_in_function[f] = addr
-		_built_in_function[word] = f
+		built_in_function[word] = f
 	for i in built_in_exec_functions.size():
 		var word: String = built_in_exec_functions[i][0]
 		var f: Callable = built_in_exec_functions[i][1]
@@ -479,91 +675,37 @@ func _init_built_ins() -> void:
 		address_from_built_in_function[f] = addr
 
 
-func _abort_line() -> void:
+func reset_buff_to_in() -> void:
 	ram.set_word(BUFF_TO_IN, 0)
 
 
-func _is_valid_int(word: String, base: int = 10) -> bool:
+func is_valid_int(word: String, base: int = 10) -> bool:
 	if base == 16:
 		return word.is_valid_hex_number()
 	return word.is_valid_int()
 
 
-func _to_int(word: String, base: int = 10) -> int:
+func to_int(word: String, base: int = 10) -> int:
 	if base == 16:
 		return word.hex_to_int()
 	return word.to_int()
 
 
 # Given a word, determine if it is immediate or not.
-func _is_immediate(word: String) -> bool:
+func is_immediate(word: String) -> bool:
 	return word in immediate_names
 
 
 # Interpret the _terminal_pad content
 func _interpret_terminal_line() -> void:
 	var bytes_input: PackedByteArray = _terminal_pad.to_ascii_buffer()
-	var base: int = ram.get_word(BASE)
+	_terminal_pad = ""
+	_pad_position = 0
 	bytes_input.push_back(0)  # null terminate
 	# transfer to the RAM-based input buffer (accessible to the engine)
 	for i in bytes_input.size():
 		ram.set_byte(BUFF_SOURCE_START + i, bytes_input[i])
-	while true:
-		# call the Forth WORD, setting blank as delimiter
-		push(ForthTerminal.BL.to_ascii_buffer()[0])
-		core.word()
-		core.count()
-		var len: int = pop()  # length of word
-		var caddr: int = pop()  # start of word
-		# out of tokens?
-		if len == 0:
-			# reset the buffer pointer
-			_abort_line()
-			break
-		var t: String = util.str_from_addr_n(caddr, len)
-		# t should be the next token, try to get an execution token from it
-		var xt_immediate = find_in_dict(t)
-		if not xt_immediate[0] and t.to_upper() in _built_in_function:
-			xt_immediate = [xt_from_word(t.to_upper()), false]
-		# an execution token exists
-		if xt_immediate[0] != 0:
-			push(xt_immediate[0])
-			# check if it is a built-in immediate or dictionary immediate before storing
-			if state and not (_is_immediate(t) or xt_immediate[1]):  # Compiling
-				core.comma()  # store at the top of the current : definition
-			else:  # Not Compiling or immediate - just execute
-				core.execute()
-		# no valid token, so maybe valid numeric value (double first)
-		elif t.contains(".") and _is_valid_int(t.replace(".", ""), base):
-			var t_strip: String = t.replace(".", "")
-			var temp: int = _to_int(t_strip, base)
-			push_dword(temp)
-			# compile it, if necessary
-			if state:
-				core.two_literal()
-		elif _is_valid_int(t, base):
-			var temp: int = _to_int(t, base)
-			# single-precision
-			push(temp)
-			# compile it, if necessary
-			if state:
-				core.literal()
-		# nothing we recognize
-		else:
-			util.print_unknown_word(t)
-			_abort_line()
-			return  # not ok
-		# check the stack
-		if ds_p < 0:
-			util.rprint_term(" Data stack overflow")
-			ds_p = DATA_STACK_SIZE
-			_abort_line()
-			return  # not ok
-		if ds_p > DATA_STACK_SIZE:
-			util.rprint_term(" Data stack underflow")
-			ds_p = DATA_STACK_SIZE
-			_abort_line()
-			return  # not ok
+	core.evaluate()
 	util.rprint_term(" ok")
 
 
