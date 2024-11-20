@@ -6,6 +6,7 @@ signal terminal_out(text: String)
 signal terminal_in_ready
 
 const BANNER := "AMC Forth"
+const CONFIG_FILE_NAME = "user://ForthState.cfg"
 
 # Memory Map
 const RAM_SIZE := 0x10000  # BYTES
@@ -141,6 +142,9 @@ var timer_events: Array = []
 # Owning Node
 var _node
 
+# State file
+var _config: ConfigFile
+
 var _data_stack_underflow: bool = false
 
 # terminal scratchpad and buffer
@@ -169,6 +173,26 @@ func client_connected() -> void:
 # pause until Forth is ready to accept inupt
 func is_ready_for_input() -> bool:
 	return _output_done
+
+
+# preserve Forth memory and state
+func save_snapshot() -> void:
+	_config.clear()
+	ram.save_state(_config)
+	_config.save(CONFIG_FILE_NAME)
+
+
+# restore Forth memory and state
+func load_snapshot() -> void:
+	# stop all periodic timers
+	_remove_all_timers()
+	_config.load(CONFIG_FILE_NAME)
+	ram.load_state(_config)
+	# restore shadowed registers
+	restore_dict_p()
+	restore_dict_top()
+	# start all configured periodic timers
+	_restore_all_timers()
 
 
 # handle editing input strings in interactive mode
@@ -376,12 +400,35 @@ func _handle_timeout(id: int) -> void:
 		_input_ready.post()
 
 
-# Stop a timer
+# Stop a timer without erasing the map entry
+func _stop_timer(id: int) -> void:
+	var timer: Timer = periodic_timer_map[id][2]
+	timer.stop()
+	_node.remove_child(timer)
+
+
+# Stop a single timer
 func _remove_timer(id: int) -> void:
 	if id in periodic_timer_map:
-		var timer: Timer = periodic_timer_map[id][2]
-		timer.stop()
-		_node.remove_child(timer)
+		_stop_timer(id)
+		periodic_timer_map.erase(id)
+
+
+# Stop all timers
+func _remove_all_timers() -> void:
+	for id in periodic_timer_map:
+		_stop_timer(id)
+	periodic_timer_map.clear()
+
+
+# Create and start all configured timers
+func _restore_all_timers() -> void:
+	for id in PERIODIC_TIMER_QTY:
+		var addr: int = PERIODIC_START + ForthRAM.CELL_SIZE * 2 * id
+		var msec: int = ram.get_int(addr)
+		var xt: int = ram.get_int(addr + ForthRAM.CELL_SIZE)
+		if xt:
+			start_periodic_timer(id, msec, xt)
 
 
 # Forth Data Stack Push and Pop Routines
@@ -518,6 +565,8 @@ func cf_stack_roll(item: int) -> void:
 func _init(node: Node) -> void:
 	# save the instantiating node
 	_node = node
+	# create a config file
+	_config = ConfigFile.new()
 	# the top of the dictionary can't overlap the high-memory stuff
 	assert(DICT_TOP < PERIODIC_START)
 	ram = ForthRAM.new(RAM_SIZE)
@@ -553,9 +602,6 @@ func _init(node: Node) -> void:
 	save_dict_top()
 	# Launch the AMC Forth thread
 	_thread = Thread.new()
-	# feed a test loop into the dictionary
-	_terminal_pad = ": LOOPN BEGIN 1- DUP IF FALSE ELSE TRUE THEN UNTIL DROP ;"
-	_interpret_terminal_line()
 	# end test
 	_input_ready = Semaphore.new()
 	_thread.start(_input_thread, Thread.PRIORITY_LOW)

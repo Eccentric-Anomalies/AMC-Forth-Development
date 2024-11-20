@@ -59,14 +59,11 @@ func listen() -> void:
 	forth.core.store()
 
 
-## @WORD UNLISTEN
-func unlisten() -> void:
-	# remove a lookup entry for the IO port p
-	# ( p - )
-	_get_port_address()
-	forth.push(0)
-	forth.core.swap()
-	forth.core.store()
+## @WORD LOAD-SNAP
+func load_snap() -> void:
+	# Restore the Forth system RAM from backup file
+	# ( - )
+	forth.load_snapshot()
 
 
 func _get_timer_address() -> void:
@@ -111,3 +108,36 @@ func p_stop() -> void:
 	forth.ram.set_int(addr + ForthRAM.CELL_SIZE, 0)
 	# the next time this timer expires, the system will find nothing
 	# here for the ID, and it will be cancelled.
+
+
+## @WORD POP-XY
+func pop_x_y() -> void:
+	# Configure output device so next character display will appear
+	# at the column and row that were last saved with PUSH-XY
+	# ( - )
+	forth.util.print_term(ForthTerminal.ESC + "8")
+
+
+## @WORD PUSH-XY
+func push_x_y() -> void:
+	# Tell the output device to save its current output position, to
+	# be retrieved later using POP-XY
+	# ( - )
+	forth.util.print_term(ForthTerminal.ESC + "7")
+
+
+## @WORD SAVE-SNAP
+func save_snap() -> void:
+	# Restore the Forth system RAM from backup file
+	# ( - )
+	forth.save_snapshot()
+
+
+## @WORD UNLISTEN
+func unlisten() -> void:
+	# remove a lookup entry for the IO port p
+	# ( p - )
+	_get_port_address()
+	forth.push(0)
+	forth.core.swap()
+	forth.core.store()

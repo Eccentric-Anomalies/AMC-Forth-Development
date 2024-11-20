@@ -18,5 +18,7 @@ const RIGHT := ESC + "[C"
 const LEFT := ESC + "[D"
 const CLREOL := ESC + "[2K"
 const CLRSCR := ESC + "[2J"
+const PUSHXY := ESC + "7"
+const POPXY := ESC + "8"
 const COLUMNS := 80
 const ROWS := 24
