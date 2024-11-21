@@ -41,10 +41,9 @@ var connection: StreamPeerTCP = null
 var negotiation_complete := false
 var output_buffer := ""
 
-@onready var server: TCPServer = TCPServer.new()
-
 var _screen_ram:PackedInt32Array
 
+@onready var server: TCPServer = TCPServer.new()
 
 
 func _ready() -> void:

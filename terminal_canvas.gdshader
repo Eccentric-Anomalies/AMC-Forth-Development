@@ -131,27 +131,53 @@ const lowp int char_rom[2048] = lowp int[2048] (
   0x62,0x92,0x8C,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, // 0x000007E0 b...............
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00); // 0x000007F0 ................
 
-uniform int ram[1920];  // PackedInt32Array
+/**
+ * Parameter "ram" is a PackedInt32Array with maximum size of 1920 elements
+ * which serves as the text buffer for the terminal display. Store ASCII
+ * characters in "ram" to have them displayed by the shader. Additional bits
+ * are used for modifying text appearance:
+ * 0x0100 bitmask for WIDE characters
+ * 0x0200 bitmask for BRIGHT characters
+ * 0x0400 bitmask for UNDERLINEd characters
+ * 0x8000 bitmask for BLINKing characters
+ */
+uniform int ram[1920];  // PackedInt32Array'
+
+/**
+ * Set parameter "cols" to the column width of the terminal display (default 80).
+ * Product of cols and rows may not exceed 1920.
+ */
+uniform int cols = 80;	// screen width in chars
+
+/**
+ * Set parameter "rows" to the row height of the terminal display (default 24)
+ * Product of cols and rows may not exceed 1920.
+ */
+uniform int rows = 24;	// screen height in chars
 
 void vertex() {
 	// Called for every vertex the material is visible on.
 }
 
-const int cols = 80;	// screen width in chars
-const int rows = 24;	// screen height in chars
-const int charw = 10;	// char width in pixels
-const int charh = 10;	// char height in pixels
-const int xres = cols*charw;	// screen pixel width
-const int yres = rows*charh;	// screen pixel height
+const int WIDE = 0x0100;
+const int BRIGHT = 0x0200;
+const int UNDERLINE = 0x0400;
+const int BLINK = 0x0800;
+
+const int CHARW = 10;	// char width in pixels
+const int CHARH = 10;	// char height in pixels
+
 
 void fragment() {
+	int xres = cols*CHARW;	// screen pixel width
+	int yres = rows*CHARH;	// screen pixel height
 	// Called for every pixel the material is visible on.
 	// COLOR = vec4(0.1, 0.1, 0.1, 1.0);
 	int col = int(trunc(UV.x * float(cols)));
 	int row = int(trunc(UV.y * float(rows)));
 	int char = ram[col + row*cols];		// character from video ram
-	int pix_column = int(UV.x * float(xres)) - col*charw;
-	int pix_row = int(UV.y * float(yres)) - row*charh;
+	int pix_column = int(UV.x * float(xres)) - col*CHARW;
+	int pix_row = int(UV.y * float(yres)) - row*CHARH;
 	int cellrow = char_rom[char * 16 + pix_row] << 2; // two blank bits padding on the right
 	if ((cellrow & (0x0200 >> pix_column)) != 0) {
 //	if ((row & 1) != 0) {
