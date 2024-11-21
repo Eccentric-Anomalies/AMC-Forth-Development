@@ -1,7 +1,8 @@
-extends Node2D
+class_name ForthTermTelnet
+## Telnet server Forth terminal
+##
 
-signal port_99(value: int)
-signal input_100(value: int)
+extends ForthTermBase
 
 const REQUIRED_FEATURES = [
 	255,
@@ -30,50 +31,19 @@ const REQUIRED_FEATURES = [
 	3
 ]
 
-const SCREEN_WIDTH := 80
-const SCREEN_HEIGHT := 24
-
 @export var listen_port: int = 23
 @export var bind_address: String = "127.0.0.1"
 
-var forth: AMCForth
 var connection: StreamPeerTCP = null
 var negotiation_complete := false
-var output_buffer := ""
+var _server: TCPServer
 
-var _screen_ram:PackedInt32Array
-
-@onready var server: TCPServer = TCPServer.new()
-
-
-func _ready() -> void:
-	_start_listening()
-	forth = AMCForth.new(self)
-	forth.terminal_out.connect(_on_forth_output)
-	forth.add_output_signal(99, port_99)  # FIXME test purposes
-	port_99.connect(_on_port_99_output)  # FIXME output test
-	forth.add_input_signal(100, input_100)  # FIXME input test
-	# shader setup
-	_screen_ram = PackedInt32Array()
-	_screen_ram.resize(SCREEN_WIDTH * SCREEN_HEIGHT)
-	var hello:String = "Hello, world! ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789"
-	hello = hello + hello + hello + hello + hello + hello
-	var hello_bytes:= hello.to_ascii_buffer()
-	for i in hello_bytes.size():
-		_screen_ram[i] = hello_bytes[i]
-	$Screen.material.set_shader_parameter("ram", _screen_ram)
-
-
-func _process(_delta: float) -> void:
-	# perform periodic telnet processing
-	_telnet_process()
-
-
-func _telnet_process() -> void:
-	if server.is_listening():
-		if server.is_connection_available():
-			connection = server.take_connection()
-			server.stop()  # do not listen now
+## Poll the telnet connection
+func poll_connection() -> void:
+	if _server.is_listening():
+		if _server.is_connection_available():
+			connection = _server.take_connection()
+			_server.stop()  # do not listen now
 			connection.set_no_delay(true)
 			forth.client_connected()
 	elif connection:  # not listening.. connected
@@ -107,24 +77,19 @@ func _telnet_process() -> void:
 						instr = ""
 
 
+
+## Initialize (executed automatically by ForthTermTelnet.new())
+##
+func _init(_forth: AMCForth) -> void:
+	super(_forth)
+	_server = TCPServer.new()
+	_start_listening()
+
+
+## Start listening for a telnet connection
 func _start_listening() -> void:
-	var err: Error = server.listen(listen_port, bind_address)
+	var err: Error = _server.listen(listen_port, bind_address)
 	if err != OK:
 		printerr("Failed to listen on port ", listen_port)
 	connection = null
 	output_buffer = ""
-
-
-func _on_forth_output(text: String) -> void:
-	output_buffer += text
-
-
-# output test FIXME
-func _on_port_99_output(value: int):
-	print(value)
-
-
-func _unhandled_input(event):
-	if event is InputEventKey:
-		if event.pressed and event.keycode == KEY_0:
-			input_100.emit(666)
