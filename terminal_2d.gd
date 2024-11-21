@@ -23,6 +23,9 @@ func _process(_delta: float) -> void:
 	# perform periodic telnet processing
 	_telnet_terminal.poll_connection()
 
+func _unhandled_key_input(evt:InputEvent) -> void:
+	_local_terminal.handle_key_event(evt)
+	get_viewport().set_input_as_handled()
 
 # output test FIXME
 func _on_port_99_output(value: int):

@@ -712,7 +712,7 @@ func _interpret_terminal_line() -> void:
 # return echo text that refreshes the current edit
 func _refresh_edit_text() -> String:
 	var echo = (
-		ForthTerminal.CLREOL
+		ForthTerminal.CLRLINE
 		+ ForthTerminal.CR
 		+ _terminal_pad
 		+ ForthTerminal.CR
@@ -726,4 +726,4 @@ func _select_buffered_command() -> String:
 	var selected_index = _buffer_index
 	_terminal_pad = _terminal_buffer[selected_index]
 	_pad_position = _terminal_pad.length()
-	return ForthTerminal.CLREOL + ForthTerminal.CR + _terminal_pad
+	return ForthTerminal.CLRLINE + ForthTerminal.CR + _terminal_pad

@@ -155,6 +155,12 @@ uniform int cols = 80;	// screen width in chars
  */
 uniform int rows = 24;	// screen height in chars
 
+/**
+ * Set parameter "cursor_position" to a column, row position.
+ * Position (1, 1) is the extreme upper left position on the screen.
+ */
+uniform ivec2 cursor_position = ivec2(1,1);	// col, row
+
 void vertex() {
 	// Called for every vertex the material is visible on.
 }

@@ -34,39 +34,40 @@ const REQUIRED_FEATURES = [
 @export var listen_port: int = 23
 @export var bind_address: String = "127.0.0.1"
 
-var connection: StreamPeerTCP = null
-var negotiation_complete := false
+var _connection: StreamPeerTCP = null
+var _negotiation_complete := false
+var _output_buffer := ""
 var _server: TCPServer
 
-## Poll the telnet connection
+## Poll the telnet _connection
 func poll_connection() -> void:
 	if _server.is_listening():
 		if _server.is_connection_available():
-			connection = _server.take_connection()
+			_connection = _server.take_connection()
 			_server.stop()  # do not listen now
-			connection.set_no_delay(true)
+			_connection.set_no_delay(true)
 			forth.client_connected()
-	elif connection:  # not listening.. connected
-		var connect_status = connection.get_status()
+	elif _connection:  # not listening.. connected
+		var connect_status = _connection.get_status()
 		if connect_status == StreamPeerTCP.Status.STATUS_ERROR:
-			connection.disconnect_from_host()
+			_connection.disconnect_from_host()
 			_start_listening()
 		elif connect_status == StreamPeerTCP.Status.STATUS_CONNECTED:
 			# stuff waiting to go out?
-			if output_buffer.length():
-				connection.put_data(output_buffer.to_ascii_buffer())
-				output_buffer = ""
+			if _output_buffer.length():
+				_connection.put_data(_output_buffer.to_ascii_buffer())
+				_output_buffer = ""
 			# stuff waiting to come in?
-			var bytes_available: int = connection.get_available_bytes()
+			var bytes_available: int = _connection.get_available_bytes()
 			if bytes_available > 0:
-				var raw_data = connection.get_data(bytes_available)
+				var raw_data = _connection.get_data(bytes_available)
 				# crude check for telnet negotiation
 				if raw_data[0] == 0 and raw_data[1][0] == 255:
-					if not negotiation_complete:
+					if not _negotiation_complete:
 						# We ask for no terminal echo
-						connection.put_data(REQUIRED_FEATURES)
+						_connection.put_data(REQUIRED_FEATURES)
 						# ignore further messages and hope for the best
-						negotiation_complete = true
+						_negotiation_complete = true
 				# just retrieve the text and pass to forth
 				else:
 					var instr: String = raw_data[1].get_string_from_ascii()
@@ -86,10 +87,14 @@ func _init(_forth: AMCForth) -> void:
 	_start_listening()
 
 
-## Start listening for a telnet connection
+## Start listening for a telnet _connection
 func _start_listening() -> void:
 	var err: Error = _server.listen(listen_port, bind_address)
 	if err != OK:
 		printerr("Failed to listen on port ", listen_port)
-	connection = null
-	output_buffer = ""
+	_connection = null
+	_output_buffer = ""
+
+
+func _on_forth_output(text: String) -> void:
+	_output_buffer += text
