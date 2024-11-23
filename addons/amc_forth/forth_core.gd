@@ -166,8 +166,8 @@ func slash_mod() -> void:
 
 
 ## @WORD :
-# Create a definition for <name> and enter compilation state.
-# @STACK ( "name" - )
+## Create a definition for <name> and enter compilation state.
+## @STACK ( "name" - )
 func colon() -> void:
 	_smudge_address = forth.create_dict_entry_name(true)
 	if _smudge_address:

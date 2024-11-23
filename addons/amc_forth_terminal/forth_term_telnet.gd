@@ -83,6 +83,8 @@ func poll_connection() -> void:
 ##
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
+	# now safe to receive output
+	connect_forth_output()
 	_server = TCPServer.new()
 	_start_listening()
 

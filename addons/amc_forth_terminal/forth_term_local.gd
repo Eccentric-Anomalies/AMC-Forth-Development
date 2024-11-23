@@ -162,6 +162,10 @@ var _sp_chars: Dictionary = {
 	ForthTerminal.REVERSE: _do_reverse,
 	ForthTerminal.INVISIBLE: _do_invisible,
 }
+
+# a list of keys, sorted in reverse order by length
+var _sp_chars_keys:Array = []
+
 var _blank = ForthTerminal.BL.to_ascii_buffer()[0]
 
 
@@ -177,13 +181,18 @@ func _init(_forth: AMCForth, screen_material: ShaderMaterial) -> void:
 	_screen_material.set_shader_parameter("rows", SCREEN_HEIGHT)
 	_set_screen_contents()
 	_go_home()
-	forth.client_connected()
 	_last_msec = Time.get_ticks_msec()
 	_last_msec -= _last_msec % (CURSOR_PERIOD_MSEC / 2)  # round to half a cursor cycle
+	# Sort the special characters list
+	_sp_chars_keys = _sp_chars.keys()
+	_sp_chars_keys.sort_custom(_key_sort_func)
+	# now safe to receive output
+	connect_forth_output()
+	forth.client_connected()
 
-	# Test code FIXME
-	#_on_forth_output("Hello, world! ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789")
-
+# custom function for sorting special characters by length
+func _key_sort_func(x, y) -> bool:
+	return x.length() > y.length()
 
 # Receive local key events from the owning node
 func handle_key_event(evt: InputEvent) -> void:
@@ -217,7 +226,7 @@ func _on_forth_output(_text: String) -> void:
 	while text.length():
 		# look for a special character(s)
 		var sp_found: bool = false
-		for sch in _sp_chars:
+		for sch in _sp_chars_keys:  # look for longest special chars first!
 			if text.find(sch) == 0:
 				# do the thing
 				_sp_chars[sch].call()
