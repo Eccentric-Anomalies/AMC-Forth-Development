@@ -41,6 +41,36 @@ func _get_port_address() -> void:
 	forth.push(forth.IO_IN_MAP_START)
 	forth.core.plus()
 
+# helper function for retrieving the next word
+func _next_word() -> String:
+	# retrieve the name token
+	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
+	forth.core.word()
+	forth.core.count()
+	var len: int = forth.pop()  # length
+	var caddr: int = forth.pop()  # start
+	return forth.util.str_from_addr_n(caddr, len)
+
+
+## @WORD HELP
+## Display the description for the following Forth built-in word.
+## @STACK ( "name" - )
+func help() -> void:
+	forth.util.print_term(" " + forth.word_description.get(_next_word(),"(not found)"))
+
+
+## @WORD HELPS
+## Display stack definition for the following Forth word.
+## @STACK ( "name" - )
+func help_s() -> void:
+	forth.util.print_term(" " + forth.word_stackdef.get(_next_word(),"(not found)"))
+
+## @WORD HELPWS
+## Display word set for the following Forth word.
+## @STACK ( "name" - )
+func help_w_s() -> void:
+	forth.util.print_term(" " + forth.word_wordset.get(_next_word(),"(not found)"))
+
 
 ## @WORD INVISIBLEV
 ## Send INVISIBLE command to terminal.

@@ -89,6 +89,12 @@ var string: ForthString
 var amc_ext: ForthAMCExt
 var facility: ForthFacility
 
+# Forth built-in meta-data
+var word_description:Dictionary = {}
+var word_stackdef:Dictionary = {}
+var word_wordset:Dictionary = {}
+var wordset_words:Dictionary = {}
+
 # The Forth data stack pointer is in byte units
 
 # The Forth dictionary space
