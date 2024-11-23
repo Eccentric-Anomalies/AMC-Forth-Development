@@ -22,6 +22,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	# perform periodic telnet processing
 	_telnet_terminal.poll_connection()
+	_local_terminal.update_time()
 
 func _unhandled_key_input(evt:InputEvent) -> void:
 	_local_terminal.handle_key_event(evt)

@@ -4,112 +4,113 @@ class_name ForthTermLocal
 
 extends ForthTermBase
 
-const US_KEY_MAP:Dictionary = {
-	"QuoteLeft":"`",
-	"1":"1",
-	"2":"2",
-	"3":"3",
-	"4":"4",
-	"5":"5",
-	"6":"6",
-	"7":"7",
-	"8":"8",
-	"9":"9",
-	"0":"0",
-	"Minus":"-",
-	"Equal":"=",
-	"Backspace":"\b",
-	"Tab":"\t",
-	"BracketLeft":"",
-	"BracketRight":"]",
-	"BackSlash":"\\",
-	"Semicolon":";",
-	"Apostrophe":"'",
-	"Enter":"\r",
-	"Comma":",",
-	"Period":".",
-	"Slash":"/",
-	"Shift+QuoteLeft":"~",
-	"Shift+1":"!",
-	"Shift+2":"@",
-	"Shift+3":"#",
-	"Shift+4":"$",
-	"Shift+5":"%",
-	"Shift+6":"^",
-	"Shift+7":"&",
-	"Shift+8":"*",
-	"Shift+9":"(",
-	"Shift+0":")",
-	"Shift+Minus":"_",
-	"Shift+Equal":"+",
-	"Shift+Backspace":"\b",
-	"Shift+Tab":"\t",
-	"Shift+BracketLeft":"{",
-	"Shift+BracketRight":"}",
-	"Shift+BackSlash":"|",
-	"Shift+Semicolon":":",
-	"Shift+Apostrophe":'"',
-	"Shift+Enter":"\r",
-	"Shift+Comma":"<",
-	"Shift+Period":">",
-	"Shift+Slash":"?",
-	"A":"a",
-	"B":"b",
-	"C":"c",
-	"D":"d",
-	"E":"e",
-	"F":"f",
-	"G":"g",
-	"H":"h",
-	"I":"i",
-	"J":"j",
-	"K":"k",
-	"L":"l",
-	"M":"m",
-	"N":"n",
-	"O":"o",
-	"P":"p",
-	"Q":"q",
-	"R":"r",
-	"S":"s",
-	"T":"t",
-	"U":"u",
-	"V":"v",
-	"W":"w",
-	"X":"x",
-	"Y":"y",
-	"Z":"z",
-	"Space":" ",
-	"Shift+A":"A",
-	"Shift+B":"B",
-	"Shift+C":"C",
-	"Shift+D":"D",
-	"Shift+E":"E",
-	"Shift+F":"F",
-	"Shift+G":"G",
-	"Shift+H":"H",
-	"Shift+I":"I",
-	"Shift+J":"J",
-	"Shift+K":"K",
-	"Shift+L":"L",
-	"Shift+M":"M",
-	"Shift+N":"N",
-	"Shift+O":"O",
-	"Shift+P":"P",
-	"Shift+Q":"Q",
-	"Shift+R":"R",
-	"Shift+S":"S",
-	"Shift+T":"T",
-	"Shift+U":"U",
-	"Shift+V":"V",
-	"Shift+W":"W",
-	"Shift+X":"X",
-	"Shift+Y":"Y",
-	"Shift+Z":"Z",
+const US_KEY_MAP: Dictionary = {
+	"QuoteLeft": "`",
+	"1": "1",
+	"2": "2",
+	"3": "3",
+	"4": "4",
+	"5": "5",
+	"6": "6",
+	"7": "7",
+	"8": "8",
+	"9": "9",
+	"0": "0",
+	"Minus": "-",
+	"Equal": "=",
+	"Backspace": ForthTerminal.DEL_LEFT,
+	"Delete": ForthTerminal.DEL,
+	"Tab": "\t",
+	"BracketLeft": "",
+	"BracketRight": "]",
+	"BackSlash": "\\",
+	"Semicolon": ";",
+	"Apostrophe": "'",
+	"Enter": "\r",
+	"Comma": ",",
+	"Period": ".",
+	"Slash": "/",
+	"Shift+QuoteLeft": "~",
+	"Shift+1": "!",
+	"Shift+2": "@",
+	"Shift+3": "#",
+	"Shift+4": "$",
+	"Shift+5": "%",
+	"Shift+6": "^",
+	"Shift+7": "&",
+	"Shift+8": "*",
+	"Shift+9": "(",
+	"Shift+0": ")",
+	"Shift+Minus": "_",
+	"Shift+Equal": "+",
+	"Shift+Backspace": "\b",
+	"Shift+Tab": "\t",
+	"Shift+BracketLeft": "{",
+	"Shift+BracketRight": "}",
+	"Shift+BackSlash": "|",
+	"Shift+Semicolon": ":",
+	"Shift+Apostrophe": '"',
+	"Shift+Enter": "\r",
+	"Shift+Comma": "<",
+	"Shift+Period": ">",
+	"Shift+Slash": "?",
+	"A": "a",
+	"B": "b",
+	"C": "c",
+	"D": "d",
+	"E": "e",
+	"F": "f",
+	"G": "g",
+	"H": "h",
+	"I": "i",
+	"J": "j",
+	"K": "k",
+	"L": "l",
+	"M": "m",
+	"N": "n",
+	"O": "o",
+	"P": "p",
+	"Q": "q",
+	"R": "r",
+	"S": "s",
+	"T": "t",
+	"U": "u",
+	"V": "v",
+	"W": "w",
+	"X": "x",
+	"Y": "y",
+	"Z": "z",
+	"Space": " ",
+	"Shift+A": "A",
+	"Shift+B": "B",
+	"Shift+C": "C",
+	"Shift+D": "D",
+	"Shift+E": "E",
+	"Shift+F": "F",
+	"Shift+G": "G",
+	"Shift+H": "H",
+	"Shift+I": "I",
+	"Shift+J": "J",
+	"Shift+K": "K",
+	"Shift+L": "L",
+	"Shift+M": "M",
+	"Shift+N": "N",
+	"Shift+O": "O",
+	"Shift+P": "P",
+	"Shift+Q": "Q",
+	"Shift+R": "R",
+	"Shift+S": "S",
+	"Shift+T": "T",
+	"Shift+U": "U",
+	"Shift+V": "V",
+	"Shift+W": "W",
+	"Shift+X": "X",
+	"Shift+Y": "Y",
+	"Shift+Z": "Z",
 	"Up": ForthTerminal.UP,
 	"Down": ForthTerminal.DOWN,
 	"Right": ForthTerminal.RIGHT,
-	"Left" : ForthTerminal.LEFT,
+	"Left": ForthTerminal.LEFT,
 }
 
 # bitmasks for different display modes in the terminal
@@ -122,13 +123,21 @@ const REVERSE := 0x1000
 const INVISIBLE := 0x2000
 const ASCII_MASK := 0x007f
 
+const CURSOR_PERIOD_MSEC := 1000
+
 var _screen_ram: PackedInt32Array
 
 var _col: int
 var _row: int
 var _cursor: Vector2i = Vector2i(1, 1)
 var _save_cursor: Vector2i = Vector2i(1, 1)
+var _mode: int = 0
+var _save_mode: int = 0
 var _screen_material: ShaderMaterial
+var _last_msec: int = 0
+var _cursor_state: bool = false
+var _blink_state: bool = false
+
 # Special characters and combos
 var _sp_chars: Dictionary = {
 	ForthTerminal.BSP: _do_bsp,
@@ -145,6 +154,13 @@ var _sp_chars: Dictionary = {
 	ForthTerminal.PUSHXY: _do_pushxy,
 	ForthTerminal.POPXY: _do_popxy,
 	ForthTerminal.ESC: _do_esc,
+	ForthTerminal.MODESOFF: _do_modesoff,
+	ForthTerminal.BOLD: _do_bold,
+	ForthTerminal.LOWINT: _do_lowint,
+	ForthTerminal.UNDERLINE: _do_underline,
+	ForthTerminal.BLINK: _do_blink,
+	ForthTerminal.REVERSE: _do_reverse,
+	ForthTerminal.INVISIBLE: _do_invisible,
 }
 var _blank = ForthTerminal.BL.to_ascii_buffer()[0]
 
@@ -162,15 +178,38 @@ func _init(_forth: AMCForth, screen_material: ShaderMaterial) -> void:
 	_set_screen_contents()
 	_go_home()
 	forth.client_connected()
+	_last_msec = Time.get_ticks_msec()
+	_last_msec -= _last_msec % (CURSOR_PERIOD_MSEC / 2)  # round to half a cursor cycle
 
 	# Test code FIXME
 	#_on_forth_output("Hello, world! ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789")
 
+
 # Receive local key events from the owning node
-func handle_key_event(evt:InputEvent) -> void:
-	var keycode:String = OS.get_keycode_string(evt.get_key_label_with_modifiers())
-	if keycode in US_KEY_MAP and forth.is_ready_for_input() and evt.is_pressed():
+func handle_key_event(evt: InputEvent) -> void:
+	var keycode: String = OS.get_keycode_string(
+		evt.get_key_label_with_modifiers()
+	)
+	if (
+		keycode in US_KEY_MAP
+		and forth.is_ready_for_input()
+		and evt.is_pressed()
+	):
 		forth.terminal_in(US_KEY_MAP[keycode])
+
+
+# Called from owner _process
+func update_time() -> void:
+	var msec = Time.get_ticks_msec()
+	if (msec < _last_msec) or (msec - _last_msec > CURSOR_PERIOD_MSEC / 2):
+		# step _last_msec back to nearest half period
+		_last_msec += (CURSOR_PERIOD_MSEC / 2)
+		_cursor_state = not _cursor_state
+		_screen_material.set_shader_parameter("cursor_state", _cursor_state)
+		if _cursor_state:
+			_blink_state = not _blink_state
+			_screen_material.set_shader_parameter("blink_state", _blink_state)
+
 
 # The forth output handler should be overridden in child classes
 func _on_forth_output(_text: String) -> void:
@@ -203,9 +242,9 @@ func _set_screen_contents() -> void:
 	_screen_material.set_shader_parameter("ram", _screen_ram)
 
 
-# Display character at cursor, moving cursor FIXME scan for escape codes!
+# Display character at cursor, moving cursor
 func _char_at_cursor(ch: int) -> void:
-	_screen_ram[(_cursor.x - 1) + (_cursor.y - 1) * SCREEN_WIDTH] = ch
+	_screen_ram[(_cursor.x - 1) + (_cursor.y - 1) * SCREEN_WIDTH] = ch + _mode
 	_set_screen_contents()
 
 
@@ -307,8 +346,38 @@ func _do_clrscr() -> void:
 
 func _do_pushxy() -> void:
 	_save_cursor = _cursor
+	_save_mode = _mode
 
 
 func _do_popxy() -> void:
 	_cursor = _save_cursor
+	_mode = _save_mode
 	_set_screen_cursor()
+
+
+func _do_modesoff() -> void:
+	_mode = 0
+
+
+func _do_bold() -> void:
+	_mode |= BOLD
+
+
+func _do_lowint() -> void:
+	_mode |= LOWINTENSITY
+
+
+func _do_underline() -> void:
+	_mode |= UNDERLINE
+
+
+func _do_blink() -> void:
+	_mode |= BLINK
+
+
+func _do_reverse() -> void:
+	_mode |= REVERSE
+
+
+func _do_invisible() -> void:
+	_mode |= INVISIBLE

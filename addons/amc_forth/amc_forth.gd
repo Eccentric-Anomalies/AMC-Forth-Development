@@ -90,10 +90,10 @@ var amc_ext: ForthAMCExt
 var facility: ForthFacility
 
 # Forth built-in meta-data
-var word_description:Dictionary = {}
-var word_stackdef:Dictionary = {}
-var word_wordset:Dictionary = {}
-var wordset_words:Dictionary = {}
+var word_description: Dictionary = {}
+var word_stackdef: Dictionary = {}
+var word_wordset: Dictionary = {}
+var wordset_words: Dictionary = {}
 
 # The Forth data stack pointer is in byte units
 
@@ -171,9 +171,14 @@ var _thread: Thread
 var _input_ready: Semaphore
 var _output_done: bool
 
+# Client connect count
+var _client_connections: int = 0
+
 
 func client_connected() -> void:
-	terminal_out.emit(BANNER + ForthTerminal.CR + ForthTerminal.LF)
+	if not _client_connections:
+		terminal_out.emit(_get_banner() + ForthTerminal.CRLF)
+		_client_connections += 1
 
 
 # pause until Forth is ready to accept inupt
@@ -229,13 +234,24 @@ func terminal_in(text: String) -> void:
 			_pad_position = max(0, _pad_position - 1)
 			echo_text = ForthTerminal.LEFT
 			in_str = in_str.erase(0, ForthTerminal.LEFT.length())
-		elif in_str.find(ForthTerminal.UP) == 0 and buffer_size:
-			_buffer_index = max(0, _buffer_index - 1)
-			echo_text = _select_buffered_command()
+		elif in_str.find(ForthTerminal.RIGHT) == 0:
+			_pad_position += 1
+			if _pad_position > _terminal_pad.length():
+				_pad_position = _terminal_pad.length()
+			else:
+				echo_text = ForthTerminal.RIGHT
+			in_str = in_str.erase(0, ForthTerminal.RIGHT.length())
+		elif in_str.find(ForthTerminal.UP) == 0:
+			if buffer_size:
+				_buffer_index = max(0, _buffer_index - 1)
+				echo_text = _select_buffered_command()
 			in_str = in_str.erase(0, ForthTerminal.UP.length())
-		elif in_str.find(ForthTerminal.DOWN) == 0 and buffer_size:
-			_buffer_index = min(_terminal_buffer.size() - 1, _buffer_index + 1)
-			echo_text = _select_buffered_command()
+		elif in_str.find(ForthTerminal.DOWN) == 0:
+			if buffer_size:
+				_buffer_index = min(
+					_terminal_buffer.size() - 1, _buffer_index + 1
+				)
+				echo_text = _select_buffered_command()
 			in_str = in_str.erase(0, ForthTerminal.DOWN.length())
 		elif in_str.find(ForthTerminal.LF) == 0:
 			echo_text = ""
@@ -612,7 +628,12 @@ func _init(node: Node) -> void:
 	_input_ready = Semaphore.new()
 	_thread.start(_input_thread, Thread.PRIORITY_LOW)
 	_output_done = true
-	print(BANNER)
+	print(_get_banner())
+
+
+# AMC Forth name with version
+func _get_banner() -> String:
+	return BANNER + " " + "Ver. " + ForthVersion.VER
 
 
 func _input_thread() -> void:

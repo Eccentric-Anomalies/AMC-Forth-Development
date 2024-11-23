@@ -163,6 +163,17 @@ uniform int rows = 24;	// screen height in chars
  */
 uniform ivec2 cursor_position = ivec2(1,1);	// col, row
 
+/**
+ * Set state of cursor (on=true, off=false)
+ */
+uniform bool cursor_state;
+
+/**
+ * Set state of blink modifier (on=true, off=false)
+ */
+uniform bool blink_state;
+
+
 void vertex() {
 	// Called for every vertex the material is visible on.
 }
@@ -178,19 +189,29 @@ const int CHARW = 10;	// char width in pixels
 const int CHARH = 10;	// char height in pixels
 
 
+bool pixel_on(vec2 uv, ivec2 res) {
+	int col = int(trunc(uv.x * float(cols)));
+	int row = int(trunc(uv.y * float(rows)));
+	int char = ram[col + row*cols];		// character from video ram
+	int pix_column = int(uv.x * float(res.x)) - col*CHARW;
+	int pix_row = int(uv.y * float(res.y)) - row*CHARH;
+	int cellrow = char_rom[char * 16 + pix_row] << 2; // two blank bits padding on the right
+	bool cursoron = col + 1 == cursor_position.x && row + 1 == cursor_position.y && cursor_state;
+	if ((cellrow & (0x0200 >> pix_column)) != 0 || cursoron) {
+//	if ((row & 1) != 0) {
+		return true;
+	} else {
+		return false;	
+	}
+}
+
 void fragment() {
-	int xres = cols*CHARW;	// screen pixel width
-	int yres = rows*CHARH;	// screen pixel height
+	ivec2 res = ivec2(cols*CHARW, rows*CHARH);
+	//int xres = cols*CHARW;	// screen pixel width
+	//int yres = rows*CHARH;	// screen pixel height
 	// Called for every pixel the material is visible on.
 	// COLOR = vec4(0.1, 0.1, 0.1, 1.0);
-	int col = int(trunc(UV.x * float(cols)));
-	int row = int(trunc(UV.y * float(rows)));
-	int char = ram[col + row*cols];		// character from video ram
-	int pix_column = int(UV.x * float(xres)) - col*CHARW;
-	int pix_row = int(UV.y * float(yres)) - row*CHARH;
-	int cellrow = char_rom[char * 16 + pix_row] << 2; // two blank bits padding on the right
-	if ((cellrow & (0x0200 >> pix_column)) != 0) {
-//	if ((row & 1) != 0) {
+	if (pixel_on(UV, res)) {
 		COLOR = vec4(1.0, 1.0, 1.0, 1.0);
 	} else {
 		COLOR = vec4(0.1, 0.1, 0.1, 1.0);

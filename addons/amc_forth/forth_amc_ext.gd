@@ -19,14 +19,14 @@ func _init(_forth: AMCForth) -> void:
 
 
 ## @WORD BLINKV
-## Send BLINK command to terminal.
+## Send BLINK command to video terminal.
 ## @STACK ( - )
 func blink_v() -> void:
 	forth.util.print_term(ForthTerminal.BLINK)
 
 
 ## @WORD BOLDV
-## Send BOLD command to terminal.
+## Send BOLD command to video terminal.
 ## @STACK ( - )
 func bold_v() -> void:
 	forth.util.print_term(ForthTerminal.BOLD)
@@ -40,6 +40,7 @@ func _get_port_address() -> void:
 	forth.core.star()
 	forth.push(forth.IO_IN_MAP_START)
 	forth.core.plus()
+
 
 # helper function for retrieving the next word
 func _next_word() -> String:
@@ -56,24 +57,31 @@ func _next_word() -> String:
 ## Display the description for the following Forth built-in word.
 ## @STACK ( "name" - )
 func help() -> void:
-	forth.util.print_term(" " + forth.word_description.get(_next_word(),"(not found)"))
+	forth.util.print_term(
+		" " + forth.word_description.get(_next_word(), "(not found)")
+	)
 
 
 ## @WORD HELPS
 ## Display stack definition for the following Forth word.
 ## @STACK ( "name" - )
 func help_s() -> void:
-	forth.util.print_term(" " + forth.word_stackdef.get(_next_word(),"(not found)"))
+	forth.util.print_term(
+		" " + forth.word_stackdef.get(_next_word(), "(not found)")
+	)
+
 
 ## @WORD HELPWS
 ## Display word set for the following Forth word.
 ## @STACK ( "name" - )
 func help_w_s() -> void:
-	forth.util.print_term(" " + forth.word_wordset.get(_next_word(),"(not found)"))
+	forth.util.print_term(
+		" " + forth.word_wordset.get(_next_word(), "(not found)")
+	)
 
 
 ## @WORD INVISIBLEV
-## Send INVISIBLE command to terminal.
+## Send INVISIBLE command to video terminal.
 ## @STACK ( - )
 func invisible_v() -> void:
 	forth.util.print_term(ForthTerminal.INVISIBLE)
@@ -99,7 +107,7 @@ func load_snap() -> void:
 
 
 ## @WORD LOWV
-## Send LOWINT (low intensity) command to terminal.
+## Send LOWINT (low intensity) command to video terminal.
 ## @STACK ( - )
 func low_v() -> void:
 	forth.util.print_term(ForthTerminal.LOWINT)
@@ -117,7 +125,7 @@ func _get_timer_address() -> void:
 
 
 ## @WORD NOMODEV
-## Send MODESOFF command to terminal.
+## Send MODESOFF command to video terminal.
 ## @STACK ( - )
 func nomode_v() -> void:
 	forth.util.print_term(ForthTerminal.MODESOFF)
@@ -194,7 +202,7 @@ func push_x_y() -> void:
 
 
 ## @WORD REVERSEV
-## Send REVERSE command to terminal.
+## Send REVERSE command to video terminal.
 ## @STACK ( - )
 func reverse_v() -> void:
 	forth.util.print_term(ForthTerminal.REVERSE)
@@ -208,7 +216,7 @@ func save_snap() -> void:
 
 
 ## @WORD UNDERLINEV
-## Send UNDERLINE command to terminal.
+## Send UNDERLINE command to video terminal.
 ## @STACK ( - )
 func underline_v() -> void:
 	forth.util.print_term(ForthTerminal.UNDERLINE)
