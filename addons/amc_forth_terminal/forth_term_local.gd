@@ -106,7 +106,21 @@ const US_KEY_MAP:Dictionary = {
 	"Shift+X":"X",
 	"Shift+Y":"Y",
 	"Shift+Z":"Z",
+	"Up": ForthTerminal.UP,
+	"Down": ForthTerminal.DOWN,
+	"Right": ForthTerminal.RIGHT,
+	"Left" : ForthTerminal.LEFT,
 }
+
+# bitmasks for different display modes in the terminal
+# (must match definitions in shader)
+const BOLD := 0x0100
+const LOWINTENSITY := 0x0200
+const UNDERLINE := 0x0400
+const BLINK := 0x0800
+const REVERSE := 0x1000
+const INVISIBLE := 0x2000
+const ASCII_MASK := 0x007f
 
 var _screen_ram: PackedInt32Array
 

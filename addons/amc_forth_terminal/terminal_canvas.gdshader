@@ -136,10 +136,12 @@ const lowp int char_rom[2048] = lowp int[2048] (
  * which serves as the text buffer for the terminal display. Store ASCII
  * characters in "ram" to have them displayed by the shader. Additional bits
  * are used for modifying text appearance:
- * 0x0100 bitmask for WIDE characters
- * 0x0200 bitmask for BRIGHT characters
+ * 0x0100 bitmask for BOLD characters
+ * 0x0200 bitmask for LOWINTENSITY characters
  * 0x0400 bitmask for UNDERLINEd characters
- * 0x8000 bitmask for BLINKing characters
+ * 0x0800 bitmask for BLINKing characters
+ * 0x1000 bitmask for REVERSEd characters
+ * 0x2000 bitmask for INVISIBLE characters
  */
 uniform int ram[1920];  // PackedInt32Array'
 
@@ -165,10 +167,12 @@ void vertex() {
 	// Called for every vertex the material is visible on.
 }
 
-const int WIDE = 0x0100;
-const int BRIGHT = 0x0200;
+const int BOLD = 0x0100;
+const int LOWINTENSITY = 0x0200;
 const int UNDERLINE = 0x0400;
 const int BLINK = 0x0800;
+const int REVERSE = 0x1000;
+const int INVISIBLE = 0x2000;
 
 const int CHARW = 10;	// char width in pixels
 const int CHARH = 10;	// char height in pixels

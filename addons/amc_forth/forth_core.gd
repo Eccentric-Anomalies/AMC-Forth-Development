@@ -1,5 +1,5 @@
 class_name ForthCore  # gdlint:ignore = max-public-methods
-## Define built-in Forth words in the CORE word set
+## @WORDSET Core
 ##
 
 extends ForthImplementationBase
@@ -14,6 +14,8 @@ var _smudge_address: int = 0
 ## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
 ## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
+## (4) UP TO four comments beginning with "##" before function
+## (5) Final comment must be "## @STACK" followed by stack def.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
@@ -25,32 +27,32 @@ func start_parenthesis() -> void:
 
 
 ## @WORD (
+## Begin parsing a comment, terminated by ')' character.
+## @STACK ( - )
 func left_parenthesis() -> void:
-	# Begin parsing a comment, terminated by ')' character
-	# ( - )
 	start_parenthesis()
 	forth.core.two_drop()
 
 
 ## @WORD +
+## Add n1 to n2 leaving the sum n3.
+## @STACK ( n1 n2 - n3 )
 func plus() -> void:
-	# Add n1 to n2 leaving the sum n3
-	# ( n1 n2 - n3 )
 	forth.push(forth.ram.truncate_to_cell(forth.pop() + forth.pop()))
 
 
 ## @WORD -
+## Subtract n2 from n1, leaving the difference n3.
+## @STACK ( n1 n2 - n3 )
 func minus() -> void:
-	# subtract n2 from n1, leaving the diference n3
-	# ( n1 n2 - n3 )
 	var n: int = forth.pop()
 	forth.push(forth.ram.truncate_to_cell(forth.pop() - n))
 
 
 ## @WORD ,
+## Reserve one cell of data space and store x in it.
+## @STACK ( x - )
 func comma() -> void:
-	# Reserve one cell of data space and store x in it.
-	# ( x - )
 	forth.ram.set_word(forth.dict_top, forth.pop())
 	forth.dict_top += ForthRAM.CELL_SIZE
 	# preserve dictionary state
@@ -58,15 +60,17 @@ func comma() -> void:
 
 
 ## @WORD .
+## Display the value, x, on the top of the stack.
+## @STACK ( x - )
 func dot() -> void:
 	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
 	forth.util.print_term(" " + fmt % forth.pop())
 
 
 ## @WORD 1+
+## Add one to n1, leaving n2.
+## @STACK ( n1 - n2 )
 func one_plus() -> void:
-	# Add one to n1, leaving n2
-	# ( n1 - n2 )
 	forth.push(1)
 	plus()
 	forth.data_stack[forth.ds_p] += 1
@@ -74,18 +78,19 @@ func one_plus() -> void:
 
 
 ## @WORD 1-
+## Subtract one from n1, leaving n2.
+## @STACK ( n1 - n2 )
 func one_minus() -> void:
-	# Subtract one from n1, leaving n2
-	# ( n1 - n2 )
 	forth.push(1)
 	minus()
 
 
 ## @WORD '
+## Search the dictionary for <name> and leave its execution token
+## on the stack. Abort if name cannot be found.
+## Usage: ' <name>
+## ( "name" - xt )
 func tick() -> void:
-	# Search the dictionary for name and leave its execution token
-	# on the stack. Abort if name cannot be found.
-	# ( - xt ) <name>
 	# retrieve the name token
 	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
 	word()
@@ -107,35 +112,35 @@ func tick() -> void:
 
 
 ## @WORD !
+## Store x in the cell at a-addr.
+## @STACK ( x a-addr - )
 func store() -> void:
-	# Store x in the cell at a-addr
-	# ( x a-addr - )
 	var addr: int = forth.pop()
 	forth.ram.set_word(addr, forth.pop())
 
 
 ## @WORD *
+## Multiply n1 by n2 leaving the product n3.
+## @STACK ( n1 n2 - n3 )
 func star() -> void:
-	# Multiply n1 by n2 leaving the product n3
-	# ( n1 n2 - n3 )
 	forth.push(forth.ram.truncate_to_cell(forth.pop() * forth.pop()))
 
 
 ## @WORD */
+## Multiply n1 by n2 producing a double-cell result d.
+## Divide d by n3, giving the single-cell quotient n4.
+## @STACK ( n1 n2 n3 - n4 )
 func star_slash() -> void:
-	# Multiply n1 by n2 producing a double-cell result d.
-	# Divide d by n3, giving the single-cell quotient n4.
-	# ( n1 n2 n3 - n4 )
 	var d: int = forth.pop()
 	forth.push(forth.ram.truncate_to_cell(forth.pop() * forth.pop() / d))
 
 
 ## @WORD */MOD
+## Multiply n1 by n2 producing a double-cell result d.
+## Divide d by n3, giving the single-cell remainder n4
+## and a single-cell quotient n5.
+## @STACK ( n1 n2 n3 - n4 n5 )
 func star_slash_mod() -> void:
-	# Multiply n1 by n2 producing a double-cell result d.
-	# Divide d by n3, giving the single-cell remainder n4
-	# and a single-cell quotient n5
-	# ( n1 n2 n3 - n4 n5 )
 	var d: int = forth.pop()
 	var p: int = forth.pop() * forth.pop()
 	forth.push(p % d)
@@ -143,9 +148,9 @@ func star_slash_mod() -> void:
 
 
 ## @WORD /
+## Divide n1 by n2, leaving the quotient n3.
+## @STACK ( n1 n2 - n3 )
 func slash() -> void:
-	# divide n1 by n2, leaving the quotient n3
-	# ( n1 n2 - n3 )
 	var d: int = forth.pop()
 	forth.push(forth.pop() / d)
 

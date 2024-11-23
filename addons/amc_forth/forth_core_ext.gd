@@ -1,5 +1,5 @@
 class_name ForthCoreExt
-## Define built-in Forth words in the CORE EXTENSION word set
+## @WORDSET Core Extended
 ##
 
 extends ForthImplementationBase
@@ -12,60 +12,62 @@ extends ForthImplementationBase
 ## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
 ## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
+## (4) UP TO four comments beginning with "##" before function
+## (5) Final comment must be "## @STACK" followed by stack def.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
 
 ## @WORD .(
+## Begin parsing a comment, terminated by ')'. Comment text
+## will emit to the terminal when it is compiled.
+## @STACK ( - )
 func dot_left_parenthesis() -> void:
-	# Begin parsing a comment, terminated by ')'. Comment text
-	# will emit to the terminal.
-	# ( - )
 	forth.core.start_parenthesis()
 	forth.type()
 
 
 ## @WORD \
+## Begin parsing a comment, terminated by end of line.
+## @STACK ( - )
 func back_slash() -> void:
-	# Begin parsing a comment, terminated by end of line
-	# ( - )
 	forth.push(ForthTerminal.CR.to_ascii_buffer()[0])
 	parse()
 	forth.two_drop()
 
 
 ## @WORD BUFFER:
+## Create a dictionary entry for <name>, associated with n bytes of space.
+## Usage: <n> BUFFER: <name>
+## Executing <name> will return address of the starting byte on the stack.
+## @STACK ( "name" n - )
 func buffer_colon() -> void:
-	# Create a dictionary entry for name associated with n bytes of space
-	# n BUFFER: <name>
-	# ( n - )
-	# execution of <name> will return address of the starting byte ( - addr )
 	forth.core.create()
 	forth.core.allot()
 
 
 ## @WORD HEX
+## Sets BASE to 16.
+## @STACK ( - )
 func decimal() -> void:
-	# Sets BASE to 16
-	# ( - )
 	forth.push(16)
 	forth.core.base()
 	forth.core.store()
 
 
 ## @WORD FALSE
+## Return a false value: a single-cell with all bits clear.
+## @STACK ( - flag )
 func f_false() -> void:
-	# Return a false value, single-cell all bits clear
-	# ( - flag )
 	forth.push(forth.FALSE)
 
 
-## @WORD MARKER <name>
+## @WORD MARKER
+## Create a dictionary definition for <name>, to be used as a deletion
+## boundary. When <name> is executed, remove the definition for <name>
+## and all subsequent definitions. Usage: MARKER <name>
+## @STACK ( "name" - )
 func marker() -> void:
-	# Create a dictionary definition for name, to be used as a deletion
-	# boundary. When <name> is executed, remove the definition for <name>
-	# and all subsequent definitions.
-	# ( - )
 	if forth.create_dict_entry_name():
 		# copy the execution token
 		forth.ram.set_word(
@@ -89,20 +91,19 @@ func marker_exec() -> void:
 
 
 ## @WORD NIP
+## Drop second stack item, leaving top unchanged.
+## @STACK ( x1 x2 - x2 )
 func nip() -> void:
-	# drop second item, leaving top unchanged
-	# ( x1 x2 - x2 )
 	forth.core.swap()
 	forth.core.drop()
 
 
 ## @WORD PARSE
+## Parse text to the first instance of char, returning the address
+## and length of a temporary location containing the parsed text.
+## Returns a counted string. Consumes the final delimiter.
+## @STACK ( char - c_addr n )
 func parse() -> void:
-	# Parse text to the first instance of char, returning the address
-	# and length of a temporary location containing the parsed text.
-	# Returns an address with one byte available in front for forming
-	# a character count. Consumes the final delimiter.
-	# ( char - c_addr n )
 	var count: int = 0
 	var ptr: int = forth.WORD_START + 1
 	var delim: int = forth.pop()
@@ -130,27 +131,30 @@ func parse() -> void:
 
 
 ## @WORD PICK
+## Place a copy of the nth stack entry on top of the stack.
+## The zeroth item is the top of the stack, so 0 pick is dup.
+## @STACK ( +n - x )
 func pick() -> void:
-	# place a copy of the nth stack entry on top of the stack
-	# zeroth item is the top of the stack so 0 pick is dup
-	# ( +n - x )
 	var n = forth.pop()
 	if n >= forth.data_stack.size():
 		forth.util.rprint_term(" PICK outside data stack")
 	else:
 		forth.push(forth.data_stack[-n - 1])
 
+
 ## @WORD SOURCE-ID
+## Return a value indicating current input source.
+## Value is 0 for default user input, -1 for character string.
+## @STACK ( - n )
 func source_id() -> void:
-	# Return a value indicating current input source.
-	# Value is 0: default user input, -1: character string.
-	# ( - n )
 	forth.push(forth.source_id)
 
+
 ## @WORD TO
+## Store x in the data space associated with name (defined with VALUE).
+## Usage: <x> TO <name>
+## @STACK ( "name" x - )
 func to() -> void:
-	# Store x in the data space associated with name (defined by value)
-	# x TO <name> ( x - )
 	# get the name
 	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
 	forth.core.word()
@@ -169,32 +173,33 @@ func to() -> void:
 
 
 ## @WORD TRUE
+## Return a true value, a single-cell value with all bits set.
+## @STACK ( - flag )
 func f_true() -> void:
-	# Return a true value, single-cell all bits set
-	# ( - flag )
 	forth.push(forth.TRUE)
 
 
 ## @WORD TUCK
+## Place a copy of the top stack item below the second stack item.
+## @STACK ( x1 x2 - x2 x1 x2 )
 func tuck() -> void:
-	# place a copy of the top stack item below the second stack item
-	# ( x1 x2 - x2 x1 x2 )
 	forth.core.swap()
 	forth.push(forth.data_stack[forth.ds_p + 1])
 
 
 ## @WORD UNUSED
+## Return u, the number of bytes remaining in the memory area
+## where dictionary entries are constructed.
+## @STACK ( - u )
 func unused() -> void:
-	# Return u, the number of bytes remaining in the memory area
-	# where dictionary entries are constructed.
-	# ( - u )
 	forth.push(forth.DICT_TOP - forth.dict_top)
 
 
 ## @WORD VALUE
+## Create a dictionary entry for name, associated with value x.
+## Usage: <x> VALUE <name>
+## @STACK ( "name" x - )
 func value() -> void:
-	# Create a dictionary entry for name, associated with value x.
-	# ( x - )
 	var init_val: int = forth.pop()
 	if forth.create_dict_entry_name():
 		# copy the execution token

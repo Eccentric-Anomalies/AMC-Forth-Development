@@ -17,12 +17,18 @@ func _init(_forth: AMCForth):
 func _scan_definitions() -> void:
 	var src = get_script().source_code
 	var regex = RegEx.new()
-	# Compile built-in WORD functions
-	regex.compile("[^\"]##\\s+@WORD\\s+([^\\s]+)\\s*(IMMEDIATE)?.*\\n?\\r?func\\s+([^\\s(]+)")
+	# Identify the word set for this file
+	var wordset:String = "N/A"
+	regex.compile("##\\s+@WORDSET\\s+(.+)\\n?\\r?")
 	var res = regex.search_all(src)
+	if res.size():
+		wordset = res[0].strings[1]
+	# Compile built-in WORD functions
+	regex.compile("[^\"]##\\s+@WORD\\s+([^\\s]+)\\s*(IMMEDIATE)?\\s*\\n?\\r?(##[^\\r\\n]*)?\\n?\\r?(##[^\\r\\n]*)?\\n?\\r?(##[^\\r\\n]*)?\\n?\\r?##\\s+@STACK\\s+([^\\r\\n]*)?\\n?\\r?func\\s+([^\\s(]+)")
+	res = regex.search_all(src)
 	for item in res:
 		forth.built_in_names.append(
-			[item.strings[1], Callable(self, item.strings[3])]
+			[item.strings[1], Callable(self, item.strings[7])]
 		)
 		if item.strings[2] == "IMMEDIATE":
 			forth.immediate_names.append(item.strings[1])
