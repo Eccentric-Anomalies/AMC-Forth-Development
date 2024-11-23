@@ -209,7 +209,7 @@ func reverse_v() -> void:
 
 
 ## @WORD SAVE-SNAP
-## Restore the Forth system RAM from backup file.
+## Save the Forth system RAM to backup file.
 ## @STACK ( - )
 func save_snap() -> void:
 	forth.save_snapshot()
