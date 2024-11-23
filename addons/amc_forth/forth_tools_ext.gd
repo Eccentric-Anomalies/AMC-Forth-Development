@@ -1,5 +1,5 @@
 class_name ForthToolsExt
-## Define built-in Forth words in the TOOLS EXTENSION word set
+## @WORDSET Tools Extended
 ##
 
 extends ForthImplementationBase
@@ -12,19 +12,45 @@ extends ForthImplementationBase
 ## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
 ## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
+## (4) UP TO four comments beginning with "##" before function
+## (5) Final comment must be "## @STACK" followed by stack def.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
 
+## @WORD AHEAD IMMEDIATE
+## Place forward reference origin on the control flow stack.
+## @STACK ( - orig )
+func ahead() -> void:
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[ahead_exec]
+	)
+	# leave link address on the control stack
+	forth.cf_push(forth.dict_top + ForthRAM.CELL_SIZE)
+	# move up to finish
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX AHEAD
+## Branch to ELSE if top of stack not TRUE.
+## @STACK ( x - )
+func ahead_exec() -> void:
+	# Skip ahead to the address in the next cell
+	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+
+
 ## WORD@ CS-PICK IMMEDIATE
+## Place copy of the uth CS entry on top of the CS stack.
+## @STACK ( i*x u - i*x x_u )
 func cs_pick() -> void:
-	# Place copy of the uth CS entry on top of the CS stack
-	# ( i*x u - i*x x_u )
 	forth.cf_stack_pick(forth.pop())
 
 
 ## WORD@ CS-ROLL IMMEDIATE
+## Move the uth CS entry on top of the CS stack.
+## @STACK ( i*x u - i*x x_u )
 func cs_roll() -> void:
-	# Place copy of the uth CS entry on top of the CS stack
-	# ( i*x u - i*x x_u )
 	forth.cf_stack_roll(forth.pop())

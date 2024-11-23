@@ -36,6 +36,26 @@ func back_slash() -> void:
 	forth.two_drop()
 
 
+## @WORD AGAIN IMMEDIATE
+## Unconditionally branch back to the point immediately following
+## the nearest previous BEGIN.
+## @STACK ( - )
+func again() -> void:
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[again_exec]
+	)
+	# The link back
+	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop())
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
+
+
+## @WORDX AGAIN
+func again_exec() -> void:
+	# Unconditionally branch
+	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+
+
 ## @WORD BUFFER:
 ## Create a dictionary entry for <name>, associated with n bytes of space.
 ## Usage: <n> BUFFER: <name>

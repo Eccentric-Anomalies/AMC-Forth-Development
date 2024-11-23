@@ -1,25 +1,28 @@
 class_name ForthString
 
 extends ForthImplementationBase
-## Define built-in Forth words in the STRING word set
+## @WORDSET String
 ##
 
 
-## Initialize (executed automatically by ForthCore.new())
+## Initialize (executed automatically by ForthString.new())
 ##
-## All functions with "## @WORD <word>" comment will become
+## (1) All functions with "## @WORD <word>" comment will become
 ## the default implementation for the built-in word.
-## All functions with "## @WORDX <word>" comment will become
+## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
+## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
+## (4) UP TO four comments beginning with "##" before function
+## (5) Final comment must be "## @STACK" followed by stack def.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
 
 ## @WORD CMOVE
+## Copy u characters from addr1 to addr2. The copy proceeds from
+## LOWER to HIGHER addresses.
+## @STACK ( addr1 addr2 u - )
 func c_move() -> void:
-	# Copy u characters from addr1 to addr2. The copy proceeds from
-	# LOWER to HIGHER addresses.
-	# ( addr1 addr2 u - )
 	var u: int = forth.pop()
 	var a2: int = forth.pop()
 	var a1: int = forth.pop()
@@ -35,10 +38,10 @@ func c_move() -> void:
 
 
 ## @WORD CMOVE>
+## Copy u characters from addr1 to addr2. The copy proceeds from
+## HIGHER to LOWER addresses.
+## @STACK ( addr1 addr2 u - )
 func c_move_up() -> void:
-	# Copy u characters from addr1 to addr2. The copy proceeds from
-	# HIGHER to LOWER addresses.
-	# ( addr1 addr2 u - )
 	var u: int = forth.pop()
 	var a2: int = forth.pop()
 	var a1: int = forth.pop()
@@ -54,9 +57,9 @@ func c_move_up() -> void:
 
 
 ## @WORD COMPARE
+## Compare string to string (see details in Forth docs).
+## @STACK ( c-addr1 u1 c-addr2 u2 - n )
 func compare() -> void:
-	# Compare string to string (see details in docs)
-	# ( c-addr1 u1 c-addr2 u2 - n )
 	var n2: int = forth.pop()
 	var a2: int = forth.pop()
 	var n1: int = forth.pop()

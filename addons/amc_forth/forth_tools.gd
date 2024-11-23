@@ -1,5 +1,5 @@
 class_name ForthTools
-## Define built-in Forth words in the TOOLS word set
+## @WORDSET Tools
 ##
 
 extends ForthImplementationBase
@@ -12,19 +12,23 @@ extends ForthImplementationBase
 ## (2) All functions with "## @WORDX <word>" comment will become
 ## the *compiled* implementation for the built-in word.
 ## (3) Define an IMMEDIATE function with "## @WORD <word> IMMEDIATE"
+## (4) UP TO four comments beginning with "##" before function
+## (5) Final comment must be "## @STACK" followed by stack def.
 func _init(_forth: AMCForth) -> void:
 	super(_forth)
 
 
 ## @WORD ?
+## Fetch the cell contents of the given address and display.
+## @STACK ( a-addr - )
 func question() -> void:
-	# Fetch the contents of the given address and display
-	# ( a-addr - )
 	forth.core.fetch()
 	forth.core.dot()
 
 
 ## @WORD .S
+## Display the contents of the data stack using the current base.
+## @STACK ( - )
 func dot_s() -> void:
 	var pointer = forth.DATA_STACK_TOP
 	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
@@ -36,10 +40,10 @@ func dot_s() -> void:
 
 
 ## @WORD WORDS
+## List all the definition names in the word list of the search order.
+## Returns dictionary names first, including duplicates, then built-in names.
+## @STACK ( - )
 func words() -> void:
-	# List all the definition names in the word list of the search order.
-	# Returns dictionary names, then built-in names.
-	# ( - )
 	var word_len: int
 	var col: int = "WORDS".length() + 1
 	forth.util.print_term(" ")
