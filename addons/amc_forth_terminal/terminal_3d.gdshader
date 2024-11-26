@@ -1,4 +1,4 @@
-shader_type canvas_item;
+shader_type spatial;
 
 // https://www.pcjs.org/machines/dec/vt100/rom/
 const lowp int char_rom[2048] = lowp int[2048] (
@@ -166,7 +166,7 @@ uniform ivec2 cursor_position = ivec2(1,1);	// col, row
 /**
  * Set state of cursor (on=true, off=false)
  */
-uniform bool cursor_state;
+uniform bool cursor_state = true;
 
 /**
  * Set state of blink modifier (on=true, off=false)
@@ -177,6 +177,8 @@ uniform bool blink_state;
  * Set state of display power (on=true, off=false)
  */
 uniform bool display_power;
+
+
 
 void vertex() {
 	// Called for every vertex the material is visible on.
@@ -192,7 +194,7 @@ const int INVISIBLE = 0x2000;
 const int CHARW = 10;	// char width in pixels
 const int CHARH = 10;	// char height in pixels
 
-const vec4 default_color = vec4(0.906, 0.375, 0.0, 1.0);
+const vec3 default_color = vec3(0.906, 0.375, 0.0);
 
 bool pixel_on(vec2 uv, ivec2 res, int col, int row, int char) {
 	int pix_column = int(uv.x * float(res.x)) - col*CHARW;
@@ -209,6 +211,7 @@ bool pixel_on(vec2 uv, ivec2 res, int col, int row, int char) {
 }
 
 void fragment() {
+	// Called for every pixel the material is visible on.
 	ivec2 res = ivec2(cols*CHARW, rows*CHARH);
 	//int xres = cols*CHARW;	// screen pixel width
 	//int yres = rows*CHARH;	// screen pixel height
@@ -217,7 +220,7 @@ void fragment() {
 	int col = int(trunc(UV.x * float(cols)));
 	int row = int(trunc(UV.y * float(rows)));
 	int char = ram[col + row*cols];		// character from video ram
-	vec4 on_color = default_color;
+	vec3 on_color = default_color;
 	if ((char & LOWINTENSITY) != 0) {
 		on_color = default_color * 0.9;
 	} else if ((char & BOLD) != 0) {
@@ -225,17 +228,17 @@ void fragment() {
 	}
 
 	float intensity = pixel_on(UV, res, col, row, char) ? 1.0 : 0.0;
-	if (intensity < 0.2) {
-		intensity = 0.2;
+	if (intensity < 0.15) {
+		intensity = 0.15;
 	}
 	if (!display_power) {
 		intensity = 0.0;
 	}
-
-	COLOR = on_color * intensity;
+	EMISSION = on_color * intensity;
+	ALBEDO = vec3(0.0);
 }
 
 //void light() {
-	// Called for every pixel for every light affecting the CanvasItem.
+	// Called for every pixel for every light affecting the material.
 	// Uncomment to replace the default light processing function with this one.
 //}

@@ -179,6 +179,8 @@ func _init(_forth: AMCForth, screen_material: ShaderMaterial) -> void:
 	_screen_material = screen_material
 	_screen_material.set_shader_parameter("cols", SCREEN_WIDTH)
 	_screen_material.set_shader_parameter("rows", SCREEN_HEIGHT)
+	_screen_material.set_shader_parameter("display_power", true)
+	set_power(true)  # Turn on the display!
 	_set_screen_contents()
 	_go_home()
 	_last_msec = Time.get_ticks_msec()
@@ -189,6 +191,10 @@ func _init(_forth: AMCForth, screen_material: ShaderMaterial) -> void:
 	# now safe to receive output
 	connect_forth_output()
 	forth.client_connected()
+
+
+func set_power(state: bool) -> void:
+	_screen_material.set_shader_parameter("display_power", state)
 
 
 # custom function for sorting special characters by length

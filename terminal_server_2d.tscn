@@ -11,6 +11,7 @@ shader_parameter/rows = 24
 shader_parameter/cursor_position = Vector2i(1, 1)
 shader_parameter/cursor_state = null
 shader_parameter/blink_state = null
+shader_parameter/display_power = null
 
 [node name="Terminal2D" type="Node2D"]
 script = ExtResource("1_21aq0")
