@@ -197,6 +197,7 @@ func save_snapshot() -> void:
 func load_snapshot() -> void:
 	# stop all periodic timers
 	_remove_all_timers()
+	# if a timer comes in, it should see nothing to do
 	_config.load(CONFIG_FILE_NAME)
 	ram.load_state(_config)
 	# restore shadowed registers
@@ -261,7 +262,9 @@ func terminal_in(text: String) -> void:
 			# and not blank!
 			if (
 				_terminal_pad.length()
-				and (not buffer_size or (_terminal_buffer[-1] != _terminal_pad))
+				and (
+					not buffer_size or (_terminal_buffer[-1] != _terminal_pad)
+				)
 			):
 				_terminal_buffer.append(_terminal_pad)
 				# if we just grew too big...

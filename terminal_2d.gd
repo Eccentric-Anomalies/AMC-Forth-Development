@@ -13,7 +13,7 @@ var _forth: AMCForth
 func _ready() -> void:
 	_forth = AMCForth.new(self)
 	_telnet_terminal = ForthTermTelnet.new(_forth)
-	_local_terminal = ForthTermLocal.new(_forth, $Screen.material)
+	_local_terminal = ForthTermLocal.new(_forth, $Bezel/Screen.material)
 
 	_forth.add_output_signal(99, port_99)  # FIXME test purposes
 	port_99.connect(_on_port_99_output)  # FIXME output test

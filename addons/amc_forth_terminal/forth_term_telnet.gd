@@ -39,6 +39,7 @@ var _negotiation_complete := false
 var _output_buffer := ""
 var _server: TCPServer
 
+
 ## Poll the telnet _connection
 func poll_connection() -> void:
 	if _server.is_listening():
@@ -49,9 +50,17 @@ func poll_connection() -> void:
 			forth.client_connected()
 	elif _connection:  # not listening.. connected
 		var connect_status = _connection.get_status()
-		if connect_status == StreamPeerTCP.Status.STATUS_ERROR:
+		if (
+			connect_status
+			in [
+				StreamPeerTCP.Status.STATUS_ERROR,
+				StreamPeerTCP.Status.STATUS_NONE
+			]
+		):
 			_connection.disconnect_from_host()
 			_start_listening()
+		elif connect_status == StreamPeerTCP.Status.STATUS_CONNECTING:
+			print("connecting")
 		elif connect_status == StreamPeerTCP.Status.STATUS_CONNECTED:
 			# stuff waiting to go out?
 			if _output_buffer.length():
@@ -76,7 +85,6 @@ func poll_connection() -> void:
 					else:
 						# discard any input while the forth UI is busy
 						instr = ""
-
 
 
 ## Initialize (executed automatically by ForthTermTelnet.new())

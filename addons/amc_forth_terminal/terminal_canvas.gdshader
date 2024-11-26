@@ -219,13 +219,12 @@ void fragment() {
 	} else if ((char & BOLD) != 0) {
 		on_color = default_color * 1.2;
 	}
-	
-	bool pixel_state = pixel_on(UV, res, col, row, char);
-	if (pixel_state) {
-		COLOR = on_color;
-	} else {
-		COLOR = default_color * 0.1;
+
+	float intensity = pixel_on(UV, res, col, row, char) ? 1.0 : 0.0;
+	if (intensity < 0.2) {
+		intensity = 0.2;
 	}
+	COLOR = on_color * intensity;
 }
 
 //void light() {
