@@ -164,7 +164,7 @@ var _sp_chars: Dictionary = {
 }
 
 # a list of keys, sorted in reverse order by length
-var _sp_chars_keys:Array = []
+var _sp_chars_keys: Array = []
 
 var _blank = ForthTerminal.BL.to_ascii_buffer()[0]
 
@@ -190,9 +190,11 @@ func _init(_forth: AMCForth, screen_material: ShaderMaterial) -> void:
 	connect_forth_output()
 	forth.client_connected()
 
+
 # custom function for sorting special characters by length
 func _key_sort_func(x, y) -> bool:
 	return x.length() > y.length()
+
 
 # Receive local key events from the owning node
 func handle_key_event(evt: InputEvent) -> void:
@@ -364,16 +366,21 @@ func _do_popxy() -> void:
 	_set_screen_cursor()
 
 
+# Display modes
+
+
 func _do_modesoff() -> void:
 	_mode = 0
 
 
 func _do_bold() -> void:
 	_mode |= BOLD
+	_mode &= ~LOWINTENSITY
 
 
 func _do_lowint() -> void:
 	_mode |= LOWINTENSITY
+	_mode &= ~BOLD
 
 
 func _do_underline() -> void:

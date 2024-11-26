@@ -188,21 +188,20 @@ const int INVISIBLE = 0x2000;
 const int CHARW = 10;	// char width in pixels
 const int CHARH = 10;	// char height in pixels
 
+const vec4 default_color = vec4(0.906, 0.375, 0.0, 1.0);
 
-bool pixel_on(vec2 uv, ivec2 res) {
-	int col = int(trunc(uv.x * float(cols)));
-	int row = int(trunc(uv.y * float(rows)));
-	int char = ram[col + row*cols];		// character from video ram
+bool pixel_on(vec2 uv, ivec2 res, int col, int row, int char) {
 	int pix_column = int(uv.x * float(res.x)) - col*CHARW;
 	int pix_row = int(uv.y * float(res.y)) - row*CHARH;
-	int cellrow = char_rom[char * 16 + pix_row] << 2; // two blank bits padding on the right
+	int cellrow = char_rom[(char & 0x07f) * 16 + pix_row] << 2; // two blank bits padding on the right
 	bool cursoron = col + 1 == cursor_position.x && row + 1 == cursor_position.y && cursor_state;
-	if ((cellrow & (0x0200 >> pix_column)) != 0 || cursoron) {
-//	if ((row & 1) != 0) {
-		return true;
-	} else {
-		return false;	
-	}
+	bool pixel_state = false;
+	if ((cellrow & (0x0200 >> pix_column)) != 0 || cursoron) {pixel_state = true;}
+	if ((char & REVERSE) != 0) {pixel_state = !pixel_state;}
+	if (((char & BLINK) != 0) && !blink_state) {pixel_state = false;}
+	if ((char & INVISIBLE) != 0) {pixel_state = false;}
+	if (pix_row == 8 && ((char & UNDERLINE) !=0)) {pixel_state = !pixel_state;}
+	return pixel_state;
 }
 
 void fragment() {
@@ -211,10 +210,21 @@ void fragment() {
 	//int yres = rows*CHARH;	// screen pixel height
 	// Called for every pixel the material is visible on.
 	// COLOR = vec4(0.1, 0.1, 0.1, 1.0);
-	if (pixel_on(UV, res)) {
-		COLOR = vec4(1.0, 1.0, 1.0, 1.0);
+	int col = int(trunc(UV.x * float(cols)));
+	int row = int(trunc(UV.y * float(rows)));
+	int char = ram[col + row*cols];		// character from video ram
+	vec4 on_color = default_color;
+	if ((char & LOWINTENSITY) != 0) {
+		on_color = default_color * 0.9;
+	} else if ((char & BOLD) != 0) {
+		on_color = default_color * 1.2;
+	}
+	
+	bool pixel_state = pixel_on(UV, res, col, row, char);
+	if (pixel_state) {
+		COLOR = on_color;
 	} else {
-		COLOR = vec4(0.1, 0.1, 0.1, 1.0);
+		COLOR = default_color * 0.1;
 	}
 }
 
