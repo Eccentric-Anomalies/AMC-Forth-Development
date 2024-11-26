@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dgc8njf8ots1m"
-path="res://.godot/imported/AMCLogo.png-c3a78870199c41c967cf376790b96b27.ctex"
+uid="uid://b3bf4dee53i76"
+path="res://.godot/imported/AMCForthLogo.svg-e953844dce1b5ec89d9289cc404efbc7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://AMCLogo.png"
-dest_files=["res://.godot/imported/AMCLogo.png-c3a78870199c41c967cf376790b96b27.ctex"]
+source_file="res://AMCForthLogo.svg"
+dest_files=["res://.godot/imported/AMCForthLogo.svg-e953844dce1b5ec89d9289cc404efbc7.ctex"]
 
 [params]
 
@@ -32,3 +32,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false

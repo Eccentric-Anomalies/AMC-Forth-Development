@@ -1,13 +1,14 @@
+## Terminal 2D AMC Forth Demo
 extends Node2D
 
 # Test signals FIXME
 signal port_99(value: int)
 signal input_100(value: int)
 
+var _telnet_terminal: ForthTermTelnet
+var _local_terminal: ForthTermLocal
+var _forth: AMCForth
 
-var _telnet_terminal:ForthTermTelnet
-var _local_terminal:ForthTermLocal
-var _forth:AMCForth
 
 func _ready() -> void:
 	_forth = AMCForth.new(self)
@@ -24,13 +25,16 @@ func _process(_delta: float) -> void:
 	_telnet_terminal.poll_connection()
 	_local_terminal.update_time()
 
-func _unhandled_key_input(evt:InputEvent) -> void:
+
+func _unhandled_key_input(evt: InputEvent) -> void:
 	_local_terminal.handle_key_event(evt)
 	get_viewport().set_input_as_handled()
+
 
 # output test FIXME
 func _on_port_99_output(value: int):
 	print(value)
+
 
 # test code FIXME
 func _unhandled_input(event):

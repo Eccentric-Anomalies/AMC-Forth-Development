@@ -21,6 +21,10 @@ window/size/viewport_width=800
 window/size/viewport_height=480
 window/size/resizable=false
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdLinter/plugin.cfg", "res://addons/gdscript_formatter/plugin.cfg", "res://addons/script-tabs/plugin.cfg")
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

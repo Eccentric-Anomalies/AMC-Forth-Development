@@ -1,6 +1,8 @@
 # Godot 4+ specific ignores
 .godot/
 addons/gdlinter
+addons/gdscript_formatter
+addons/script-tabs
 /android/
 .vscode/settings.json
 .vscode/launch.json
