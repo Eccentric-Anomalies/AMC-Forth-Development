@@ -1,4 +1,4 @@
-class_name ForthCoreExt
+class_name ForthCoreExt  # gdlint:ignore = max-public-methods
 ## @WORDSET Core Extended
 ##
 
@@ -66,10 +66,43 @@ func buffer_colon() -> void:
 	forth.core.allot()
 
 
+## @WORD C" IMMEDIATE
+## Return the counted-string address of the string, terminated by ",
+## which is in a temporary buffer. For compilation only
+## @STACK ( "string" - c-addr )
+func c_quote() -> void:
+	forth.core.start_string()
+	# compilation behavior
+	if forth.state:
+		# copy the execution token
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[c_quote_exec]
+		)
+		# store the value
+		var l = forth.pop()  # length of the string
+		var src = forth.pop()  # first byte address
+		forth.dict_top += ForthRAM.CELL_SIZE
+		forth.ram.set_byte(forth.dict_top, l)  # store the length
+		# compile the string into the dictionary
+		for i in l:
+			forth.dict_top += 1
+			forth.ram.set_byte(forth.dict_top, forth.ram.get_byte(src + i))
+		# this will align the dict top and save it
+		forth.core.align()
+
+
+## @WORDX C"
+func c_quote_exec() -> void:
+	var l: int = forth.ram.get_byte(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.push(forth.dict_ip + ForthRAM.CELL_SIZE)  # address of the string start
+	# moves to string cell for l in 0..3, then one cell past for l in 4..7, etc.
+	forth.dict_ip += ((l / ForthRAM.CELL_SIZE) + 1) * ForthRAM.CELL_SIZE
+
+
 ## @WORD HEX
 ## Sets BASE to 16.
 ## @STACK ( - )
-func decimal() -> void:
+func hex() -> void:
 	forth.push(16)
 	forth.core.base()
 	forth.core.store()
@@ -150,6 +183,16 @@ func parse() -> void:
 	forth.push(count)
 
 
+## @WORD PARSE-NAME
+## Skip leading delimiters and parse <name> delimited by a space. Return the
+## address and length of the found name.
+## @STACK ( "name" - c-addr u )
+func parse_name() -> void:
+	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
+	forth.core.word()
+	forth.core.count()
+
+
 ## @WORD PICK
 ## Place a copy of the nth stack entry on top of the stack.
 ## The zeroth item is the top of the stack, so 0 pick is dup.
@@ -176,9 +219,7 @@ func source_id() -> void:
 ## @STACK ( "name" x - )
 func to() -> void:
 	# get the name
-	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
-	forth.core.word()
-	forth.core.count()
+	parse_name()
 	var len: int = forth.pop()  # length
 	var caddr: int = forth.pop()  # start
 	var word: String = forth.util.str_from_addr_n(caddr, len)

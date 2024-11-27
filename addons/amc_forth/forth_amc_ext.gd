@@ -45,9 +45,7 @@ func _get_port_address() -> void:
 # helper function for retrieving the next word
 func _next_word() -> String:
 	# retrieve the name token
-	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
-	forth.core.word()
-	forth.core.count()
+	forth.core_ext.parse_name()
 	var len: int = forth.pop()  # length
 	var caddr: int = forth.pop()  # start
 	return forth.util.str_from_addr_n(caddr, len)

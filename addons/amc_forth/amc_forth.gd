@@ -18,8 +18,12 @@ const DICT_TOP := DICT_START + DICT_SIZE
 const BUFF_SOURCE_SIZE := 0x0100  # bytes
 const BUFF_SOURCE_START := DICT_TOP
 const BUFF_SOURCE_TOP := BUFF_SOURCE_START + BUFF_SOURCE_SIZE
+# File Buffer
+const FILE_BUFF_SIZE := 0x0100  # bytes
+const FILE_BUFF_START := BUFF_SOURCE_TOP
+const FILE_BUFF_TOP := FILE_BUFF_START + FILE_BUFF_SIZE
 # Pointer to the parse position in the buffer
-const BUFF_TO_IN := BUFF_SOURCE_TOP
+const BUFF_TO_IN := FILE_BUFF_START
 const BUFF_TO_IN_TOP := BUFF_TO_IN + ForthRAM.CELL_SIZE
 # Temporary word storage (used by WORD)
 const WORD_SIZE := 0x0100
@@ -88,6 +92,8 @@ var double_ext: ForthDoubleExt
 var string: ForthString
 var amc_ext: ForthAMCExt
 var facility: ForthFacility
+var file_ext: ForthFileExt
+var file: ForthFile
 
 # Forth built-in meta-data
 var word_description: Dictionary = {}
@@ -106,7 +112,7 @@ var dict_ip := 0  # code field pointer set to current execution point
 var state: bool = false
 
 # Forth source ID
-var source_id: int = 0  # 0 default, -1 ram buffer
+var source_id: int = 0  # 0 default, -1 ram buffer, else file id
 var source_id_stack: Array = []
 
 # Built-In names have a run-time definition
@@ -173,6 +179,24 @@ var _output_done: bool
 
 # Client connect count
 var _client_connections: int = 0
+
+# File access
+# map Forth fileid to FileAccess objects
+var _file_id_dict: Dictionary = {}
+
+
+func assign_file_id(file: FileAccess) -> int:
+	var id: int = randi()
+	_file_id_dict[id] = file
+	return id
+
+
+func get_file_from_id(id: int) -> FileAccess:
+	return _file_id_dict.get(id, null)
+
+
+func free_file_id(id: int) -> void:
+	_file_id_dict.erase(id)
 
 
 func client_connected() -> void:
@@ -590,6 +614,8 @@ func cf_stack_roll(item: int) -> void:
 func _init(node: Node) -> void:
 	# save the instantiating node
 	_node = node
+	# seed the randomizer
+	randomize()
 	# create a config file
 	_config = ConfigFile.new()
 	# the top of the dictionary can't overlap the high-memory stuff
@@ -607,6 +633,8 @@ func _init(node: Node) -> void:
 	string = ForthString.new(self)
 	amc_ext = ForthAMCExt.new(self)
 	facility = ForthFacility.new(self)
+	file_ext = ForthFileExt.new(self)
+	file = ForthFile.new(self)
 	# End Forth word definitions
 	_init_built_ins()
 	# Initialize the data stack

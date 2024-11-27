@@ -67,6 +67,42 @@ func dot() -> void:
 	forth.util.print_term(" " + fmt % forth.pop())
 
 
+## @WORD ." IMMEDIATE
+## Type the string when the containing word is executed.
+## @STACK ( "string" - c-addr u )
+func dot_quote() -> void:
+	# compilation behavior
+	if forth.state:
+		start_string()
+		# copy the execution token
+		forth.ram.set_word(
+			forth.dict_top,
+			forth.address_from_built_in_function[dot_quote_exec]
+		)
+		# store the value
+		var l = forth.pop()  # length of the string
+		var src = forth.pop()  # first byte address
+		forth.dict_top += ForthRAM.CELL_SIZE
+		forth.ram.set_byte(forth.dict_top, l)  # store the length
+		# compile the string into the dictionary
+		for i in l:
+			forth.dict_top += 1
+			forth.ram.set_byte(forth.dict_top, forth.ram.get_byte(src + i))
+		# this will align the dict top and save it
+		align()
+
+
+## @WORDX ."
+func dot_quote_exec() -> void:
+	var l: int = forth.ram.get_byte(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.push(forth.dict_ip + ForthRAM.CELL_SIZE + 1)  # address of the string start
+	forth.push(l)  # length of the string
+	# send to the terminal
+	type()
+	# moves to string cell for l in 0..3, then one cell past for l in 4..7, etc.
+	forth.dict_ip += ((l / ForthRAM.CELL_SIZE) + 1) * ForthRAM.CELL_SIZE
+
+
 ## @WORD 1+
 ## Add one to n1, leaving n2.
 ## @STACK ( n1 - n2 )
@@ -92,9 +128,7 @@ func one_minus() -> void:
 ## @STACK ( "name" - xt )
 func tick() -> void:
 	# retrieve the name token
-	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
-	word()
-	count()
+	forth.core_ext.parse_name()
 	var len: int = forth.pop()  # length
 	var caddr: int = forth.pop()  # start
 	var word: String = forth.util.str_from_addr_n(caddr, len)
@@ -378,7 +412,7 @@ func begin() -> void:
 ## Return char, the ASCII character value of a space.
 ## @STACK ( - char )
 func b_l() -> void:
-	forth.push(int(ForthTerminal.BL))
+	forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
 
 
 ## @WORD CELL+
@@ -544,9 +578,7 @@ func evaluate() -> void:
 	forth.reset_buff_to_in()
 	while true:
 		# call the Forth WORD, setting blank as delimiter
-		forth.push(ForthTerminal.BL.to_ascii_buffer()[0])
-		word()
-		count()
+		forth.core_ext.parse_name()
 		var len: int = forth.pop()  # length of word
 		var caddr: int = forth.pop()  # start of word
 		# out of tokens?
@@ -826,6 +858,46 @@ func rshift() -> void:
 	forth.data_stack[forth.ds_p] = (
 		(forth.data_stack[forth.ds_p] >> u) & ~ForthRAM.CELL_MAX_NEGATIVE
 	)
+
+
+## Utility function for parsing strings
+func start_string() -> void:
+	forth.push('"'.to_ascii_buffer()[0])
+	forth.core_ext.parse()
+
+
+## @WORD S" IMMEDIATE
+## Return the address and length of the following string, terminated by ",
+## which is in a temporary buffer.
+## @STACK ( "string" - c-addr u )
+func s_quote() -> void:
+	start_string()
+	# different compilation behavior
+	if forth.state:
+		# copy the execution token
+		forth.ram.set_word(
+			forth.dict_top, forth.address_from_built_in_function[s_quote_exec]
+		)
+		# store the value
+		var l = forth.pop()  # length of the string
+		var src = forth.pop()  # first byte address
+		forth.dict_top += ForthRAM.CELL_SIZE
+		forth.ram.set_byte(forth.dict_top, l)  # store the length
+		# compile the string into the dictionary
+		for i in l:
+			forth.dict_top += 1
+			forth.ram.set_byte(forth.dict_top, forth.ram.get_byte(src + i))
+		# this will align the dict top and save it
+		align()
+
+
+## @WORDX S"
+func s_quote_exec() -> void:
+	var l: int = forth.ram.get_byte(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.push(forth.dict_ip + ForthRAM.CELL_SIZE + 1)  # address of the string start
+	forth.push(l)  # length of the string
+	# moves to string cell for l in 0..3, then one cell past for l in 4..7, etc.
+	forth.dict_ip += ((l / ForthRAM.CELL_SIZE) + 1) * ForthRAM.CELL_SIZE
 
 
 ## @WORD S>D
