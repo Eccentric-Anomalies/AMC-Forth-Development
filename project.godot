@@ -13,7 +13,7 @@ config_version=5
 config/name="AMC Forth Development"
 run/main_scene="res://terminal_server_3d.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="res://AMCForthLogo.svg"
 
 [display]
 
