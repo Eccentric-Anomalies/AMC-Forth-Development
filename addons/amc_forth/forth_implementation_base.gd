@@ -23,8 +23,8 @@ func _scan_definitions() -> void:
 	var res = regex.search_all(src)
 	if res.size():
 		wordset = res[0].strings[1]
-		# make an empty list of words for this wordset
-		forth.wordset_words[wordset] = []
+	# make an empty list of words for this wordset
+	forth.wordset_words[wordset] = []
 	# Compile built-in WORD functions
 	regex.compile("[^\"]##\\s+@WORD\\s+([^\\s]+)\\s*(IMMEDIATE)?\\s*\\n?\\r?(\
 ##[^\\r\\n]*)?\\n?\\r?(##[^\\r\\n]*)?\\n?\\r?(##[^\\r\\n]*)?\\n?\\r?##\\s+\
