@@ -4,7 +4,7 @@
 // Incrementing CACHE_VERSION will kick off the install event and force
 // previously cached resources to be updated from the network.
 /** @type {string} */
-const CACHE_VERSION = '1732729836|10898118366';
+const CACHE_VERSION = '1732730371|11433690727';
 /** @type {string} */
 const CACHE_PREFIX = 'AMC Forth-sw-cache-';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;

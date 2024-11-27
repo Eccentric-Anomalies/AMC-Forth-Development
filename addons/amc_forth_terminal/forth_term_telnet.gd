@@ -91,7 +91,6 @@ func poll_connection() -> void:
 ## Initialize (executed automatically by ForthTermTelnet.new())
 ##
 func _init(_forth: AMCForth) -> void:
-	print("has web: ", OS.has_feature("web"))  #FIXME
 	if not OS.has_feature("web"):
 		super(_forth)
 		# now safe to receive output

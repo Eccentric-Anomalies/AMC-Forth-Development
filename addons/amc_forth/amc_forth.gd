@@ -276,6 +276,7 @@ func terminal_in(text: String) -> void:
 			terminal_out.emit(_refresh_edit_text())
 			echo_text = ""
 			# text is ready for the Forth interpreter
+			print("posting input!")  # FIXME
 			_input_ready.post()
 			in_str = in_str.erase(0, ForthTerminal.CR.length())
 		# not a control character(s)
