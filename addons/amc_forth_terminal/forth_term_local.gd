@@ -21,7 +21,7 @@ const US_KEY_MAP: Dictionary = {
 	"Backspace": ForthTerminal.DEL_LEFT,
 	"Delete": ForthTerminal.DEL,
 	"Tab": "\t",
-	"BracketLeft": "",
+	"BracketLeft": "[",
 	"BracketRight": "]",
 	"BackSlash": "\\",
 	"Semicolon": ";",
@@ -229,11 +229,17 @@ func handle_key_event(evt: InputEvent) -> void:
 		evt.get_key_label_with_modifiers()
 	)
 	print(keycode)  # FIXME
+	print(keycode in US_KEY_MAP, forth.is_ready_for_input(), evt.is_pressed())
 	if (
 		keycode in US_KEY_MAP
 		and forth.is_ready_for_input()
 		and evt.is_pressed()
 	):
+		print(
+			"sending ",
+			US_KEY_MAP[keycode],
+			US_KEY_MAP[keycode].to_ascii_buffer()
+		)  # FIXME
 		forth.terminal_in(US_KEY_MAP[keycode])
 
 
