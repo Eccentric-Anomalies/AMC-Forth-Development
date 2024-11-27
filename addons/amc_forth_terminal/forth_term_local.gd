@@ -207,6 +207,7 @@ func handle_key_event(evt: InputEvent) -> void:
 	var keycode: String = OS.get_keycode_string(
 		evt.get_key_label_with_modifiers()
 	)
+	print(keycode)  # FIXME
 	if (
 		keycode in US_KEY_MAP
 		and forth.is_ready_for_input()
