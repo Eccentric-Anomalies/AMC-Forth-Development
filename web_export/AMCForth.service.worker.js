@@ -4,9 +4,9 @@
 // Incrementing CACHE_VERSION will kick off the install event and force
 // previously cached resources to be updated from the network.
 /** @type {string} */
-const CACHE_VERSION = '1732718269|56212694196';
+const CACHE_VERSION = '1732718979|41565709';
 /** @type {string} */
-const CACHE_PREFIX = 'AMC Forth Develo-sw-cache-';
+const CACHE_PREFIX = 'AMC Forth-sw-cache-';
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 /** @type {string} */
 const OFFLINE_URL = 'AMCForth.offline.html';
