@@ -15,7 +15,6 @@ ambient_light_source = 3
 ambient_light_color = Color(1, 1, 1, 1)
 
 [sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_cnuvk"]
-auto_exposure_enabled = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2s6gb"]
 albedo_color = Color(0.176419, 0.176419, 0.176419, 1)
