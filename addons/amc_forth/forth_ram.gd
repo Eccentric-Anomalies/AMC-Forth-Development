@@ -27,11 +27,12 @@ var _d_scratch := PackedByteArray()
 
 
 # save ram state
-func save_state(config:ConfigFile) -> void:
+func save_state(config: ConfigFile) -> void:
 	config.set_value("ram", "image", _ram)
 
+
 # restore ram state
-func load_state(config:ConfigFile) -> void:
+func load_state(config: ConfigFile) -> void:
 	_ram = config.get_value("ram", "image")
 
 
