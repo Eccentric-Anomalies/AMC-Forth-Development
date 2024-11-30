@@ -497,16 +497,16 @@ func count() -> void:
 
 
 ## @WORD CR
-# Emit characters to generate a newline on the terminal.
-# @STACK ( - )
+## Emit characters to generate a newline on the terminal.
+## @STACK ( - )
 func c_r() -> void:
 	forth.util.print_term(ForthTerminal.CRLF)
 
 
 ## @WORD CREATE
-# Construct a dictionary entry for the next token <name> in the input stream.
-# Execution of <name> will return the address of its data space.
-# @STACK Compile: ( "name" - ), Execute: ( - addr )
+## Construct a dictionary entry for the next token <name> in the input stream.
+## Execution of <name> will return the address of its data space.
+## @STACK Compile: ( "name" - ), Execute: ( - addr )
 func create() -> void:
 	if forth.create_dict_entry_name():
 		forth.ram.set_word(
