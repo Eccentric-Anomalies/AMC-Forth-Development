@@ -33,7 +33,7 @@ func dot_left_parenthesis() -> void:
 func back_slash() -> void:
 	forth.push(ForthTerminal.CR.to_ascii_buffer()[0])
 	parse()
-	forth.two_drop()
+	forth.core.two_drop()
 
 
 ## @WORD AGAIN IMMEDIATE
