@@ -18,12 +18,17 @@ const DICT_TOP := DICT_START + DICT_SIZE
 const BUFF_SOURCE_SIZE := 0x0100  # bytes
 const BUFF_SOURCE_START := DICT_TOP
 const BUFF_SOURCE_TOP := BUFF_SOURCE_START + BUFF_SOURCE_SIZE
-# File Buffer
-const FILE_BUFF_SIZE := 0x0100  # bytes
+# File Buffers
+const FILE_BUFF_QTY := 8  # number of simultaneous open files possible
+const FILE_BUFF_ID_OFFSET := 0  # offset in buffer to fileid
+const FILE_BUFF_PTR_OFFSET := ForthRAM.CELL_SIZE  # location of pointer
+const FILE_BUFF_DATA_OFFSET := ForthRAM.CELL_SIZE * 2  # location of buff data
+const FILE_BUFF_SIZE := 0x0100  # bytes, overall
+const FILE_BUFF_DATA_SIZE := FILE_BUFF_SIZE - FILE_BUFF_DATA_OFFSET
 const FILE_BUFF_START := BUFF_SOURCE_TOP
-const FILE_BUFF_TOP := FILE_BUFF_START + FILE_BUFF_SIZE
-# Pointer to the parse position in the buffer
-const BUFF_TO_IN := FILE_BUFF_START
+const FILE_BUFF_TOP := FILE_BUFF_START + FILE_BUFF_SIZE * FILE_BUFF_QTY
+# Pointer to the parse position in the TERMINAL buffer
+const BUFF_TO_IN := FILE_BUFF_TOP
 const BUFF_TO_IN_TOP := BUFF_TO_IN + ForthRAM.CELL_SIZE
 # Temporary word storage (used by WORD)
 const WORD_SIZE := 0x0100
@@ -182,20 +187,39 @@ var _client_connections: int = 0
 
 # File access
 # map Forth fileid to FileAccess objects
+# file_id is the address of the file's buffer structure
+# the first cell in the structure is the file access mode bits
 var _file_id_dict: Dictionary = {}
 
 
-func assign_file_id(file: FileAccess) -> int:
-	var id: int = randi()
-	_file_id_dict[id] = file
-	return id
+# allocate a buffer for the provided file handle and mode
+# return the file id or zero if none available
+func assign_file_id(file: FileAccess, new_mode: int) -> int:
+	for i in FILE_BUFF_QTY:
+		var addr: int = i * FILE_BUFF_SIZE + FILE_BUFF_START
+		var mode: int = ram.get_word(addr + FILE_BUFF_ID_OFFSET)
+		if mode == 0:
+			# available file handle
+			ram.set_word(addr + FILE_BUFF_ID_OFFSET, new_mode)
+			ram.set_word(addr + FILE_BUFF_PTR_OFFSET, 0)
+			_file_id_dict[addr] = file
+			return addr
+		addr += FILE_BUFF_SIZE
+	return 0
 
 
 func get_file_from_id(id: int) -> FileAccess:
 	return _file_id_dict.get(id, null)
 
 
+# releases an file buffer, and closes the associated file, if open
 func free_file_id(id: int) -> void:
+	var file: FileAccess = _file_id_dict[id]
+	if file.is_open():
+		file.close()
+	# clear the buffer entry
+	ram.set_word(id + FILE_BUFF_ID_OFFSET, 0)
+	# erase the dictionary entry
 	_file_id_dict.erase(id)
 
 
@@ -203,6 +227,11 @@ func client_connected() -> void:
 	if not _client_connections:
 		terminal_out.emit(_get_banner() + ForthTerminal.CRLF)
 		_client_connections += 1
+
+
+func close_all_files() -> void:
+	for id in _file_id_dict:
+		free_file_id(id)
 
 
 # pause until Forth is ready to accept inupt
@@ -213,6 +242,7 @@ func is_ready_for_input() -> bool:
 # preserve Forth memory and state
 func save_snapshot() -> void:
 	_config.clear()
+	close_all_files()
 	ram.save_state(_config)
 	_config.save(CONFIG_FILE_NAME)
 
@@ -734,7 +764,10 @@ func _init_built_ins() -> void:
 
 
 func reset_buff_to_in() -> void:
-	ram.set_word(BUFF_TO_IN, 0)
+	# retrieve the address of the current buffer pointer
+	core.to_in()
+	# and set its contents to zero
+	ram.set_word(pop(), 0)
 
 
 func is_valid_int(word: String, base: int = 10) -> bool:
@@ -763,6 +796,9 @@ func _interpret_terminal_line() -> void:
 	# transfer to the RAM-based input buffer (accessible to the engine)
 	for i in bytes_input.size():
 		ram.set_byte(BUFF_SOURCE_START + i, bytes_input[i])
+	push(BUFF_SOURCE_START)
+	push(bytes_input.size())
+	source_id = -1
 	core.evaluate()
 	util.rprint_term(" ok")
 

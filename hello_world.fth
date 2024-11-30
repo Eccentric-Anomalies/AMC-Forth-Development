@@ -1,0 +1,1 @@
+: HELLO-WORLD BL EMIT ." Hello world. " ;

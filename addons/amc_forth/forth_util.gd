@@ -49,3 +49,11 @@ func cstring_from_str(addr: int, s: String) -> void:
 	for c in s.to_ascii_buffer():
 		_forth.ram.set_byte(n, c)
 		n += 1
+
+
+## Copy at most n String characters to address
+func string_from_str(addr: int, n: int, s: String) -> void:
+	var ptr: int = addr
+	for c in s.substr(0, n).to_ascii_buffer():
+		_forth.ram.set_byte(ptr, c)
+		ptr += 1

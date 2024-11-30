@@ -338,7 +338,12 @@ func two_swap() -> void:
 ## parse position.
 ## @STACK ( - a-addr )
 func to_in() -> void:
-	forth.push(forth.BUFF_TO_IN)
+	# terminal pointer or...
+	if forth.source_id == -1:
+		forth.push(forth.BUFF_TO_IN)
+	# file buffer pointer
+	elif forth.source_id:
+		forth.push(forth.source_id + forth.FILE_BUFF_PTR_OFFSET)
 
 
 ## @WORD @
@@ -568,13 +573,15 @@ func emit() -> void:
 
 
 ## @WORD EVALUATE
-## Save the current input source specification, set SOURCE_ID to -1.
 ## Use c-addr, u as the buffer start and interpret as Forth source.
 ## @STACK ( i*x c-addr u - j*x )
 func evaluate() -> void:
 	var base: int = forth.ram.get_word(forth.BASE)
-	forth.source_id_stack.push_back(forth.source_id)
-	forth.source_id = -1
+	# we can discard the buffer location, since we use the source_id
+	# to identify the buffer
+	forth.pop()
+	forth.pop()
+	# buffer pointer is based on source-id
 	forth.reset_buff_to_in()
 	while true:
 		# call the Forth WORD, setting blank as delimiter
@@ -625,7 +632,6 @@ func evaluate() -> void:
 			forth.util.rprint_term(" Data stack underflow")
 			forth.ds_p = AMCForth.DATA_STACK_SIZE
 			break  # not ok
-	forth.source_id = forth.source_id_stack.pop_back()
 
 
 ## @WORD EXECUTE
@@ -922,8 +928,12 @@ func sm_slash_rem() -> void:
 ## Return the address and length of the input buffer.
 ## @STACK ( - c-addr u )
 func source() -> void:
-	forth.push(forth.BUFF_SOURCE_START)
-	forth.push(forth.BUFF_SOURCE_SIZE)
+	if forth.source_id == -1:
+		forth.push(forth.BUFF_SOURCE_START)
+		forth.push(forth.BUFF_SOURCE_SIZE)
+	elif forth.source_id:
+		forth.push(forth.source_id + forth.FILE_BUFF_DATA_OFFSET)
+		forth.push(forth.FILE_BUFF_DATA_SIZE)
 
 
 ## @WORD SPACE
