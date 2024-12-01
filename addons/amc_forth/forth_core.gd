@@ -273,6 +273,59 @@ func q_dup() -> void:
 		forth.push(n)
 
 
+## @WORD <
+## Return true if and only if n1 is less than n2.
+## @STACK ( n1 n2 - flag )
+func less_than() -> void:
+	var t: int = forth.pop()
+	if t > forth.pop():
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD =
+## Return true if and only if n1 is equal to n2.
+## @STACK ( n1 n2 - flag )
+func equal() -> void:
+	var t: int = forth.pop()
+	if t == forth.pop():
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD >
+## Return true if and only if n1 is greater than n2
+## @STACK ( n1 n2 - flag )
+func greater_than() -> void:
+	var t: int = forth.pop()
+	if t < forth.pop():
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD 0<
+## Return true if and only if n is less than zero.
+## @STACK ( n - flag )
+func zero_less_than() -> void:
+	if forth.pop() < 0:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD 0=
+## Return true if and only if n is equal to zero.
+## @STACK ( n - flag )
+func zero_equal() -> void:
+	if forth.pop():
+		forth.push(forth.FALSE)
+	else:
+		forth.push(forth.TRUE)
+
+
 ## @WORD 2*
 ## Return x2, result of shifting x1 one bit towards the MSB,
 ## filling the LSB with zero.
@@ -541,6 +594,30 @@ func depth() -> void:
 	forth.push(forth.data_stack.size())
 
 
+## @WORD DO IMMEDIATE
+## Establish loop parameters, initial index n2 on the top of stack,
+## with the limit value n1 below it. These are transferred to the
+## return stack when DO is executed.
+## @STACK ( n1 n2 - )
+func do() -> void:
+	# mark a destination for a backward branch
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[do_exec]
+	)
+	begin()
+	# move up to finish
+	forth.dict_top += ForthRAM.CELL_SIZE  # two cells up
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX DO
+func do_exec() -> void:
+	# push limit, then count on return stack
+	forth.core_ext.two_to_r()
+
+
 ## @WORD DUP
 ## Duplicate the top entry on the stack.
 ## @STACK ( x - x x )
@@ -673,6 +750,13 @@ func here() -> void:
 	forth.push(forth.dict_top)
 
 
+## @WORD I
+## Push a copy of the current DO-LOOP index value to the stack.
+## @STACK ( - n )
+func i() -> void:
+	r_fetch()
+
+
 ## @WORD IF IMMEDIATE
 ## Place forward reference origin on the control flow stack.
 ## @STACK ( - orig )
@@ -756,6 +840,43 @@ func literal_exec() -> void:
 func lshift() -> void:
 	swap()
 	forth.push(forth.ram.truncate_to_cell(forth.pop() << forth.pop()))
+
+
+## @WORD LOOP IMMEDIATE
+## Increment the index value by one and compare to the limit value.
+## If they are equal, continue with the next instruction, otherwise
+## return to the address of the preceding DO.
+## @STACK ( - )
+func loop() -> void:
+	# copy the execution token
+	forth.ram.set_word(
+		forth.dict_top, forth.address_from_built_in_function[loop_exec]
+	)
+	# The link back
+	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop())
+	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
+	# preserve dictionary state
+	forth.save_dict_top()
+
+
+## @WORDX LOOP
+func loop_exec() -> void:
+	# Move to data stack.
+	forth.core_ext.two_r_from()
+	# Increment the count
+	one_plus()
+	# Duplicate them
+	two_dup()
+	# Check for equal
+	equal()
+	if forth.pop() == 0:
+		# not matched, branch back. First, restore the return stack, but
+		# with an updated count!
+		forth.core_ext.two_to_r()
+		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	else:
+		# spare pair of loop parameters is not needed.
+		two_drop()
 
 
 ## @WORD M*
@@ -843,6 +964,15 @@ func postpone() -> void:
 	tick()
 	# then store it in the current definition
 	comma()
+
+
+## @WORD R@
+## Place a copy of the item on top of the return stack onto the data stack.
+## @STACK (S: - x ) (R: x - x )
+func r_fetch() -> void:
+	var t: int = forth.r_pop()
+	forth.push(t)
+	forth.r_push(t)
 
 
 ## @WORD ROT
@@ -968,6 +1098,17 @@ func f_then() -> void:
 	# just before this (the caller will step to the next location).
 	# No f_then_exec function is needed.
 	forth.ram.set_word(forth.cf_pop(), forth.dict_top - ForthRAM.CELL_SIZE)
+
+
+## @WORD U<
+## Return true if and only if u1 is less than u2.
+## @STACK ( u1 u2 - flag )
+func u_less_than() -> void:
+	var u2: int = forth.ram.unsigned(forth.pop())
+	if forth.ram.unsigned(forth.pop()) < u2:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
 
 
 ## @WORD UNTIL IMMEDIATE

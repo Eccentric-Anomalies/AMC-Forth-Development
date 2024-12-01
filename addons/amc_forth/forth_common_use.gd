@@ -51,3 +51,10 @@ func m_minus() -> void:
 func m_slash() -> void:
 	var n: int = forth.pop()
 	forth.push(forth.pop_dint() / n)
+
+
+## @WORD NOT
+## Identical to 0=, used for program clarity to reverse logical result.
+## @STACK ( x - flag )
+func f_not() -> void:
+	forth.core.zero_equal()

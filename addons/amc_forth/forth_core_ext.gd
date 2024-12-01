@@ -36,6 +36,76 @@ func back_slash() -> void:
 	forth.core.two_drop()
 
 
+## @WORD <>
+## Return true if and only if n1 is not equal to n2.
+## @STACK (	n1 n2 - flag )
+func not_equal() -> void:
+	var t: int = forth.pop()
+	if t != forth.pop():
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD 0<>
+## Return true if and only if n is not equal to zero.
+## @STACK ( n - flag )
+func zero_not_equal() -> void:
+	if forth.pop():
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD 0>
+## Return true if and only if n is greater than zero.
+## @STACK ( n - flag )
+func zero_greater_than() -> void:
+	if forth.pop() > 0:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD 2>R
+## Pop the top two cells from the data stack and push them onto the
+## return stack.
+## @STACK (S: x1 x2 - )  (R: - x1 x2 )
+func two_to_r() -> void:
+	forth.r_push_dint(forth.pop_dint())
+
+
+## @WORD 2R>
+## Pop the top two cells from the return stack and push them onto the
+## data stack.
+## @STACK (S: - x1 x2 )  (R: x1 x2 - )
+func two_r_from() -> void:
+	forth.push_dint(forth.r_pop_dint())
+
+
+## @WORD 2R@
+## Push a copy of the top two return stack cells onto the data stack.
+## @STACK (S: - x1 x2 ) (R: x1 x2 - x1 x2 )
+func two_r_fetch() -> void:
+	var t: int = forth.r_pop_dint()
+	forth.push_dint(t)
+	forth.r_push_dint(t)
+
+
+## @WORD >R
+## Remove the item on top of the data stack and put it on the return stack.
+## @STACK (S: x - ) (R: - x )
+func to_r() -> void:
+	forth.r_push(forth.pop())
+
+
+## @WORD R>
+## Remove the item on the top of the return stack and put it on the data stack.
+## @STACK (S: - x ) (R: x - )
+func r_from() -> void:
+	forth.push(forth.r_pop())
+
+
 ## @WORD AGAIN IMMEDIATE
 ## Unconditionally branch back to the point immediately following
 ## the nearest previous BEGIN.
@@ -246,6 +316,17 @@ func f_true() -> void:
 func tuck() -> void:
 	forth.core.swap()
 	forth.push(forth.data_stack[forth.ds_p + 1])
+
+
+## @WORD U>
+## Return true if and only if u1 is greater than u2.
+## @STACK ( u1 u2 - flag )
+func u_less_than() -> void:
+	var u2: int = forth.ram.unsigned(forth.pop())
+	if forth.ram.unsigned(forth.pop()) > u2:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
 
 
 ## @WORD UNUSED

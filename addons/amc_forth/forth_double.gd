@@ -1,4 +1,4 @@
-class_name ForthDouble
+class_name ForthDouble  # gdlint:ignore = max-public-methods
 ## @WORDSET Double
 ##
 
@@ -105,6 +105,48 @@ func d_minus() -> void:
 ## @STACK ( d1 d2 - d3 )
 func d_plus() -> void:
 	forth.push_dint(forth.pop_dint() + forth.pop_dint())
+
+
+## @WORD D<
+## Return true if and only if d1 is less than d2.
+## @STACK ( d1 d2 - flag )
+func d_less_than() -> void:
+	var t: int = forth.pop_dint()
+	if forth.pop_dint() < t:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD D=
+## Return true if and only if d1 is equal to d2.
+## @STACK ( d1 d2 - flag )
+func d_equals() -> void:
+	var t: int = forth.pop_dint()
+	if forth.pop_dint() == t:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD D0<
+## Return true if and only if the double precision value d is less than zero.
+## @STACK ( d - flag )
+func d_zero_less() -> void:
+	if forth.pop_dint() < 0:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
+
+
+## @WORD D0=
+## Return true if and only if the double precision value d is equal to zero.
+## @STACK ( d - flag )
+func d_zero_equal() -> void:
+	if forth.pop_dint() == 0:
+		forth.push(forth.TRUE)
+	else:
+		forth.push(forth.FALSE)
 
 
 ## @WORD D2*

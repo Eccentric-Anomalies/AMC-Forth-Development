@@ -16,6 +16,7 @@ const DCELL_BITS := CELL_BITS * 2
 const CELL_MAX := 2 ** CELL_BITS
 const CELL_MSB_MASK := CELL_MAX >> 1
 const CELL_MASK := CELL_MAX - 1
+const CELL_MAX_WORD := CELL_MAX - 1
 const CELL_MAX_POSITIVE = (2 ** (CELL_BITS - 1)) - 1
 const CELL_MAX_NEGATIVE = -(CELL_MAX_POSITIVE + 1)
 
@@ -84,6 +85,14 @@ func get_byte(addr: int) -> int:
 
 
 # signed cell-sized values
+
+
+# convert cell-size signed to unsigned value
+func unsigned(val: int) -> int:
+	if val >= 0:
+		return val
+	else:
+		return CELL_MAX + val
 
 
 func set_int(addr: int, val: int) -> void:

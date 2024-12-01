@@ -68,6 +68,9 @@ const MAX_BUFFER_SIZE := 20
 const DATA_STACK_SIZE := 100
 const DATA_STACK_TOP := DATA_STACK_SIZE - 1
 
+const RETURN_STACK_SIZE := 100
+const RETURN_STACK_TOP := RETURN_STACK_SIZE - 1
+
 # Masks for built-in execution tokens
 const BUILT_IN_XT_MASK = 0x080 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
 const BUILT_IN_XTX_MASK = 0x040 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
@@ -146,6 +149,10 @@ var exit_flag: bool = false
 # Forth: data stack
 var data_stack: PackedInt64Array
 var ds_p: int
+
+# Forth: return stack
+var return_stack: PackedInt64Array
+var rs_p: int
 
 # Output handlers
 var output_port_map: Dictionary = {}
@@ -536,6 +543,32 @@ func pop_dint() -> int:
 	return ram.combine_64(pop(), pop())
 
 
+# Forth Return Stack Push and Pop Routines
+
+
+func r_push(val: int) -> void:
+	rs_p -= 1
+	return_stack[rs_p] = val
+
+
+func r_pop() -> int:
+	if rs_p < RETURN_STACK_SIZE:
+		rs_p += 1
+		return return_stack[rs_p - 1]
+	util.rprint_term(" Return stack underflow")
+	return 0
+
+
+func r_push_dint(val: int) -> void:
+	var t: Array = ram.split_64(val)
+	r_push(t[1])
+	r_push(t[0])
+
+
+func r_pop_dint() -> int:
+	return ram.combine_64(r_pop(), r_pop())
+
+
 # top of stack is 0, next dint is at 2, etc.
 func get_dint(index: int) -> int:
 	return ram.combine_64(
@@ -671,6 +704,10 @@ func _init(node: Node) -> void:
 	data_stack.resize(DATA_STACK_SIZE)
 	data_stack.fill(0)
 	ds_p = DATA_STACK_SIZE  # empty
+	# Initialize the return stack
+	return_stack.resize(RETURN_STACK_SIZE)
+	return_stack.fill(0)
+	rs_p = RETURN_STACK_SIZE  # empty
 	# set the terminal link in the dictionary
 	ram.set_int(dict_p, -1)
 	# reset the buffer pointer
