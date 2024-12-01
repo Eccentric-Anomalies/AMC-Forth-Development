@@ -27,7 +27,7 @@ func ahead() -> void:
 		forth.dict_top, forth.address_from_built_in_function[ahead_exec]
 	)
 	# leave link address on the control stack
-	forth.cf_push(forth.dict_top + ForthRAM.CELL_SIZE)
+	forth.cf_push_orig(forth.dict_top + ForthRAM.CELL_SIZE)
 	# move up to finish
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
 	# preserve dictionary state
@@ -35,9 +35,9 @@ func ahead() -> void:
 
 
 ## @WORDX AHEAD
-## Branch to ELSE if top of stack not TRUE.
-## @STACK ( x - )
 func ahead_exec() -> void:
+	# Branch to ELSE if top of stack not TRUE.
+	# ( x - )
 	# Skip ahead to the address in the next cell
 	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
 

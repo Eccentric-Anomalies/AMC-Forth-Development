@@ -109,14 +109,16 @@ func r_from() -> void:
 ## @WORD AGAIN IMMEDIATE
 ## Unconditionally branch back to the point immediately following
 ## the nearest previous BEGIN.
-## @STACK ( - )
+## @STACK ( dest - )
 func again() -> void:
 	# copy the execution token
 	forth.ram.set_word(
 		forth.dict_top, forth.address_from_built_in_function[again_exec]
 	)
 	# The link back
-	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop())
+	forth.ram.set_word(
+		forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest()
+	)
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
 
 

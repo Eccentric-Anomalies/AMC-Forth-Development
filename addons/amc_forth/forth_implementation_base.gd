@@ -30,6 +30,7 @@ func _scan_definitions() -> void:
 ##[^\\r\\n]*)?\\n?\\r?(##[^\\r\\n]*)?\\n?\\r?(##[^\\r\\n]*)?\\n?\\r?##\\s+\
 @STACK\\s+([^\\r\\n]*)?\\n?\\r?func\\s+([^\\s(]+)")
 	res = regex.search_all(src)
+	print( res.size(), " words found in ", wordset)
 	for item in res:
 		var word:String = item.strings[1]
 		# associate word with executable

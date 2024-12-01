@@ -5,6 +5,9 @@ extends RefCounted
 signal terminal_out(text: String)
 signal terminal_in_ready
 
+# control flow address types
+enum { ORIG, DEST }
+
 const BANNER := "AMC Forth"
 const CONFIG_FILE_NAME = "user://ForthState.cfg"
 
@@ -181,7 +184,8 @@ var _buffer_index := 0
 # Forth : execution dict_ip stack
 var _dict_ip_stack: Array = []
 
-# Forth: control flow stack
+# Forth: control flow stack. Entries are in the form
+# [orig | dest, address]
 var _control_flow_stack: Array = []
 
 # Thread data
@@ -393,13 +397,13 @@ func find_in_dict(word: String) -> Array:
 	return [0, false]
 
 
+# Internal utility function for creating the start of
+# a dictionary entry. The next thing to follow will be
+# the execution token. Upon exit, dict_top will point to the
+# aligned position of the execution token to be.
+# Accepts an optional smudge state (default false).
+# Returns the address of the name length byte or zero on fail.
 func create_dict_entry_name(smudge: bool = false) -> int:
-	# Internal utility function for creating the start of
-	# a dictionary entry. The next thing to follow will be
-	# the execution token. Upon exit, dict_top will point to the
-	# aligned position of the execution token to be.
-	# Accepts an optional smudge state (default false).
-	# Returns the address of the name length byte or zero on fail.
 	# ( - )
 	# Grab the name
 	core_ext.parse_name()
@@ -432,6 +436,18 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 		# the address of the name length byte
 		return ret
 	return 0
+
+
+# Unwind pointers and stacks to reverse the effect of any
+# colon definition currently underway.
+func unwind_compile() -> void:
+	if state:
+		state = false
+		# reset the control flow stack
+		cf_reset()
+		# restore the original dictionary state
+		dict_top = dict_p
+		dict_p = ram.get_word(dict_p)
 
 
 # Forth Input and Output Interface
@@ -645,16 +661,51 @@ func cf_reset() -> void:
 	_control_flow_stack = []
 
 
-# push a word
-func cf_push(addr: int) -> void:
-	_control_flow_stack.push_front(addr)
+func _cf_push(item) -> void:
+	_control_flow_stack.push_front(item)
+
+
+# push an ORIG word
+func cf_push_orig(addr: int) -> void:
+	_cf_push([ORIG, addr])
+
+
+# push an DEST word
+func cf_push_dest(addr: int) -> void:
+	_cf_push([DEST, addr])
 
 
 # pop a word
-func cf_pop() -> int:
+func _cf_pop() -> Array:
 	if not cf_stack_is_empty():
 		return _control_flow_stack.pop_front()
 	util.rprint_term("Unbalanced control structure")
+	return []
+
+
+# check for ORIG at top of stack
+func cf_is_orig() -> bool:
+	return _control_flow_stack[0][0] == ORIG
+
+
+# check for DEST at top of stack
+func cf_is_dest() -> bool:
+	return _control_flow_stack[0][0] == DEST
+
+
+# pop an ORIG word
+func cf_pop_orig() -> int:
+	if _control_flow_stack[0][0] == ORIG:
+		return _cf_pop()[1]
+	util.rprint_term("Expected ORIG not DEST")
+	return 0
+
+
+# pop an DEST word
+func cf_pop_dest() -> int:
+	if _control_flow_stack[0][0] == DEST:
+		return _cf_pop()[1]
+	util.rprint_term("Expected DEST not ORIG")
 	return 0
 
 
@@ -665,12 +716,12 @@ func cf_stack_is_empty() -> bool:
 
 # control flow stack PICK (implements CS-PICK)
 func cf_stack_pick(item: int) -> void:
-	cf_push(_control_flow_stack[item])
+	_cf_push(_control_flow_stack[item])
 
 
 # control flow stack ROLL (implements CS-ROLL)
 func cf_stack_roll(item: int) -> void:
-	cf_push(_control_flow_stack.pop_at(item))
+	_cf_push(_control_flow_stack.pop_at(item))
 
 
 # PRIVATES
