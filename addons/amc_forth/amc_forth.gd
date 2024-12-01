@@ -402,9 +402,7 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 	# Returns the address of the name length byte or zero on fail.
 	# ( - )
 	# Grab the name
-	push(ForthTerminal.BL.to_ascii_buffer()[0])
-	core.word()
-	core.count()
+	core_ext.parse_name()
 	var len: int = pop()  # length
 	var caddr: int = pop()  # start
 	if len <= MAX_NAME_LENGTH:
@@ -640,6 +638,13 @@ func ip_stack_is_empty() -> bool:
 
 
 # compiled word control flow stack
+
+
+# reset the stack
+func cf_reset() -> void:
+	_control_flow_stack = []
+
+
 # push a word
 func cf_push(addr: int) -> void:
 	_control_flow_stack.push_front(addr)

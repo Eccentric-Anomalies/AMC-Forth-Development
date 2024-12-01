@@ -109,8 +109,6 @@ func dot_quote_exec() -> void:
 func one_plus() -> void:
 	forth.push(1)
 	plus()
-	forth.data_stack[forth.ds_p] += 1
-	forth.data_stack[forth.ds_p] &= ForthRAM.CELL_MASK
 
 
 ## @WORD 1-
@@ -252,8 +250,7 @@ func semi_colon() -> void:
 	if not forth.cf_stack_is_empty():
 		forth.util.rprint_term("Unbalanced control structure")
 		# empty the stack
-		while not forth.cf_stack_is_empty():
-			forth.cf_pop()
+		forth.cf_reset()
 
 
 ## @WORDX ;
@@ -600,11 +597,11 @@ func depth() -> void:
 ## return stack when DO is executed.
 ## @STACK ( n1 n2 - )
 func do() -> void:
-	# mark a destination for a backward branch
 	# copy the execution token
 	forth.ram.set_word(
 		forth.dict_top, forth.address_from_built_in_function[do_exec]
 	)
+	# mark a destination for a backward branch
 	begin()
 	# move up to finish
 	forth.dict_top += ForthRAM.CELL_SIZE  # two cells up
@@ -699,6 +696,14 @@ func evaluate() -> void:
 		# nothing we recognize
 		else:
 			forth.util.print_unknown_word(t)
+			# do some clean up if we were compiling
+			if forth.state:
+				forth.state = false
+				# reset the control flow stack
+				forth.cf_reset()
+				# restore the original dictionary state
+				forth.dict_top = forth.dict_p
+				forth.dict_p = forth.ram.get_word(forth.dict_p)
 			break  # not ok
 		# check the stack
 		if forth.ds_p < 0:
@@ -870,13 +875,14 @@ func loop_exec() -> void:
 	# Check for equal
 	equal()
 	if forth.pop() == 0:
-		# not matched, branch back. First, restore the return stack, but
-		# with an updated count!
-		forth.core_ext.two_to_r()
+		# not matched, branch back. The DO exec will push the values
+		# back on the return stack.
 		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
 	else:
 		# spare pair of loop parameters is not needed.
 		two_drop()
+		# step ahead over the branch
+		forth.dict_ip += ForthRAM.CELL_SIZE
 
 
 ## @WORD M*
