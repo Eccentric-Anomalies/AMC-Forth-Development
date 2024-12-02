@@ -27,7 +27,7 @@ func dot_left_parenthesis() -> void:
 	forth.type()
 
 
-## @WORD \
+## @WORD \ IMMEDIATE
 ## Begin parsing a comment, terminated by end of line.
 ## @STACK ( - )
 func back_slash() -> void:

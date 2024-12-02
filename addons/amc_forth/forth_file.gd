@@ -133,7 +133,8 @@ func read_line() -> void:
 	var ior: int = 0
 	var line: String = ""
 	if file and not file.eof_reached():
-		line = file.get_line()
+		# gdscript get_line does not include the end of line character
+		line = file.get_line() + ForthTerminal.CR
 		u2 = min(line.length(), u1)
 		flag = forth.TRUE
 		# copy incoming string to buffer
