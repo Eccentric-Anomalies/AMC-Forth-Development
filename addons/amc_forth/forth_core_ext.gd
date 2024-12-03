@@ -36,6 +36,11 @@ func back_slash() -> void:
 	forth.core.two_drop()
 
 
+## @WORDX \ #
+func back_slash_exec() -> void:
+	back_slash()
+
+
 ## @WORD <>
 ## Return true if and only if n1 is not equal to n2.
 ## @STACK (	n1 n2 - flag )

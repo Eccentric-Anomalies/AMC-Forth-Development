@@ -299,7 +299,7 @@ func question_do_exec() -> void:
 ## Conditionally duplicate the top item on the stack if its value is
 ## non-zero.
 ## @STACK ( x - x | x x )
-func q_dup() -> void:
+func question_dup() -> void:
 	# ( x - 0 | x x )
 	var n: int = forth.data_stack[forth.ds_p]
 	if n != 0:
@@ -488,6 +488,20 @@ func to_in() -> void:
 ## @STACK ( a_addr - x )
 func fetch() -> void:
 	forth.push(forth.ram.get_word(forth.pop()))
+
+
+## @WORD [ IMMEDIATE
+## Enter interpretation state.
+## @STACK  ( - )
+func left_bracket() -> void:
+	forth.state = false
+
+
+## @WORD ]
+## Enter compilation state.
+## @STACK ( - )
+func right_bracket() -> void:
+	forth.state = true
 
 
 ## @WORD ABS
@@ -926,7 +940,7 @@ func leave_exec() -> void:
 	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
 
 
-## @WORD LITERAL
+## @WORD LITERAL IMMEDIATE
 ## At execution time, remove the top number from the stack and compile
 ## into the current definition. Upon executing <name>, place the
 ## number on the top of the stack.
@@ -1089,8 +1103,13 @@ func over() -> void:
 ## name, rather than its execution behavior.
 ## @STACK ( "name" - )
 func postpone() -> void:
-	# use tick to scan for the next word and obtain its execution token
-	tick()
+	# parse for the next token
+	forth.core_ext.parse_name()
+	var len: int = forth.pop()  # length
+	var caddr: int = forth.pop()  # start
+	var word: String = forth.util.str_from_addr_n(caddr, len)
+	# obtain and push the compiled xt for this word
+	forth.push(forth.xtx_from_word(word))
 	# then store it in the current definition
 	comma()
 

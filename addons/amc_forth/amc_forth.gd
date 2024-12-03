@@ -135,6 +135,7 @@ var built_in_names: Array = []
 # These are <run-time function> items that are defined by each
 # Forth implementation class (e.g. ForthDouble, etc.) when a
 # different *compiled* behavior is required
+# Each item is a [<name>, <callable>] pair
 var built_in_exec_functions: Array = []
 # List of built-in names that are IMMEDIATE by default
 var immediate_names: Array = []
@@ -829,7 +830,7 @@ func xt_from_word(word: String) -> int:
 
 
 # generate run-time execution tokens by hashing Forth Word
-func _xtx_from_word(word: String) -> int:
+func xtx_from_word(word: String) -> int:
 	return BUILT_IN_XTX_MASK + (BUILT_IN_MASK & word.hash())
 
 
@@ -851,7 +852,7 @@ func _init_built_ins() -> void:
 	for i in built_in_exec_functions.size():
 		var word: String = built_in_exec_functions[i][0]
 		var f: Callable = built_in_exec_functions[i][1]
-		addr = _xtx_from_word(word)
+		addr = xtx_from_word(word)
 		built_in_function_from_address[addr] = f
 		address_from_built_in_function[f] = addr
 
