@@ -1,3 +1,2 @@
-INCLUDE hello_world.fth
-31415 .
-HELLO-WORLD
+: T 99 . \ this is a comment
+100 . ; \ this is another comment!
