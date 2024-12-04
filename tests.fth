@@ -42,7 +42,8 @@ VARIABLE ERROR-XT
 
 \ NECESSARY DEFINITIONS
 
-1 CONSTANT 1S
+0 CONSTANT 0S   \ all 0 bits
+0S INVERT CONSTANT 1S   \ all 1 bits
 
 0 INVERT CONSTANT MAX-UINT
 0 INVERT 1 RSHIFT CONSTANT MAX-INT
@@ -52,6 +53,8 @@ VARIABLE ERROR-XT
 
 0 CONSTANT <FALSE>
 -1 CONSTANT <TRUE> 
+
+1S 1 RSHIFT INVERT CONSTANT MSB
 
 \ DIVISION
 : IFFLOORED [ -3 2 / -2 = INVERT ] LITERAL IF POSTPONE \ THEN ;
@@ -113,7 +116,17 @@ T{ 1S 1ST !  1ST @  -> 1S  }T    \ CAN STORE CELL-WIDE VALUE
 \ DOT
 \ DOT QUOTE
 \ ONE PLUS
+T{        0 1+ ->          1 }T
+T{       -1 1+ ->          0 }T
+T{        1 1+ ->          2 }T
+T{ MID-UINT 1+ -> MID-UINT+1 }T
+
 \ ONE MINUS
+T{          2 1- ->        1 }T
+T{          1 1- ->        0 }T
+T{          0 1- ->       -1 }T
+T{ MID-UINT+1 1- -> MID-UINT }T
+
 \ TICK 
 T{ : GT1 123 ;   ->     }T
 T{ ' GT1 EXECUTE -> 123 }T
@@ -302,15 +315,50 @@ T{  0 MIN-INT MAX-INT -step gd8 -> 256 }T
 \ EQUAL
 \ GREATER THAN
 \ ZERO LESS THAN
+T{       0 0< -> <FALSE> }T
+T{      -1 0< -> <TRUE>  }T
+T{ MIN-INT 0< -> <TRUE>  }T
+T{       1 0< -> <FALSE> }T
+T{ MAX-INT 0< -> <FALSE> }T
+
 \ ZERO EQUAL
+T{        0 0= -> <TRUE>  }T
+T{        1 0= -> <FALSE> }T
+T{        2 0= -> <FALSE> }T
+T{       -1 0= -> <FALSE> }T
+T{ MAX-UINT 0= -> <FALSE> }T
+T{ MIN-INT  0= -> <FALSE> }T
+T{ MAX-INT  0= -> <FALSE> }T
+
 \ TWO STORE
 \ TWO STAR
+T{   0S 2*       ->   0S }T
+T{    1 2*       ->    2 }T
+T{ 4000 2*       -> 8000 }T
+T{   1S 2* 1 XOR ->   1S }T
+T{  MSB 2*       ->   0S }T
+
 \ TWO SLASH
+T{          0S 2/ ->   0S }T
+T{           1 2/ ->    0 }T
+T{        4000 2/ -> 2000 }T
+T{          1S 2/ ->   1S }T \ MSB PROPOGATED
+T{    1S 1 XOR 2/ ->   1S }T
+T{ MSB 2/ MSB AND ->  MSB }T
+
 \ TWO FETCH
 \ TWO DROP
+T{ 1 2 2DROP -> }T
+
 \ TWO DUP
+T{ 1 2 2DUP -> 1 2 1 2 }T
+
 \ TWO OVER
+T{ 1 2 3 4 2OVER -> 1 2 3 4 1 2 }T
+
 \ TWO SWAP
+T{ 1 2 3 4 2SWAP -> 3 4 1 2 }T
+
 \ TO IN
 \ FETCH
 \ ABS
