@@ -26,7 +26,7 @@ func start_parenthesis() -> void:
 	forth.core_ext.parse()
 
 
-## @WORD (
+## @WORD ( IMMEDIATE
 ## Begin parsing a comment, terminated by ')' character.
 ## @STACK ( - )
 func left_parenthesis() -> void:
