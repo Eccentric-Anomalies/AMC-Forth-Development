@@ -97,20 +97,6 @@ func two_r_fetch() -> void:
 	forth.r_push_dint(t)
 
 
-## @WORD >R
-## Remove the item on top of the data stack and put it on the return stack.
-## @STACK (S: x - ) (R: - x )
-func to_r() -> void:
-	forth.r_push(forth.pop())
-
-
-## @WORD R>
-## Remove the item on the top of the return stack and put it on the data stack.
-## @STACK (S: - x ) (R: x - )
-func r_from() -> void:
-	forth.push(forth.r_pop())
-
-
 ## @WORD AGAIN IMMEDIATE
 ## Unconditionally branch back to the point immediately following
 ## the nearest previous BEGIN.

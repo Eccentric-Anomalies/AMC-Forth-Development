@@ -394,6 +394,20 @@ func greater_than() -> void:
 		forth.push(forth.FALSE)
 
 
+## @WORD >R
+## Remove the item on top of the data stack and put it on the return stack.
+## @STACK (S: x - ) (R: - x )
+func to_r() -> void:
+	forth.r_push(forth.pop())
+
+
+## @WORD R>
+## Remove the item on the top of the return stack and put it on the data stack.
+## @STACK (S: - x ) (R: x - )
+func r_from() -> void:
+	forth.push(forth.r_pop())
+
+
 ## @WORD 0<
 ## Return true if and only if n is less than zero.
 ## @STACK ( n - flag )
@@ -627,6 +641,15 @@ func cells() -> void:
 	star()
 
 
+## @WORD C!
+## Store the low-order character of the second stack item at c-addr,
+## removing both from the stack.
+## @STACK ( c c-addr - )
+func c_store() -> void:
+	var addr: int = forth.pop()
+	forth.ram.set_byte(addr, forth.pop())
+
+
 ## @WORD C,
 ## Reserve one byte of data space and store char in the byte.
 ## @STACK ( char - )
@@ -635,6 +658,15 @@ func c_comma() -> void:
 	forth.dict_top += 1
 	# preserve dictionary state
 	forth.save_dict_top()
+
+
+## @WORD C@
+## Replace c-addr with the contents of the character at c-addr. The character
+## fetched is stored in the low-order character of the top stack item, with
+## the remaining bits set to zero.
+## @STACK ( c-addr - c )
+func c_fetch() -> void:
+	forth.push(forth.ram.get_byte(forth.pop()))
 
 
 ## @WORD CHAR+
