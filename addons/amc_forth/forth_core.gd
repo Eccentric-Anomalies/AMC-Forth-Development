@@ -820,27 +820,22 @@ func evaluate() -> void:
 			else:  # Not Compiling or immediate - just execute
 				forth.core.execute()
 		# no valid token, so maybe valid numeric value (double first)
-		elif t.contains(".") and forth.is_valid_int(t.replace(".", ""), base):
-			var t_strip: String = t.replace(".", "")
-			var temp: int = forth.to_int(t_strip, base)
-			forth.push_dword(temp)
-			# compile it, if necessary
-			if forth.state:
-				forth.double.two_literal()
-		elif forth.is_valid_int(t, base):
-			var temp: int = forth.to_int(t, base)
-			# single-precision
-			forth.push(temp)
-			# compile it, if necessary
-			if forth.state:
-				literal()
-		# nothing we recognize
 		else:
-			forth.util.print_unknown_word(t)
-			# do some clean up if we were compiling
-			forth.unwind_compile()
-			break  # not ok
-		# check the stack
+			# check for a number
+			forth.push(caddr)
+			forth.push(len)
+			forth.common_use.number_question()
+			var type: int = forth.pop()
+			if type == 2 and forth.state:
+				forth.double.two_literal()
+			elif type == 1 and forth.state:
+				literal()
+			elif type == 0:
+				forth.util.print_unknown_word(t)
+				# do some clean up if we were compiling
+				forth.unwind_compile()
+				break  # not ok
+		# check the stack at each step..
 		if forth.ds_p < 0:
 			forth.util.rprint_term(" Data stack overflow")
 			forth.ds_p = AMCForth.DATA_STACK_SIZE

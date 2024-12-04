@@ -58,3 +58,28 @@ func m_slash() -> void:
 ## @STACK ( x - flag )
 func f_not() -> void:
 	forth.core.zero_equal()
+
+
+## @WORD NUMBER?
+## Attempt to convert a string at c-addr of length u into digits using
+## BASE as radis. If a decimal point is found, return a double, ootherwise
+## return a single, with a flag: 0 = failure, 1 = single, 2 = double.
+## @STACK ( c-addr u - 0 | n 1 | d 2 )
+func number_question() -> void:
+	var base: int = forth.ram.get_int(forth.BASE)
+	var len: int = forth.pop()  # length of word
+	var caddr: int = forth.pop()  # start of word
+	var t: String = forth.util.str_from_addr_n(caddr, len)
+	if t.contains(".") and forth.is_valid_int(t.replace(".", ""), base):
+		var t_strip: String = t.replace(".", "")
+		var temp: int = forth.to_int(t_strip, base)
+		forth.push_dword(temp)
+		forth.push(2)
+	elif forth.is_valid_int(t, base):
+		var temp: int = forth.to_int(t, base)
+		# single-precision
+		forth.push(temp)
+		forth.push(1)
+	# nothing we recognize
+	else:
+		forth.push(0)
