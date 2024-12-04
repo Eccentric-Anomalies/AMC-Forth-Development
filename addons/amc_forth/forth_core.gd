@@ -344,21 +344,19 @@ func plus_loop_exec() -> void:
 	var n: int = forth.pop()
 	# Move to loop params to the data stack.
 	forth.core_ext.two_r_from()
-	forth.push(n)
-	plus()  # Increment the count
-	# Duplicate them
-	two_dup()
-	var res: int = forth.pop()
-	var limit: int = forth.pop()
-	# Check for loop is finished
-	if (n >= 0 and res >= limit) or (n < 0 and res < limit):
+	var i: int = forth.pop()  # current index
+	var limit: int = forth.pop()  # limit value
+	var above_before: bool = i >= limit
+	var next_i: int = i + n
+	var above_after: bool = next_i >= limit
+	if above_before != above_after:
 		# loop is satisfied
-		# spare pair of loop parameters is not needed.
-		two_drop()
-		# step ahead over the branch
 		forth.dict_ip += ForthRAM.CELL_SIZE
 	else:
-		# not satisfied, branch back. The DO or ?DO exec will push the values
+		# loop must continue
+		forth.push(limit)  # original limit
+		forth.push(next_i)  # new index
+		# Branch back. The DO or ?DO exec will push the values
 		# back on the return stack
 		forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 
