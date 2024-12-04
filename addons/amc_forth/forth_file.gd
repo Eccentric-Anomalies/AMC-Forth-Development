@@ -81,6 +81,7 @@ func include_file() -> void:
 	# close the file
 	forth.push(fileid)
 	close_file()
+	forth.pop()  # remove the return code
 
 
 ## @WORD OPEN-FILE
