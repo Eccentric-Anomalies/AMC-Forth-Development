@@ -487,7 +487,7 @@ func to_in() -> void:
 ## Replace a-addr with the contents of the cell at a_addr.
 ## @STACK ( a_addr - x )
 func fetch() -> void:
-	forth.push(forth.ram.get_word(forth.pop()))
+	forth.push(forth.ram.get_int(forth.pop()))
 
 
 ## @WORD [ IMMEDIATE
