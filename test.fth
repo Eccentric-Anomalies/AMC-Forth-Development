@@ -32,6 +32,23 @@ VARIABLE ERROR-XT
      S" WRONG NUMBER OF RESULTS: " ERROR
    THEN ;
 
-T{ 1 2 3 SWAP -> 1 3 2 }T
-T{ 1 2 3 SWAP -> 1 2 3 }T
-T{ 1 2 SWAP -> 1 }T
+\ T{ 1 2 3 SWAP -> 1 3 2 }T
+\ T{ 1 2 3 SWAP -> 1 2 3 }T
+\ T{ 1 2 SWAP -> 1 }T
+
+0 INVERT CONSTANT MAX-UINT
+0 INVERT 1 RSHIFT CONSTANT MAX-INT
+0 INVERT 1 RSHIFT INVERT   CONSTANT MIN-INT
+0 INVERT 1 RSHIFT CONSTANT MID-UINT
+0 INVERT 1 RSHIFT INVERT   CONSTANT MID-UINT+1
+
+T{        0  5 + ->          5 }T
+T{        5  0 + ->          5 }T
+T{        0 -5 + ->         -5 }T
+T{       -5  0 + ->         -5 }T
+T{        1  2 + ->          3 }T
+T{        1 -2 + ->         -1 }T
+T{       -1  2 + ->          1 }T
+T{       -1 -2 + ->         -3 }T
+T{       -1  1 + ->          0 }T
+T{ MID-UINT  1 + -> MID-UINT+1 }T
