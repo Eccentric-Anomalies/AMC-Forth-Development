@@ -495,6 +495,20 @@ func two_swap() -> void:
 	forth.data_stack[forth.ds_p] = x2
 
 
+## @WORD >BODY
+## Given a word's execution token, return the address of the start
+## of that word's parameter field.
+## @STACK ( xt - a-addr )
+func to_body() -> void:
+	# Note this has no meaning for built-in execution tokens, which
+	# have no parameter field.
+	var xt: int = forth.pop()
+	if xt >= forth.DICT_START and xt < forth.DICT_TOP:
+		forth.push(xt + ForthRAM.CELL_SIZE)
+	else:
+		forth.util.rprint_term(" Invalid execution token (>BODY)")
+
+
 ## @WORD >IN
 ## Return address of a cell containing the offset, in characters,
 ## from the start of the input buffer to the start of the current
@@ -858,7 +872,7 @@ func execute() -> void:
 		# restore our ip
 		forth.pop_ip()
 	else:
-		forth.util.rprint_term(" Invalid execution token")
+		forth.util.rprint_term(" Invalid execution token (EXECUTE)")
 
 
 ## @WORD EXIT
