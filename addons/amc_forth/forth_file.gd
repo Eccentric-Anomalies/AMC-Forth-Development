@@ -78,6 +78,9 @@ func include_file() -> void:
 			forth.core.evaluate()
 	# restore the previous source
 	forth.source_id = forth.source_id_stack.pop_back()
+	# close the file
+	forth.push(fileid)
+	close_file()
 
 
 ## @WORD OPEN-FILE
