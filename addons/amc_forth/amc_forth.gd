@@ -17,9 +17,13 @@ const RAM_SIZE := 0x10000  # BYTES
 const DICT_START := 0x0100  # BYTES
 const DICT_SIZE := 0x08000
 const DICT_TOP := DICT_START + DICT_SIZE
+# Dictionary scratch space
+const DICT_BUFF_SIZE := 0x040  # word-sized
+const DICT_BUFF_START := DICT_TOP
+const DICT_BUFF_TOP := DICT_BUFF_START + DICT_BUFF_SIZE
 # Input Buffer
 const BUFF_SOURCE_SIZE := 0x0100  # bytes
-const BUFF_SOURCE_START := DICT_TOP
+const BUFF_SOURCE_START := DICT_BUFF_TOP
 const BUFF_SOURCE_TOP := BUFF_SOURCE_START + BUFF_SOURCE_SIZE
 # File Buffers
 const FILE_BUFF_QTY := 8  # number of simultaneous open files possible
@@ -188,6 +192,9 @@ var _dict_ip_stack: Array = []
 # Forth: control flow stack. Entries are in the form
 # [orig | dest, address]
 var _control_flow_stack: Array = []
+
+# Forth: loop control flow stack for LEAVE ORIG entries only!
+var _leave_control_flow_stack: Array = []
 
 # Thread data
 var _thread: Thread
@@ -366,11 +373,11 @@ func find_in_dict(word: String) -> Array:
 		# dictionary is empty
 		return [0, false]
 	# stuff the search string in data memory
-	util.cstring_from_str(dict_top, word)
+	util.cstring_from_str(DICT_BUFF_START, word)
 	# make a temporary pointer
 	var p: int = dict_p
 	while p != -1:  # <empty>
-		push(dict_top)  # c-addr
+		push(DICT_BUFF_START)  # c-addr
 		core.count()  # search word in addr  # addr n
 		push(p + ForthRAM.CELL_SIZE)  # entry name  # addr n c-addr
 		core.count()  # candidate word in addr			# addr n addr n
@@ -662,8 +669,16 @@ func cf_reset() -> void:
 	_control_flow_stack = []
 
 
+func lcf_reset() -> void:
+	_leave_control_flow_stack = []
+
+
 func _cf_push(item) -> void:
 	_control_flow_stack.push_front(item)
+
+
+func lcf_push(item: int) -> void:
+	_leave_control_flow_stack.push_front(item)
 
 
 # push an ORIG word
@@ -682,6 +697,15 @@ func _cf_pop() -> Array:
 		return _control_flow_stack.pop_front()
 	util.rprint_term("Unbalanced control structure")
 	return []
+
+
+func lcf_pop() -> int:
+	return _leave_control_flow_stack.pop_front()
+
+
+# check for items in the leave control flow stack
+func lcf_is_empty() -> bool:
+	return _leave_control_flow_stack.size() == 0
 
 
 # check for ORIG at top of stack

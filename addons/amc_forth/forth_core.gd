@@ -317,10 +317,10 @@ func plus_loop() -> void:
 		forth.dict_top, forth.address_from_built_in_function[plus_loop_exec]
 	)
 	# Check for any orig links
-	while forth.cf_is_orig():
+	while not forth.lcf_is_empty():
 		# destination is on top of the back link
 		forth.ram.set_word(
-			forth.cf_pop_orig(), forth.dict_top + ForthRAM.CELL_SIZE
+			forth.lcf_pop(), forth.dict_top + ForthRAM.CELL_SIZE
 		)
 	# The link back
 	forth.ram.set_word(
@@ -689,7 +689,7 @@ func decimal() -> void:
 ## @STACK ( - +n )
 func depth() -> void:
 	# ( - +n )
-	forth.push(forth.data_stack.size())
+	forth.push(forth.DATA_STACK_SIZE - forth.ds_p)
 
 
 ## @WORD DO IMMEDIATE
@@ -923,8 +923,8 @@ func leave() -> void:
 	forth.ram.set_word(
 		forth.dict_top, forth.address_from_built_in_function[leave_exec]
 	)
-	# leave link address on the control stack
-	forth.cf_push_orig(forth.dict_top + ForthRAM.CELL_SIZE)
+	# leave a special LEAVE link address on the leave control stack
+	forth.lcf_push(forth.dict_top + ForthRAM.CELL_SIZE)
 	# move up to finish
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
 	# preserve dictionary state
@@ -987,10 +987,10 @@ func loop() -> void:
 		forth.dict_top, forth.address_from_built_in_function[loop_exec]
 	)
 	# Check for any orig links
-	while forth.cf_is_orig():
+	while not forth.lcf_is_empty():
 		# destination is on top of the back link
 		forth.ram.set_word(
-			forth.cf_pop_orig(), forth.dict_top + ForthRAM.CELL_SIZE
+			forth.lcf_pop(), forth.dict_top + ForthRAM.CELL_SIZE
 		)
 	# The link back
 	forth.ram.set_word(
@@ -1156,6 +1156,8 @@ func start_string() -> void:
 ## @STACK ( "string" - c-addr u )
 func s_quote() -> void:
 	start_string()
+	var l = forth.pop()  # length of the string
+	var src = forth.pop()  # first byte address
 	# different compilation behavior
 	if forth.state:
 		# copy the execution token
@@ -1163,8 +1165,6 @@ func s_quote() -> void:
 			forth.dict_top, forth.address_from_built_in_function[s_quote_exec]
 		)
 		# store the value
-		var l = forth.pop()  # length of the string
-		var src = forth.pop()  # first byte address
 		forth.dict_top += ForthRAM.CELL_SIZE
 		forth.ram.set_byte(forth.dict_top, l)  # store the length
 		# compile the string into the dictionary
@@ -1173,6 +1173,13 @@ func s_quote() -> void:
 			forth.ram.set_byte(forth.dict_top, forth.ram.get_byte(src + i))
 		# this will align the dict top and save it
 		align()
+	else:
+		# just copy it at the end of the dictionary as a temporary area
+		for i in l:
+			forth.ram.set_byte(forth.dict_top + i, forth.ram.get_byte(src + i))
+		# push the return values back on
+		forth.push(forth.dict_top)
+		forth.push(l)
 
 
 ## @WORDX S"

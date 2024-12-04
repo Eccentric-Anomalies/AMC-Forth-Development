@@ -276,7 +276,7 @@ func parse_name() -> void:
 ## @STACK ( +n - x )
 func pick() -> void:
 	var n = forth.pop()
-	if n >= forth.data_stack.size():
+	if n >= forth.DATA_STACK_SIZE - forth.ds_p:
 		forth.util.rprint_term(" PICK outside data stack")
 	else:
 		forth.push(forth.data_stack[-n - 1])
