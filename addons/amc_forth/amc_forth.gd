@@ -423,9 +423,9 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 		# poke address of last link at next spot, but only if this isn't
 		# the very first spot in the dictionary
 		if dict_top != dict_p:
+			# align the top pointer, so link will be word-aligned
+			core.align()
 			ram.set_int(dict_top, dict_p)
-		# align the top pointer, so link will be word-aligned
-		core.align()
 		# move the top link
 		dict_p = dict_top
 		save_dict_p()
