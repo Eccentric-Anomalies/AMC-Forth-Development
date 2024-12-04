@@ -121,7 +121,7 @@ var wordset_words: Dictionary = {}
 # The Forth data stack pointer is in byte units
 
 # The Forth dictionary space
-var dict_p: int  # position of last link  FIXME
+var dict_p: int  # position of last link
 var dict_top: int  # position of next new link to create
 var dict_ip := 0  # code field pointer set to current execution point
 
@@ -852,16 +852,11 @@ func _input_thread() -> void:
 
 # generate execution tokens by hashing Forth Word
 func xt_from_word(word: String) -> int:
-	print("BUILT_IN_XT_MASK, ", BUILT_IN_XT_MASK)  # FIXME
-	print("BUILT_IN_MASK, ", BUILT_IN_MASK)
-	print("word.hash, ", word.hash())
-	print("xt return: ", BUILT_IN_XT_MASK + (BUILT_IN_MASK & word.hash()))
 	return BUILT_IN_XT_MASK + (BUILT_IN_MASK & word.hash())
 
 
 # generate run-time execution tokens by hashing Forth Word
 func xtx_from_word(word: String) -> int:
-	print("BUILT_IN_XTX_MASK, ", BUILT_IN_XTX_MASK)  # FIXME
 	return BUILT_IN_XTX_MASK + (BUILT_IN_MASK & word.hash())
 
 
