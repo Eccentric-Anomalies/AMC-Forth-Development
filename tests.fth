@@ -249,6 +249,10 @@ T{ MIN-INT MIN-INT / -> MIN-INT MIN-INT T/ }T
 \ SEMI COLON
 \ QUESTION DO
 \ QUESTION DUP
+T{ -1 ?DUP -> -1 -1 }T
+T{  0 ?DUP ->  0    }T
+T{  1 ?DUP ->  1  1 }T
+
 
 \ PLUS STORE
 T{  0 1ST !        ->   }T
@@ -405,12 +409,42 @@ T{ 1 2 3 4 2SWAP -> 3 4 1 2 }T
 T{  CREATE CR0 ->      }T
 T{ ' CR0 >BODY -> HERE }T
 
+\ TO R
+T{ : GR1 >R R> ; -> }T
+T{ : GR2 >R R@ R> DROP ; -> }T
+T{ 123 GR1 -> 123 }T
+T{ 123 GR2 -> 123 }T
+T{  1S GR1 ->  1S }T 
+
 \ TO IN
 \ FETCH
 \ ABS
+T{       0 ABS ->          0 }T
+T{       1 ABS ->          1 }T
+T{      -1 ABS ->          1 }T
+T{ MIN-INT ABS -> MID-UINT+1 }T
+
 \ ALIGN
+ALIGN 1 ALLOT HERE ALIGN HERE 3 CELLS ALLOT
+CONSTANT A-ADDR CONSTANT UA-ADDR
+T{ UA-ADDR ALIGNED -> A-ADDR }T
+T{       1 A-ADDR C!         A-ADDR       C@ ->       1 }T
+T{    1234 A-ADDR !          A-ADDR       @  ->    1234 }T
+T{ 123 456 A-ADDR 2!         A-ADDR       2@ -> 123 456 }T
+T{       2 A-ADDR CHAR+ C!   A-ADDR CHAR+ C@ ->       2 }T
+T{       3 A-ADDR CELL+ C!   A-ADDR CELL+ C@ ->       3 }T
+T{    1234 A-ADDR CELL+ !    A-ADDR CELL+ @  ->    1234 }T
+T{ 123 456 A-ADDR CELL+ 2!   A-ADDR CELL+ 2@ -> 123 456 }T
+
 \ ALIGNED
 \ ALLOT
+HERE 1 ALLOT
+HERE
+CONSTANT 2NDA
+CONSTANT 1STA
+T{ 1STA 2NDA U< -> <TRUE> }T    \ HERE MUST GROW WITH ALLOT
+T{      1STA 1+ ->   2NDA }T    \ ... BY ONE ADDRESS UNIT 
+
 \ AND
 \ BASE
 \ BEGIN
