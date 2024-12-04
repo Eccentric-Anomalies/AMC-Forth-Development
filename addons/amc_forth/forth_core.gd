@@ -53,7 +53,7 @@ func minus() -> void:
 ## Reserve one cell of data space and store x in it.
 ## @STACK ( x - )
 func comma() -> void:
-	forth.ram.set_word(forth.dict_top, forth.pop())
+	forth.ram.set_int(forth.dict_top, forth.pop())
 	forth.dict_top += ForthRAM.CELL_SIZE
 	# preserve dictionary state
 	forth.save_dict_top()
@@ -63,7 +63,7 @@ func comma() -> void:
 ## Display the value, x, on the top of the stack.
 ## @STACK ( x - )
 func dot() -> void:
-	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
+	var fmt: String = "%d" if forth.ram.get_int(forth.BASE) == 10 else "%x"
 	forth.util.print_term(" " + fmt % forth.pop())
 
 
@@ -75,7 +75,7 @@ func dot_quote() -> void:
 	if forth.state:
 		start_string()
 		# copy the execution token
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top,
 			forth.address_from_built_in_function[dot_quote_exec]
 		)
@@ -148,7 +148,7 @@ func tick() -> void:
 ## @STACK ( x a-addr - )
 func store() -> void:
 	var addr: int = forth.pop()
-	forth.ram.set_word(addr, forth.pop())
+	forth.ram.set_int(addr, forth.pop())
 
 
 ## @WORD *
@@ -205,7 +205,7 @@ func colon() -> void:
 	if _smudge_address:
 		# enter compile state
 		forth.state = true
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top, forth.address_from_built_in_function[colon_exec]
 		)
 		forth.dict_top += ForthRAM.CELL_SIZE
@@ -221,7 +221,7 @@ func colon_exec() -> void:
 		# Step to the next item
 		forth.dict_ip += ForthRAM.CELL_SIZE
 		# get the next execution token
-		forth.push(forth.ram.get_word(forth.dict_ip))
+		forth.push(forth.ram.get_int(forth.dict_ip))
 		# and do what it says to do!
 		execute()
 	# we are exiting. reset the flag.
@@ -240,7 +240,7 @@ func semi_colon() -> void:
 	# clear compile state
 	forth.state = false
 	# insert the XT for the semi-colon
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[semi_colon_exec]
 	)
 	forth.dict_top += ForthRAM.CELL_SIZE
@@ -264,7 +264,7 @@ func semi_colon_exec() -> void:
 ## @STACK ( n1 n2 - )
 func question_do() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[question_do_exec]
 	)
 	# mark PREV cell as a destination for a backward branch
@@ -287,7 +287,7 @@ func question_do_exec() -> void:
 		# already satisfied. remove the saved parameters
 		two_drop()
 		# Skip ahead to the address in the next cell
-		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+		forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 	else:
 		# move limit and count to return stack
 		forth.core_ext.two_to_r()
@@ -313,19 +313,15 @@ func question_dup() -> void:
 ## @STACK ( dest orig n - )
 func plus_loop() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[plus_loop_exec]
 	)
 	# Check for any orig links
 	while not forth.lcf_is_empty():
 		# destination is on top of the back link
-		forth.ram.set_word(
-			forth.lcf_pop(), forth.dict_top + ForthRAM.CELL_SIZE
-		)
+		forth.ram.set_int(forth.lcf_pop(), forth.dict_top + ForthRAM.CELL_SIZE)
 	# The link back
-	forth.ram.set_word(
-		forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest()
-	)
+	forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest())
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
 	# preserve dictionary state
 	forth.save_dict_top()
@@ -354,7 +350,7 @@ func plus_loop_exec() -> void:
 	else:
 		# not satisfied, branch back. The DO or ?DO exec will push the values
 		# back on the return stack
-		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+		forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 
 
 ## @WORD <
@@ -621,11 +617,11 @@ func constant() -> void:
 	var init_val: int = forth.pop()
 	if forth.create_dict_entry_name():
 		# copy the execution token
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top, forth.address_from_built_in_function[constant_exec]
 		)
 		# store the constant
-		forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, init_val)
+		forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, init_val)
 		forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up
 		# preserve dictionary state
 		forth.save_dict_top()
@@ -635,7 +631,7 @@ func constant() -> void:
 func constant_exec() -> void:
 	# execution time functionality of _constant
 	# return contents of cell after execution token
-	forth.push(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))
+	forth.push(forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE))
 
 
 ## @WORD COUNT
@@ -660,7 +656,7 @@ func c_r() -> void:
 ## @STACK Compile: ( "name" - ), Execute: ( - addr )
 func create() -> void:
 	if forth.create_dict_entry_name():
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top, forth.address_from_built_in_function[create_exec]
 		)
 		forth.dict_top += ForthRAM.CELL_SIZE
@@ -699,7 +695,7 @@ func depth() -> void:
 ## @STACK ( n1 n2 - )
 func do() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[do_exec]
 	)
 	# mark a destination for a backward branch
@@ -751,7 +747,7 @@ func emit() -> void:
 ## Use c-addr, u as the buffer start and interpret as Forth source.
 ## @STACK ( i*x c-addr u - j*x )
 func evaluate() -> void:
-	var base: int = forth.ram.get_word(forth.BASE)
+	var base: int = forth.ram.get_int(forth.BASE)
 	# we can discard the buffer location, since we use the source_id
 	# to identify the buffer
 	forth.pop()
@@ -826,7 +822,7 @@ func execute() -> void:
 		# this is a physical address of an xt
 		forth.dict_ip = xt
 		# push the xt
-		forth.push(forth.ram.get_word(xt))
+		forth.push(forth.ram.get_int(xt))
 		# recurse down a layer
 		execute()
 		# restore our ip
@@ -862,7 +858,7 @@ func i() -> void:
 ## @STACK ( - orig )
 func f_if() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[f_if_exec]
 	)
 	# leave link address on the control stack
@@ -878,7 +874,7 @@ func f_if_exec() -> void:
 	# Branch to ELSE if top of stack not TRUE
 	# ( x - )
 	if forth.pop() == 0:
-		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+		forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 	else:
 		# TRUE, so skip over the link and continue executing
 		forth.dict_ip += ForthRAM.CELL_SIZE
@@ -920,7 +916,7 @@ func j() -> void:
 ## @STACK ( - )
 func leave() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[leave_exec]
 	)
 	# leave a special LEAVE link address on the leave control stack
@@ -937,7 +933,7 @@ func leave_exec() -> void:
 	forth.r_pop()
 	forth.r_pop()
 	# Skip ahead to the LOOP address in the next cell
-	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 
 
 ## @WORD LITERAL IMMEDIATE
@@ -948,7 +944,7 @@ func leave_exec() -> void:
 func literal() -> void:
 	var literal_val: int = forth.pop()
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[literal_exec]
 	)
 	# store the value
@@ -983,19 +979,15 @@ func lshift() -> void:
 ## @STACK ( dest orig - )
 func loop() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[loop_exec]
 	)
 	# Check for any orig links
 	while not forth.lcf_is_empty():
 		# destination is on top of the back link
-		forth.ram.set_word(
-			forth.lcf_pop(), forth.dict_top + ForthRAM.CELL_SIZE
-		)
+		forth.ram.set_int(forth.lcf_pop(), forth.dict_top + ForthRAM.CELL_SIZE)
 	# The link back
-	forth.ram.set_word(
-		forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest()
-	)
+	forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest())
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
 	# preserve dictionary state
 	forth.save_dict_top()
@@ -1014,7 +1006,7 @@ func loop_exec() -> void:
 	if forth.pop() == 0:
 		# not matched, branch back. The DO exec will push the values
 		# back on the return stack.
-		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+		forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 	else:
 		# spare pair of loop parameters is not needed.
 		two_drop()
@@ -1161,7 +1153,7 @@ func s_quote() -> void:
 	# different compilation behavior
 	if forth.state:
 		# copy the execution token
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top, forth.address_from_built_in_function[s_quote_exec]
 		)
 		# store the value
@@ -1252,9 +1244,7 @@ func f_then() -> void:
 	# Note: this only places the forward reference to the position
 	# just before this (the caller will step to the next location).
 	# No f_then_exec function is needed.
-	forth.ram.set_word(
-		forth.cf_pop_orig(), forth.dict_top - ForthRAM.CELL_SIZE
-	)
+	forth.ram.set_int(forth.cf_pop_orig(), forth.dict_top - ForthRAM.CELL_SIZE)
 
 
 ## @WORD U<
@@ -1281,13 +1271,11 @@ func unloop() -> void:
 ## @STACK ( dest x - )
 func until() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[until_exec]
 	)
 	# The link back
-	forth.ram.set_word(
-		forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest()
-	)
+	forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest())
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
 
 
@@ -1296,7 +1284,7 @@ func until_exec() -> void:
 	# ( x - )
 	# Conditional branch
 	if forth.pop() == 0:
-		forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+		forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 	else:
 		# TRUE, so skip over the link and continue executing
 		forth.dict_ip += ForthRAM.CELL_SIZE
@@ -1317,11 +1305,11 @@ func word() -> void:
 	var ptraddr: int = forth.pop()
 	while true:
 		var t: int = forth.ram.get_byte(
-			source_start + forth.ram.get_word(ptraddr)
+			source_start + forth.ram.get_int(ptraddr)
 		)
 		if t == delim:
 			# increment the input pointer
-			forth.ram.set_word(ptraddr, forth.ram.get_word(ptraddr) + 1)
+			forth.ram.set_int(ptraddr, forth.ram.get_int(ptraddr) + 1)
 		else:
 			break
 	forth.core_ext.parse()

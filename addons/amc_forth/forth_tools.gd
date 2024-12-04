@@ -31,7 +31,7 @@ func question() -> void:
 ## @STACK ( - )
 func dot_s() -> void:
 	var pointer = forth.DATA_STACK_TOP
-	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
+	var fmt: String = "%d" if forth.ram.get_int(forth.BASE) == 10 else "%x"
 	forth.util.rprint_term("")
 	while pointer >= forth.ds_p:
 		forth.util.print_term(" " + fmt % forth.data_stack[pointer])

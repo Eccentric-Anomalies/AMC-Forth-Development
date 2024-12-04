@@ -25,7 +25,7 @@ func two_constant() -> void:
 	var init_val: int = forth.pop_dword()
 	if forth.create_dict_entry_name():
 		# copy the execution token
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top,
 			forth.address_from_built_in_function[two_constant_exec]
 		)
@@ -51,12 +51,12 @@ func two_literal() -> void:
 	var literal_val1: int = forth.pop()
 	var literal_val2: int = forth.pop()
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[two_literal_exec]
 	)
 	# store the value
-	forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, literal_val1)
-	forth.ram.set_word(forth.dict_top + ForthRAM.DCELL_SIZE, literal_val2)
+	forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, literal_val1)
+	forth.ram.set_int(forth.dict_top + ForthRAM.DCELL_SIZE, literal_val2)
 	forth.dict_top += ForthRAM.CELL_SIZE * 3  # three cells up
 	# preserve dictionary state
 	forth.save_dict_top()
@@ -66,8 +66,8 @@ func two_literal() -> void:
 func two_literal_exec() -> void:
 	# execution time functionality of literal
 	# return contents of cell after execution token
-	forth.push(forth.ram.get_word(forth.dict_ip + ForthRAM.DCELL_SIZE))
-	forth.push(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))
+	forth.push(forth.ram.get_int(forth.dict_ip + ForthRAM.DCELL_SIZE))
+	forth.push(forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE))
 	# advance the instruction pointer by one to skip over the data
 	forth.dict_ip += ForthRAM.DCELL_SIZE
 
@@ -88,7 +88,7 @@ func two_variable() -> void:
 ## Display the top cell pair on the stack as a signed double integer.
 ## @STACK ( d - )
 func d_dot() -> void:
-	var fmt: String = "%d" if forth.ram.get_word(forth.BASE) == 10 else "%x"
+	var fmt: String = "%d" if forth.ram.get_int(forth.BASE) == 10 else "%x"
 	forth.util.print_term(" " + fmt % forth.pop_dint())
 
 

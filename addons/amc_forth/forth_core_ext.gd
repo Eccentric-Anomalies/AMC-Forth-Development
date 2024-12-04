@@ -117,20 +117,18 @@ func r_from() -> void:
 ## @STACK ( dest - )
 func again() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[again_exec]
 	)
 	# The link back
-	forth.ram.set_word(
-		forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest()
-	)
+	forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, forth.cf_pop_dest())
 	forth.dict_top += ForthRAM.DCELL_SIZE  # two cells up and done
 
 
 ## @WORDX AGAIN
 func again_exec() -> void:
 	# Unconditionally branch
-	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 
 
 ## @WORD BUFFER:
@@ -152,7 +150,7 @@ func c_quote() -> void:
 	# compilation behavior
 	if forth.state:
 		# copy the execution token
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top, forth.address_from_built_in_function[c_quote_exec]
 		)
 		# store the value
@@ -200,11 +198,11 @@ func f_false() -> void:
 func marker() -> void:
 	if forth.create_dict_entry_name():
 		# copy the execution token
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top, forth.address_from_built_in_function[marker_exec]
 		)
 		# store the dict_p value in the next cell
-		forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, forth.dict_p)
+		forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, forth.dict_p)
 		forth.dict_top += ForthRAM.DCELL_SIZE
 		# preserve the state
 		forth.save_dict_top()
@@ -214,8 +212,8 @@ func marker() -> void:
 func marker_exec() -> void:
 	# execution time functionality of marker
 	# set dict_p to the previous entry
-	forth.dict_top = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
-	forth.dict_p = forth.ram.get_word(forth.dict_top)
+	forth.dict_top = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.dict_p = forth.ram.get_int(forth.dict_top)
 	forth.save_dict_top()
 	forth.save_dict_p()
 
@@ -245,11 +243,11 @@ func parse() -> void:
 	forth.push(ptr)  # parsed text begins here
 	while true:
 		var t: int = forth.ram.get_byte(
-			source_start + forth.ram.get_word(ptraddr)
+			source_start + forth.ram.get_int(ptraddr)
 		)
 		# increment the input pointer
 		if t != 0:
-			forth.ram.set_word(ptraddr, forth.ram.get_word(ptraddr) + 1)
+			forth.ram.set_int(ptraddr, forth.ram.get_int(ptraddr) + 1)
 		# a null character also stops the parse
 		if t != 0 and t != delim:
 			forth.ram.set_byte(ptr, t)
@@ -305,7 +303,7 @@ func to() -> void:
 		forth.util.print_unknown_word(word)
 	else:
 		# adjust to data field location
-		forth.ram.set_word(
+		forth.ram.set_int(
 			token_addr_immediate[0] + ForthRAM.CELL_SIZE, forth.pop()
 		)
 
@@ -352,11 +350,11 @@ func value() -> void:
 	var init_val: int = forth.pop()
 	if forth.create_dict_entry_name():
 		# copy the execution token
-		forth.ram.set_word(
+		forth.ram.set_int(
 			forth.dict_top, forth.address_from_built_in_function[value_exec]
 		)
 		# store the initial value
-		forth.ram.set_word(forth.dict_top + ForthRAM.CELL_SIZE, init_val)
+		forth.ram.set_int(forth.dict_top + ForthRAM.CELL_SIZE, init_val)
 		forth.dict_top += ForthRAM.DCELL_SIZE
 		# preserve the state
 		forth.save_dict_top()
@@ -366,4 +364,4 @@ func value() -> void:
 func value_exec() -> void:
 	# execution time functionality of value
 	# return contents of the cell after the execution token
-	forth.push(forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE))
+	forth.push(forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE))

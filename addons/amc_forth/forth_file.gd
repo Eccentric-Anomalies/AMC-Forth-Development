@@ -63,7 +63,7 @@ func include_file() -> void:
 	var buff_size: int = forth.FILE_BUFF_DATA_SIZE
 	while not ior and flag == forth.TRUE:
 		# clear the buffer pointer
-		forth.ram.set_word(fileid + forth.FILE_BUFF_PTR_OFFSET, 0)
+		forth.ram.set_int(fileid + forth.FILE_BUFF_PTR_OFFSET, 0)
 		forth.push(buff_data)
 		forth.push(buff_size)
 		forth.push(fileid)

@@ -23,7 +23,7 @@ func _init(_forth: AMCForth) -> void:
 ## @STACK ( - orig )
 func ahead() -> void:
 	# copy the execution token
-	forth.ram.set_word(
+	forth.ram.set_int(
 		forth.dict_top, forth.address_from_built_in_function[ahead_exec]
 	)
 	# leave link address on the control stack
@@ -39,7 +39,7 @@ func ahead_exec() -> void:
 	# Branch to ELSE if top of stack not TRUE.
 	# ( x - )
 	# Skip ahead to the address in the next cell
-	forth.dict_ip = forth.ram.get_word(forth.dict_ip + ForthRAM.CELL_SIZE)
+	forth.dict_ip = forth.ram.get_int(forth.dict_ip + ForthRAM.CELL_SIZE)
 
 
 ## WORD@ CS-PICK IMMEDIATE

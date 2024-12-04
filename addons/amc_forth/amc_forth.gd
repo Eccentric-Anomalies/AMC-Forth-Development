@@ -79,11 +79,13 @@ const RETURN_STACK_SIZE := 100
 const RETURN_STACK_TOP := RETURN_STACK_SIZE - 1
 
 # Masks for built-in execution tokens
-const BUILT_IN_XT_MASK = 0x080 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
-const BUILT_IN_XTX_MASK = 0x040 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
+const UNUSED_MASK = 0x080 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
+const BUILT_IN_XT_MASK = 0x040 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
+const BUILT_IN_XTX_MASK = 0x020 * 0x100 ** (ForthRAM.CELL_SIZE - 1)
 # Ensure we don't generate tokens that are larger than the CELL_SIZE
 const BUILT_IN_MASK = (
-	~(BUILT_IN_XT_MASK | BUILT_IN_XTX_MASK) & (0x100 ** ForthRAM.CELL_SIZE - 1)
+	~(UNUSED_MASK | BUILT_IN_XT_MASK | BUILT_IN_XTX_MASK)
+	& (0x100 ** ForthRAM.CELL_SIZE - 1)
 )
 
 # Smudge bit mask
@@ -216,11 +218,11 @@ var _file_id_dict: Dictionary = {}
 func assign_file_id(file: FileAccess, new_mode: int) -> int:
 	for i in FILE_BUFF_QTY:
 		var addr: int = i * FILE_BUFF_SIZE + FILE_BUFF_START
-		var mode: int = ram.get_word(addr + FILE_BUFF_ID_OFFSET)
+		var mode: int = ram.get_int(addr + FILE_BUFF_ID_OFFSET)
 		if mode == 0:
 			# available file handle
-			ram.set_word(addr + FILE_BUFF_ID_OFFSET, new_mode)
-			ram.set_word(addr + FILE_BUFF_PTR_OFFSET, 0)
+			ram.set_int(addr + FILE_BUFF_ID_OFFSET, new_mode)
+			ram.set_int(addr + FILE_BUFF_PTR_OFFSET, 0)
 			_file_id_dict[addr] = file
 			return addr
 		addr += FILE_BUFF_SIZE
@@ -237,7 +239,7 @@ func free_file_id(id: int) -> void:
 	if file.is_open():
 		file.close()
 	# clear the buffer entry
-	ram.set_word(id + FILE_BUFF_ID_OFFSET, 0)
+	ram.set_int(id + FILE_BUFF_ID_OFFSET, 0)
 	# erase the dictionary entry
 	_file_id_dict.erase(id)
 
@@ -421,7 +423,7 @@ func create_dict_entry_name(smudge: bool = false) -> int:
 		# poke address of last link at next spot, but only if this isn't
 		# the very first spot in the dictionary
 		if dict_top != dict_p:
-			ram.set_word(dict_top, dict_p)
+			ram.set_int(dict_top, dict_p)
 		# align the top pointer, so link will be word-aligned
 		core.align()
 		# move the top link
@@ -455,7 +457,7 @@ func unwind_compile() -> void:
 		cf_reset()
 		# restore the original dictionary state
 		dict_top = dict_p
-		dict_p = ram.get_word(dict_p)
+		dict_p = ram.get_int(dict_p)
 
 
 # Forth Input and Output Interface
@@ -629,22 +631,22 @@ func get_dword(index: int) -> int:
 
 # save the internal top of dict pointer to RAM
 func save_dict_top() -> void:
-	ram.set_word(DICT_TOP_PTR, dict_top)
+	ram.set_int(DICT_TOP_PTR, dict_top)
 
 
 # save the internal dict pointer to RAM
 func save_dict_p() -> void:
-	ram.set_word(DICT_PTR, dict_p)
+	ram.set_int(DICT_PTR, dict_p)
 
 
 # retrieve the internal top of dict pointer from RAM
 func restore_dict_top() -> void:
-	dict_top = ram.get_word(DICT_TOP_PTR)
+	dict_top = ram.get_int(DICT_TOP_PTR)
 
 
 # retrieve the internal dict pointer from RAM
 func restore_dict_p() -> void:
-	dict_p = ram.get_word(DICT_PTR)
+	dict_p = ram.get_int(DICT_PTR)
 
 
 # dictionary instruction pointer manipulation
@@ -792,7 +794,7 @@ func _init(node: Node) -> void:
 	# set the terminal link in the dictionary
 	ram.set_int(dict_p, -1)
 	# reset the buffer pointer
-	ram.set_word(BUFF_TO_IN, 0)
+	ram.set_int(BUFF_TO_IN, 0)
 	# set the base
 	core.decimal()
 	# initialize dictionary pointers and save them to RAM
@@ -822,7 +824,7 @@ func _input_thread() -> void:
 		if input_port_events.size():
 			var evt = input_port_events.pop_back()
 			# only execute if Forth is listening on this port
-			var xt: int = ram.get_word(
+			var xt: int = ram.get_int(
 				IO_IN_MAP_START + evt[0] * ForthRAM.CELL_SIZE
 			)
 			if xt:
@@ -833,7 +835,7 @@ func _input_thread() -> void:
 		elif timer_events.size():
 			var id = timer_events.pop_back()
 			# only execute if Forth is still listening on this id
-			var xt: int = ram.get_word(
+			var xt: int = ram.get_int(
 				PERIODIC_START + (id * 2 + 1) * ForthRAM.CELL_SIZE
 			)
 			if xt:
@@ -850,11 +852,16 @@ func _input_thread() -> void:
 
 # generate execution tokens by hashing Forth Word
 func xt_from_word(word: String) -> int:
+	print("BUILT_IN_XT_MASK, ", BUILT_IN_XT_MASK)  # FIXME
+	print("BUILT_IN_MASK, ", BUILT_IN_MASK)
+	print("word.hash, ", word.hash())
+	print("xt return: ", BUILT_IN_XT_MASK + (BUILT_IN_MASK & word.hash()))
 	return BUILT_IN_XT_MASK + (BUILT_IN_MASK & word.hash())
 
 
 # generate run-time execution tokens by hashing Forth Word
 func xtx_from_word(word: String) -> int:
+	print("BUILT_IN_XTX_MASK, ", BUILT_IN_XTX_MASK)  # FIXME
 	return BUILT_IN_XTX_MASK + (BUILT_IN_MASK & word.hash())
 
 
@@ -885,7 +892,7 @@ func reset_buff_to_in() -> void:
 	# retrieve the address of the current buffer pointer
 	core.to_in()
 	# and set its contents to zero
-	ram.set_word(pop(), 0)
+	ram.set_int(pop(), 0)
 
 
 func is_valid_int(word: String, base: int = 10) -> bool:
