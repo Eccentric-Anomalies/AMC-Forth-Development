@@ -42,6 +42,8 @@ VARIABLE ERROR-XT
 
 \ NECESSARY DEFINITIONS
 
+1 CONSTANT 1S
+
 0 INVERT CONSTANT MAX-UINT
 0 INVERT 1 RSHIFT CONSTANT MAX-INT
 0 INVERT 1 RSHIFT INVERT   CONSTANT MIN-INT
@@ -77,7 +79,26 @@ T{       -1 -2 + ->         -3 }T
 T{       -1  1 + ->          0 }T
 T{ MID-UINT  1 + -> MID-UINT+1 }T
 \ MINUS
+
 \ COMMA
+HERE 1 ,
+HERE 2 ,
+CONSTANT 2ND
+CONSTANT 1ST
+
+T{       1ST 2ND U< -> <TRUE> }T \ HERE MUST GROW WITH ALLOT
+T{       1ST CELL+  -> 2ND }T \ ... BY ONE CELL
+T{   1ST 1 CELLS +  -> 2ND }T
+T{     1ST @ 2ND @  -> 1 2 }T
+T{         5 1ST !  ->     }T
+T{     1ST @ 2ND @  -> 5 2 }T
+T{         6 2ND !  ->     }T
+T{     1ST @ 2ND @  -> 5 6 }T
+T{           1ST 2@ -> 6 5 }T
+T{       2 1 1ST 2! ->     }T
+T{           1ST 2@ -> 2 1 }T
+T{ 1S 1ST !  1ST @  -> 1S  }T    \ CAN STORE CELL-WIDE VALUE
+
 \ DOT
 \ DOT QUOTE
 \ ONE PLUS
@@ -154,14 +175,24 @@ T{ MIN-INT 2 MIN-INT */ -> MIN-INT 2 MIN-INT T*/ }T
 \ SEMI COLON
 \ QUESTION DO
 \ QUESTION DUP
+
+\ PLUS STORE
+T{  0 1ST !        ->   }T
+T{  1 1ST +!       ->   }T
+T{    1ST @        -> 1 }T
+T{ -1 1ST +! 1ST @ -> 0 }T
+
+
 \ PLUS LOOP
 \ LESS THAN
 \ EQUAL
 \ GREATER THAN
 \ ZERO LESS THAN
 \ ZERO EQUAL
+\ TWO STORE
 \ TWO STAR
 \ TWO SLASH
+\ TWO FETCH
 \ TWO DROP
 \ TWO DUP
 \ TWO OVER

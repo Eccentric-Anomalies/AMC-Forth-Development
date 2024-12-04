@@ -306,6 +306,16 @@ func question_dup() -> void:
 		forth.push(n)
 
 
+## @WORD +!
+## Add n to the contents of the cell at a-addr and store the result in the
+## cell at a-addr, removing both from the stack.
+## @STACK ( n a-addr - )
+func plus_store() -> void:
+	var addr: int = forth.pop()
+	var a: int = forth.ram.get_int(addr)
+	forth.ram.set_int(addr, a + forth.pop())
+
+
 ## @WORD +LOOP IMMEDIATE
 ## Like LOOP but increment the index by the specified signed value n. After
 ## incrementing, if the index crossed the boundary between the limit - 1
@@ -406,6 +416,17 @@ func zero_equal() -> void:
 		forth.push(forth.TRUE)
 
 
+## @WORD 2!
+## Store the cell pair x1 x2 in the two cells beginning at aaddr, removing
+## three cells from the stack. The order of the two cells is the same as
+## on the stack, meaning the one in the top stack is in lower memory.
+## @STACK ( x1 x2 a-addr - )
+func two_store() -> void:
+	var a: int = forth.pop()
+	forth.ram.set_int(a, forth.pop())
+	forth.ram.set_int(a + ForthRAM.CELL_SIZE, forth.pop())
+
+
 ## @WORD 2*
 ## Return x2, result of shifting x1 one bit towards the MSB,
 ## filling the LSB with zero.
@@ -423,6 +444,17 @@ func two_slash() -> void:
 	var n: int = forth.data_stack[forth.ds_p]
 	# preserve msbit
 	forth.data_stack[forth.ds_p] = (n >> 1) | msb
+
+
+## @WORD 2@
+## Push the cell pair x1 x2 at a-addr onto the top of the stack. The
+## combined action of 2! and 2@ will always preserve the stack order
+## of the cells.
+## @STACK ( a-addr - x1 x2 )
+func two_fetch() -> void:
+	var a: int = forth.pop()
+	forth.push(forth.ram.get_int(a + ForthRAM.CELL_SIZE))
+	forth.push(forth.ram.get_int(a))
 
 
 ## @WORD 2DROP
