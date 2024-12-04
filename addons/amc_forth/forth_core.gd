@@ -1162,7 +1162,7 @@ func rot() -> void:
 func rshift() -> void:
 	var u: int = forth.pop()
 	forth.data_stack[forth.ds_p] = (
-		(forth.data_stack[forth.ds_p] >> u) & ~ForthRAM.CELL_MAX_NEGATIVE
+		(ForthRAM.CELL_MASK & forth.data_stack[forth.ds_p]) / 2 ** u
 	)
 
 
