@@ -312,8 +312,50 @@ T{  0 MAX-INT MIN-INT step gd8 -> 256 }T
 T{  0 MIN-INT MAX-INT -step gd8 -> 256 }T
 
 \ LESS THAN
+T{       0       1 < -> <TRUE>  }T
+T{       1       2 < -> <TRUE>  }T
+T{      -1       0 < -> <TRUE>  }T
+T{      -1       1 < -> <TRUE>  }T
+T{ MIN-INT       0 < -> <TRUE>  }T
+T{ MIN-INT MAX-INT < -> <TRUE>  }T
+T{       0 MAX-INT < -> <TRUE>  }T
+T{       0       0 < -> <FALSE> }T
+T{       1       1 < -> <FALSE> }T
+T{       1       0 < -> <FALSE> }T
+T{       2       1 < -> <FALSE> }T
+T{       0      -1 < -> <FALSE> }T
+T{       1      -1 < -> <FALSE> }T
+T{       0 MIN-INT < -> <FALSE> }T
+T{ MAX-INT MIN-INT < -> <FALSE> }T
+T{ MAX-INT       0 < -> <FALSE> }T
+
 \ EQUAL
+T{  0  0 = -> <TRUE>  }T
+T{  1  1 = -> <TRUE>  }T
+T{ -1 -1 = -> <TRUE>  }T
+T{  1  0 = -> <FALSE> }T
+T{ -1  0 = -> <FALSE> }T
+T{  0  1 = -> <FALSE> }T
+T{  0 -1 = -> <FALSE> }T
+
 \ GREATER THAN
+T{       0       1 > -> <FALSE> }T
+T{       1       2 > -> <FALSE> }T
+T{      -1       0 > -> <FALSE> }T
+T{      -1       1 > -> <FALSE> }T
+T{ MIN-INT       0 > -> <FALSE> }T
+T{ MIN-INT MAX-INT > -> <FALSE> }T
+T{       0 MAX-INT > -> <FALSE> }T
+T{       0       0 > -> <FALSE> }T
+T{       1       1 > -> <FALSE> }T
+T{       1       0 > -> <TRUE>  }T
+T{       2       1 > -> <TRUE>  }T
+T{       0      -1 > -> <TRUE>  }T
+T{       1      -1 > -> <TRUE>  }T
+T{       0 MIN-INT > -> <TRUE>  }T
+T{ MAX-INT MIN-INT > -> <TRUE>  }T
+T{ MAX-INT       0 > -> <TRUE>  }T
+
 \ ZERO LESS THAN
 T{       0 0< -> <FALSE> }T
 T{      -1 0< -> <TRUE>  }T
@@ -358,6 +400,10 @@ T{ 1 2 3 4 2OVER -> 1 2 3 4 1 2 }T
 
 \ TWO SWAP
 T{ 1 2 3 4 2SWAP -> 3 4 1 2 }T
+
+\ TO BODY
+T{  CREATE CR0 ->      }T
+T{ ' CR0 >BODY -> HERE }T
 
 \ TO IN
 \ FETCH
