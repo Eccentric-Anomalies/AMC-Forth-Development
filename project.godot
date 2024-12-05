@@ -20,9 +20,13 @@ config/icon="res://icon.svg"
 window/size/viewport_width=900
 window/size/viewport_height=540
 
+[dotnet]
+
+project/assembly_name="AMC Forth"
+
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gdLinter/plugin.cfg", "res://addons/gdscript_formatter/plugin.cfg", "res://addons/script-tabs/plugin.cfg")
+enabled=PackedStringArray("res://addons/gdLinter/plugin.cfg", "res://addons/gdscript2all/plugin.cfg", "res://addons/gdscript_formatter/plugin.cfg", "res://addons/script-tabs/plugin.cfg")
 
 [rendering]
 
