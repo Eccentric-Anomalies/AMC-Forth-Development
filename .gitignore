@@ -4,6 +4,7 @@ web_export/
 addons/gdlinter
 addons/gdscript_formatter
 addons/script-tabs
+addons/gdscript2all
 /android/
 .vscode/settings.json
 .vscode/launch.json
