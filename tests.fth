@@ -534,6 +534,7 @@ T{ 1STC C@ 2NDC C@ ->   3 4  }T
 \ OVER
 \ POSTPONE
 \ R FETCH
+\ REPEAT
 \ ROT
 \ R SHIFT
 \ S QUOTE
@@ -547,6 +548,7 @@ T{ 1STC C@ 2NDC C@ ->   3 4  }T
 \ U LESS THAN
 \ UNLOOP
 \ UNTIL
+\ WHILE
 \ WORD
 \ TYPE
 \ UM STAR

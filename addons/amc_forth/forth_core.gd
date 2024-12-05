@@ -1186,6 +1186,17 @@ func r_fetch() -> void:
 	forth.r_push(t)
 
 
+## @WORD REPEAT IMMEDIATE
+## At compile time, resolve two branches, usually set up by BEGIN and WHILE.
+## At run-time, execute the unconditional backward branch to the location
+## following BEGIN.
+## @STACK ( - )
+func repeat() -> void:
+	forth.cf_stack_roll(1)
+	forth.core_ext.again()
+	f_then()
+
+
 ## @WORD ROT
 ## Rotate the top three items on the stack.
 ## @STACK ( x1 x2 x3 - x2 x3 x1 )
@@ -1359,6 +1370,15 @@ func until_exec() -> void:
 	else:
 		# TRUE, so skip over the link and continue executing
 		forth.dict_ip += ForthRAM.CELL_SIZE
+
+
+## @WORD WHILE IMMEDIATE
+## At compile time, place a new unresolved forward reference origin on the
+## control stack. At run-time, if x is zero, take the forward branch to the
+## destination supplied by REPEAT.
+## @STACK ( - )
+func f_while() -> void:
+	f_if()
 
 
 ## @WORD WORD
