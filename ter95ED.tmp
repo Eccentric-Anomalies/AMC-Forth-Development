@@ -1,0 +1,60 @@
+[gd_scene load_steps=11 format=3 uid="uid://cdp5rrqyggnj3"]
+
+[ext_resource type="Script" path="res://terminal_3d.gd" id="1_hcjy7"]
+[ext_resource type="Shader" path="res://addons/amc_forth_terminal/terminal_3d.gdshader" id="2_ib4cb"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8t0p6"]
+
+[sub_resource type="Sky" id="Sky_gj160"]
+sky_material = SubResource("ProceduralSkyMaterial_8t0p6")
+
+[sub_resource type="Environment" id="Environment_cde0n"]
+background_mode = 2
+sky = SubResource("Sky_gj160")
+ambient_light_source = 3
+ambient_light_color = Color(1, 1, 1, 1)
+
+[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_cnuvk"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2s6gb"]
+albedo_color = Color(0.176419, 0.176419, 0.176419, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_qsmrt"]
+material = SubResource("StandardMaterial3D_2s6gb")
+size = Vector3(0.52, 0.32, 0.02)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4tkqo"]
+render_priority = 0
+shader = ExtResource("2_ib4cb")
+shader_parameter/ram = null
+shader_parameter/cols = 80
+shader_parameter/rows = 24
+shader_parameter/cursor_position = Vector2i(1, 1)
+shader_parameter/cursor_state = true
+shader_parameter/blink_state = null
+shader_parameter/display_power = null
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_y3dcw"]
+material = SubResource("ShaderMaterial_4tkqo")
+size = Vector2(0.5, 0.3)
+
+[node name="Terminal Server 3D" type="Node3D"]
+script = ExtResource("1_hcjy7")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_cde0n")
+camera_attributes = SubResource("CameraAttributesPractical_cnuvk")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+
+[node name="SpotLight3D" type="SpotLight3D" parent="."]
+transform = Transform3D(0.989121, 0.014812, -0.146358, 0.0437453, 0.920293, 0.388777, 0.140451, -0.39095, 0.909633, -0.351112, 0.488181, 0.951051)
+spot_range = 4.14306
+
+[node name="Bezel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.235052)
+mesh = SubResource("BoxMesh_qsmrt")
+
+[node name="Screen" type="MeshInstance3D" parent="Bezel"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0.014)
+mesh = SubResource("PlaneMesh_y3dcw")

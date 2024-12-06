@@ -3,14 +3,14 @@ extends Node3D
 
 var _telnet_terminal: ForthTermTelnet
 var _local_terminal: ForthTermLocal
-var _forth: AMCForth
 
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	_forth = AMCForth.new(self)
-	_telnet_terminal = ForthTermTelnet.new(_forth)
-	_local_terminal = ForthTermLocal.new(_forth, $Bezel/Screen.mesh.material)
+	var AMCForth = load("res://addons/amc_forth/amc_forth.cs")
+	var forth = AMCForth.new(self)
+	_telnet_terminal = ForthTermTelnet.new(forth)
+	_local_terminal = ForthTermLocal.new(forth, $Bezel/Screen.mesh.material)
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
