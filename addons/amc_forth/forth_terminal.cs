@@ -9,13 +9,13 @@ using Godot.Collections;
 [GlobalClass]
 public partial class ForthTerminal : Godot.RefCounted
 {
-	public const byte BSP = 0x08;
-	public const byte CR = 0x0D;
-	public const byte LF = 0x0A;
+	public const string BSP = "\u0008";
+	public const string CR = "\u000D";
+	public const string LF = "\u000A";
 	public const string CRLF = "\r\n";
-	public const char ESC = (char)0x1B;
-	public const byte DEL_LEFT = 0x7F;
-	public const byte BL = 0x20;
+	public const string ESC = "\u001B";
+	public const string DEL_LEFT = "\u007F";
+	public const string BL = " ";
 	public const string DEL = "\u001B[3~";
 	public const string UP = "\u001B[A";
 	public const string DOWN = "\u001B[B";

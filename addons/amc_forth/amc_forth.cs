@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using Godot.Collections;
 
@@ -130,7 +131,14 @@ public partial class AMCForth : Godot.RefCounted
 	public ForthRAM Ram;
 	public ForthUtil Util;
 
+
+	// Forth Word Classes
+	public Forth.String.String FString;
+	public Forth.Core.Core FCore;
+	public Forth.CoreExt.CoreExt FCoreExt;
+
 	// Core Forth word implementations
+	/*
 	public ForthCore Core;
 	public ForthCoreExt CoreExt;
 	public ForthTools Tools;
@@ -143,6 +151,7 @@ public partial class AMCForth : Godot.RefCounted
 	public ForthFacility Facility;
 	public ForthFileExt FileExt;
 	public ForthFile File;
+	*/
 
 
 	// Forth built-in meta-data
@@ -239,7 +248,7 @@ public partial class AMCForth : Godot.RefCounted
 	protected string _TerminalPad = "";
 	protected int _PadPosition = 0;
 	protected int _ParsePointer = 0;
-	protected Array _TerminalBuffer = new Array{};
+	protected List<string> _TerminalBuffer = new();
 	protected int _BufferIndex = 0;
 
 
@@ -270,14 +279,15 @@ public partial class AMCForth : Godot.RefCounted
 	// map Forth fileid to FileAccess objects
 	// file_id is the address of the file's buffer structure
 	// the first cell in the structure is the file access mode bits
-	protected Dictionary _FileIdDict = new Dictionary{};
+	//protected Dictionary _FileIdDict = new Dictionary{};
+	protected Godot.Collections.Dictionary<int, Godot.FileAccess> _FileIdDict = new Godot.Collections.Dictionary<int, Godot.FileAccess> {};
 
 
 	// allocate a buffer for the provided file handle and mode
 	// return the file id or zero if none available
 	public int AssignFileId(Godot.FileAccess file, int new_mode)
 	{
-		foreach(int i in FILE_BUFF_QTY)
+		for (int i = 0; i < FILE_BUFF_QTY; i++)
 		{
 			var addr = i * FILE_BUFF_SIZE + FILE_BUFF_START;
 			var mode = Ram.GetInt(addr + FILE_BUFF_ID_OFFSET);
@@ -287,7 +297,7 @@ public partial class AMCForth : Godot.RefCounted
 				// available file handle
 				Ram.SetInt(addr + FILE_BUFF_ID_OFFSET, new_mode);
 				Ram.SetInt(addr + FILE_BUFF_PTR_OFFSET, 0);
-				_FileIdDict[addr] = File;
+				_FileIdDict[addr] = file;
 				return addr;
 			}
 			addr += FILE_BUFF_SIZE;
@@ -298,7 +308,14 @@ public partial class AMCForth : Godot.RefCounted
 
 	public Godot.FileAccess GetFileFromId(int id)
 	{
-		return _FileIdDict.Get(id, null);
+		if (_FileIdDict.ContainsKey(id)) 
+		{
+			return _FileIdDict[id];
+		}
+		else
+		{
+			return null;
+		}
 	}
 
 
@@ -306,22 +323,22 @@ public partial class AMCForth : Godot.RefCounted
 	public void FreeFileId(int id)
 	{
 		var file = _FileIdDict[id];
-		if(File.IsOpen())
+		if(file.IsOpen())
 		{
-			File.Close();
+			file.Close();
 		}
 
 	// clear the buffer entry
 		Ram.SetInt(id + FILE_BUFF_ID_OFFSET, 0);
 
 		// erase the dictionary entry
-		_FileIdDict.Erase(id);
+		_FileIdDict.Remove(id);
 	}
 
 
 	public void ClientConnected()
 	{
-		if(!_ClientConnections)
+		if(_ClientConnections == 0)
 		{
 			EmitSignal("TerminalOut", _GetBanner() + ForthTerminal.CRLF);
 			_ClientConnections += 1;
@@ -331,7 +348,7 @@ public partial class AMCForth : Godot.RefCounted
 
 	public void CloseAllFiles()
 	{
-		foreach(Dictionary id in _FileIdDict)
+		foreach(int id in _FileIdDict.Keys)
 		{
 			FreeFileId(id);
 		}
@@ -380,123 +397,118 @@ public partial class AMCForth : Godot.RefCounted
 	{
 		var in_str = text;
 		var echo_text = "";
-		var buffer_size = _TerminalBuffer.Size();
-		while(in_str.Length() > 0)
+		var buffer_size = _TerminalBuffer.Count;
+		while(in_str.Length > 0)
 		{
 			if(in_str.Find(ForthTerminal.DEL_LEFT) == 0)
 			{
 				_PadPosition = Mathf.Max(0, _PadPosition - 1);
-				if(_TerminalPad.Length())
+				if(_TerminalPad.Length != 0)
 				{
 
 					// shrink if deleting from end, else replace with space
-					if(_PadPosition == _TerminalPad.Length() - 1)
+					if(_PadPosition == _TerminalPad.Length - 1)
 					{
 						_TerminalPad = _TerminalPad.Left(_PadPosition);
 					}
 					else
 					{
-						_TerminalPad[_PadPosition] = " ";
+						_TerminalPad = _TerminalPad.Left(_PadPosition) + " " + _TerminalPad.Substring(_PadPosition+1);
 					}
 				}
 
 		// reconstruct the changed entry, with correct cursor position
 				echo_text = _RefreshEditText();
-				in_str = in_str.Erase(0, ForthTerminal.DEL_LEFT.Length());
+				in_str = in_str.Substring(ForthTerminal.DEL_LEFT.Length);
 			}
 			else if(in_str.Find(ForthTerminal.DEL) == 0)
 			{
 
 				// do nothing unless cursor is in text
-				if(_PadPosition <= _TerminalPad.Length())
+				if(_PadPosition <= _TerminalPad.Length)
 				{
-					_TerminalPad = _TerminalPad.Erase(_PadPosition);
+					_TerminalPad = _TerminalPad.Left(_PadPosition) + _TerminalPad.Substring(_PadPosition+1);
 				}
 
 			// reconstruct the changed entry, with correct cursor position
 				echo_text = _RefreshEditText();
-				in_str = in_str.Erase(0, ForthTerminal.DEL.Length());
+				in_str = in_str.Substring(ForthTerminal.DEL.Length);
 			}
 			else if(in_str.Find(ForthTerminal.LEFT) == 0)
 			{
 				_PadPosition = Mathf.Max(0, _PadPosition - 1);
 				echo_text = ForthTerminal.LEFT;
-				in_str = in_str.Erase(0, ForthTerminal.LEFT.Length());
+				in_str = in_str.Substring(ForthTerminal.LEFT.Length);
 			}
 			else if(in_str.Find(ForthTerminal.RIGHT) == 0)
 			{
 				_PadPosition += 1;
-				if(_PadPosition > _TerminalPad.Length())
+				if(_PadPosition > _TerminalPad.Length)
 				{
-					_PadPosition = _TerminalPad.Length();
+					_PadPosition = _TerminalPad.Length;
 				}
 				else
 				{
 					echo_text = ForthTerminal.RIGHT;
 				}
-				in_str = in_str.Erase(0, ForthTerminal.RIGHT.Length());
+				in_str = in_str.Substring(ForthTerminal.RIGHT.Length);
 			}
 			else if(in_str.Find(ForthTerminal.UP) == 0)
 			{
-				if(buffer_size)
+				if(buffer_size != 0)
 				{
 					_BufferIndex = Mathf.Max(0, _BufferIndex - 1);
 					echo_text = _SelectBufferedCommand();
 				}
-				in_str = in_str.Erase(0, ForthTerminal.UP.Length());
+				in_str = in_str.Substring(ForthTerminal.UP.Length);
 			}
 			else if(in_str.Find(ForthTerminal.DOWN) == 0)
 			{
-				if(buffer_size)
+				if(buffer_size != 0)
 				{
-					_BufferIndex = Mathf.Min(_TerminalBuffer.Size() - 1, _BufferIndex + 1);
+					_BufferIndex = Mathf.Min(_TerminalBuffer.Count - 1, _BufferIndex + 1);
 					echo_text = _SelectBufferedCommand();
 				}
-				in_str = in_str.Erase(0, ForthTerminal.DOWN.Length());
+				in_str = in_str.Substring(ForthTerminal.DOWN.Length);
 			}
 			else if(in_str.Find(ForthTerminal.LF) == 0)
 			{
 				echo_text = "";
-				in_str = in_str.Erase(0, ForthTerminal.LF.Length());
+				in_str = in_str.Substring(ForthTerminal.LF.Length);
 			}
 			else if(in_str.Find(ForthTerminal.CR) == 0)
 			{
 				// only add to the buffer if it's different from the top entry
 				// and not blank!
-				if((_TerminalPad.Length()) && (!buffer_size || (_TerminalBuffer[ - 1] != _TerminalPad)))
+				if((_TerminalPad.Length != 0) && ((buffer_size == 0) || (_TerminalBuffer[_TerminalBuffer.Count - 1] != _TerminalPad)))
 				{
-					_TerminalBuffer.Append(_TerminalPad);
+					_TerminalBuffer.Add(_TerminalPad);
 					// if we just grew too big...
 					if(buffer_size == MAX_BUFFER_SIZE)
 					{
-						_TerminalBuffer.PopFront();
+						_TerminalBuffer.RemoveAt(0);
 					}
 				}
-				_buffer_index = _terminal_buffer.size();
+				_BufferIndex = _TerminalBuffer.Count;
 				// refresh the line in the terminal
-				_PadPosition = _TerminalPad.Length();
+				_PadPosition = _TerminalPad.Length;
 				EmitSignal("TerminalOut", _RefreshEditText());
-				echo_text = "";
 				// text is ready for the Forth interpreter
 				_InputReady.Post();
-				in_str = in_str.Erase(0, ForthTerminal.CR.Length());
+				in_str = in_str.Substring(ForthTerminal.CR.Length);
 			}
 			// not a control character(s)
 			else {
 				echo_text = in_str.Left(1);
-				in_str = in_str.Erase(0, 1);
-				foreach(string c in echo_text)
+				in_str = in_str.Substring(1);
+				if(_PadPosition < _TerminalPad.Length)
 				{
-					if(_PadPosition < _TerminalPad.Length())
-					{
-						_TerminalPad[_PadPosition] = c;
-					}
-					else
-					{
-						_TerminalPad += c;
-					}
-					_PadPosition += 1;
+					_TerminalPad = _TerminalPad.Left(_PadPosition) + echo_text + _TerminalPad.Substring(_PadPosition+1);				}
+				else
+				{
+					_TerminalPad += echo_text;
 				}
+				_PadPosition += 1;
 			}
 		}
 	}
@@ -520,22 +532,22 @@ public partial class AMCForth : Godot.RefCounted
 		while(p !=  - 1) // <empty>
 		{
 			Push(DICT_BUFF_START);	// c-addr
-			Core.Count();	// search word in addr  # addr n
+			FCore.Count.Execute();	// search word in addr  # addr n
 			Push(p + ForthRAM.CELL_SIZE);	// entry name  # addr n c-addr
-			Core.Count();	// candidate word in addr			# addr n addr n
+			FCore.Count.Execute();	// candidate word in addr			# addr n addr n
 			var n_raw_length = Pop();	// addr n addr
 			var n_length = n_raw_length & ~ (SMUDGE_BIT_MASK | IMMEDIATE_BIT_MASK);
 			Push(n_length);	// strip the SMUDGE and IMMEDIATE bits and restore # addr n addr n
 			// only check if the entry has a clear smudge bit
-			if(!(n_raw_length & SMUDGE_BIT_MASK))
+			if((n_raw_length & SMUDGE_BIT_MASK) == 0)
 			{
-				string.Compare();	// n
+				FString.Compare.Execute();
 				// is this the correct entry?
 				if(Pop() == 0)
 				{
 					// found it. Link address + link size + string length byte + string, aligned
 					Push(p + ForthRAM.CELL_SIZE + 1 + n_length);	// n
-					Core.Aligned(); // a
+					FCore.Aligned.Execute(); // a
 					return new Array{Pop(), (n_raw_length & IMMEDIATE_BIT_MASK) != 0, };
 				}
 			}
@@ -549,7 +561,7 @@ public partial class AMCForth : Godot.RefCounted
 			p = Ram.GetInt(p);
 		}
 		// exhausted the dictionary, finding nothing
-		return [0, false];	
+		return new Array{0, false};	
 	}
 
 
@@ -563,7 +575,7 @@ public partial class AMCForth : Godot.RefCounted
 	{
 		// ( - )
 		// Grab the name
-		CoreExt.ParseName();
+		FCoreExt.ParseName.Execute();
 		var len = Pop();		// length
 		var caddr = Pop();		// start
 		if(len <= MAX_NAME_LENGTH)
@@ -573,7 +585,7 @@ public partial class AMCForth : Godot.RefCounted
 			if(DictTop != DictP)
 			{
 				// align the top pointer, so link will be word-aligned
-				Core.Align();
+				FCore.Align.Execute();
 				Ram.SetInt(DictTop, DictP);
 			}
 			// move the top link
@@ -1025,6 +1037,10 @@ public partial class AMCForth : Godot.RefCounted
 		Util = ForthUtil.New();
 		Util.Initialize(this);
 		// Instantiate Forth word definitions
+		FString = new(this);
+		FCore = new(this);
+		FCoreExt = new(this);
+		/*
 		Core = ForthCore.New();
 		Core.Initialize(this);
 		CoreExt = ForthCoreExt.New();
@@ -1049,6 +1065,7 @@ public partial class AMCForth : Godot.RefCounted
 		FileExt.Initialize(this);
 		File = ForthFile.New();
 		File.Initialize(this);
+		*/
 
 		// End Forth word definitions
 		_InitBuiltIns();
