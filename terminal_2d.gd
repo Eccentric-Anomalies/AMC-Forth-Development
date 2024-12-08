@@ -17,7 +17,7 @@ func _ready() -> void:
 
 	_forth.add_output_signal(99, port_99)  # FIXME test purposes
 	port_99.connect(_on_port_99_output)  # FIXME output test
-	_forth.add_input_signal(100, input_100)  # FIXME input test
+	input_100.connect(_forth.GetInputReceiver(100))  # FIXME input test
 
 
 func _process(_delta: float) -> void:

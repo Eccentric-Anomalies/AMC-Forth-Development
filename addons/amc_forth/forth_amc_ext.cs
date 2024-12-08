@@ -46,9 +46,9 @@ public partial class ForthAMCExt : ForthImplementationBase
 		// Utility to accept port number and leave its address
 		// in the handler table.
 		// ( p - addr )
-		Forth.Push(ForthRAM.CELL_SIZE);
+		Forth.Push(ForthRAM.CellSize);
 		Forth.Core.Star();
-		Forth.Push(Forth.IO_IN_MAP_START);
+		Forth.Push(Forth.IoInMapStart);
 		Forth.Core.Plus();
 	}
 
@@ -133,10 +133,10 @@ public partial class ForthAMCExt : ForthImplementationBase
 		// Utility to accept timer id and leave the start address of
 		// its msec, xt pair
 		// ( id - addr )
-		Forth.Push(ForthRAM.CELL_SIZE);
+		Forth.Push(ForthRAM.CellSize);
 		Forth.Core.TwoStar();
 		Forth.Core.Star();
-		Forth.Push(Forth.PERIODIC_START);
+		Forth.Push(Forth.PeriodicStart);
 		Forth.Core.Plus();
 	}
 
@@ -157,7 +157,7 @@ public partial class ForthAMCExt : ForthImplementationBase
 		var port = Forth.Pop();
 		Forth.Core.Cells();
 		// offset in bytes
-		Forth.Push(AMCForth.IO_OUT_START);
+		Forth.Push(AMCForth.IoOutStart);
 		// address of output block
 		Forth.Core.Plus();
 		// output address
@@ -203,7 +203,7 @@ public partial class ForthAMCExt : ForthImplementationBase
 		{
 			// only if non-zero and nothing already there
 			Forth.Ram.SetInt(addr, ms);
-			Forth.Ram.SetInt(addr + ForthRAM.CELL_SIZE, xt);
+			Forth.Ram.SetInt(addr + ForthRAM.CellSize, xt);
 			Forth.StartPeriodicTimer(id, ms, xt);
 		}
 	}
@@ -219,7 +219,7 @@ public partial class ForthAMCExt : ForthImplementationBase
 		// ( addr - )
 		// clear the entries for the given timer id
 		Forth.Ram.SetInt(addr, 0);
-		Forth.Ram.SetInt(addr + ForthRAM.CELL_SIZE, 0);
+		Forth.Ram.SetInt(addr + ForthRAM.CellSize, 0);
 		// the next time this timer expires, the system will find nothing
 		// here for the ID, and it will be cancelled.
 	}

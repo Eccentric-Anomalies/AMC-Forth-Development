@@ -39,8 +39,8 @@ public partial class ForthTools : ForthImplementationBase
 	}//# @STACK ( - )
 	public void DotS()
 	{
-		var pointer = Forth.DATA_STACK_TOP;
-		var fmt = ( Forth.Ram.GetInt(Forth.BASE) == 10 ? "%d" : "%x" );
+		var pointer = Forth.DataStackTop;
+		var fmt = ( Forth.Ram.GetInt(Forth.Base) == 10 ? "%d" : "%x" );
 		Forth.Util.RprintTerm("");
 		while(pointer >= Forth.DsP)
 		{
@@ -60,14 +60,14 @@ public partial class ForthTools : ForthImplementationBase
 		var word_len;
 		var col = "WORDS".Length() + 1;
 		Forth.Util.PrintTerm(" ");
-		if(Forth.DictP != Forth.DictTop)
+		if(Forth.DictP != Forth.DictTopP)
 		{
 
 			// dictionary is not empty
 			var p = Forth.DictP;
 			while(p !=  - 1)
 			{
-				Forth.Push(p + ForthRAM.CELL_SIZE);
+				Forth.Push(p + ForthRAM.CellSize);
 				Forth.Core.Count();
 				// search word in addr, n format
 				Forth.Core.Dup();

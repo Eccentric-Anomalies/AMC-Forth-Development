@@ -33,13 +33,13 @@ public partial class ForthToolsExt : ForthImplementationBase
 		// copy the execution token
 
 
-		Forth.Ram.SetInt(Forth.DictTop, Forth.AddressFromBuiltInFunction["AheadExec"]);
+		Forth.Ram.SetInt(Forth.DictTopP, Forth.AddressFromBuiltInFunction["AheadExec"]);
 
 		// leave link address on the control stack
-		Forth.CfPushOrig(Forth.DictTop + ForthRAM.CELL_SIZE);
+		Forth.CfPushOrig(Forth.DictTopP + ForthRAM.CellSize);
 
 		// move up to finish
-		Forth.DictTop += ForthRAM.DCELL_SIZE;
+		Forth.DictTopP += ForthRAM.DCellSize;
 		// two cells up
 		// preserve dictionary state
 		Forth.SaveDictTop();
@@ -53,7 +53,7 @@ public partial class ForthToolsExt : ForthImplementationBase
 		// Branch to ELSE if top of stack not TRUE.
 		// ( x - )
 		// Skip ahead to the address in the next cell
-		Forth.DictIp = Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CELL_SIZE);
+		Forth.DictIp = Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CellSize);
 
 
 	//# WORD@ CS-PICK IMMEDIATE

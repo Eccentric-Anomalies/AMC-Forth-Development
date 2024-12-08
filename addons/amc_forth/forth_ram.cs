@@ -1,11 +1,14 @@
+using System;
+using System.Data.SqlTypes;
+using System.Runtime.InteropServices;
 using Godot;
 using Godot.Collections;
 
-//# Definitions for working with "physical" RAM
-//#
-//# (1) Defines the size of a Forth cell and double-cell
+// Definitions for working with "physical" RAM
+//
+// (1) Defines the size of a Forth cell and double-cell
 
-//# (2) Functions for setting and getting numbers in RAM
+// (2) Functions for setting and getting numbers in RAM
 
 
 // cell size should be 2 or 4
@@ -14,11 +17,11 @@ using Godot.Collections;
 [GlobalClass]
 public partial class ForthRAM : Godot.RefCounted
 {
-	public const int CELL_SIZE = 4;
-	public const int DCELL_SIZE = CELL_SIZE * 2;
-	public const int CELL_BITS = CELL_SIZE * 8;
-	public const int DCELL_BITS = CELL_BITS * 2;
-	public const int CELL_MASK = -1;  // FIXME how is this being used?
+	public const int CellSize = 4;
+	public const int DCellSize = CellSize * 2;
+	public const int CellBits = CellSize * 8;
+	public const int DCellBits = CellBits * 2;
+	public const int CellMask = -1;  // FIXME how is this being used?
 	public const int CELL_MAX_WORD = -1;  // FIXME how is this being used?
 	public const int CELL_MAX_POSITIVE = int.MaxValue;
 	public const int CELL_MAX_NEGATIVE =  int.MinValue;
@@ -26,10 +29,6 @@ public partial class ForthRAM : Godot.RefCounted
 
 	// buffer for all physical RAM
 	protected byte[] _Ram;
-
-
-	// forth ordering scratch
-	protected byte[] _DScratch;
 
 
 	// save ram state
@@ -42,7 +41,7 @@ public partial class ForthRAM : Godot.RefCounted
 // restore ram state
 	public void LoadState(Godot.ConfigFile config)
 	{
-		_Ram = config.GetValue("ram", "image");
+		_Ram = config.GetValue("ram", "image").AsByteArray();
 	}
 
 
@@ -50,120 +49,123 @@ public partial class ForthRAM : Godot.RefCounted
 	public void Allocate(int size)
 	{
 		_Ram = new byte[size];
-		_DScratch = new byte[DCELL_SIZE];
 	}
 
 
 // convert int to standard forth ordering and vice versa
-	protected int _DSwap(int num)
+	protected ulong DSwap(ulong num)
 	{
-		_DScratch.EncodeS64(0, num);
-		var t = _DScratch.DecodeS32(0);
-		_DScratch.EncodeS32(0, _DScratch.DecodeS32(CELL_SIZE));
-		_DScratch.EncodeS32(CELL_SIZE, t);
-		return _DScratch.DecodeS64(0);
-
+		return (num / ((ulong) uint.MaxValue+1)) + num * ((ulong) uint.MaxValue+1);
+	}
 
 	// 32 to 64-bit conversions
 
-	}// convert int to [hi, lo] 32-bit words
-	public Array Split64(int val)
+	// structure of double int
+	public readonly struct Double
 	{
-		_DScratch.EncodeS64(0, val);
-		return new Array{_DScratch.DecodeS32(4), _DScratch.DecodeS32(0), };
+		public Double(long lo, long hi)
+		{
+			Lo = lo;
+			Hi = hi;
+		}
+
+		public long Lo { get; }
+		public long Hi { get;}
+
+		public override string ToString() => $"(L:{Lo}, H:{Hi})";
+	}
+
+
+	// convert int to [hi, lo] 32-bit words
+	public static Double Split64(long val)
+	{
+		return new Double(val & (long) uint.MaxValue, val / ((long) uint.MaxValue+1));
 	}
 
 
 // convert (hi, lo) to 64-bit int
-	public int Combine64(int hi, int lo)
+	public static long Combine64(int hi, int lo)
 	{
-		_DScratch.EncodeS32(4, hi);
-		_DScratch.EncodeS32(0, lo);
-		return _DScratch.DecodeS64(0);
+		return hi * ((long) uint.MaxValue + 1) + lo;
 	}
 
 
 // return just the cell-sized low-order portion of 64-bit int
-	public int TruncateToCell(int val)
+	public static int TruncateToCell(long val)
 	{
-		if(val > CELL_MAX_POSITIVE || val < CELL_MAX_NEGATIVE)
-		{
-			return Split64(val)[1];
-		}
-		return val;
+		return Convert.ToInt32(Split64(val).Lo);
 	}
 
 
 // Data stack and RAM helpers
 	public void SetByte(int addr, int val)
 	{
-		_Ram.EncodeU8(addr, val);
+		_Ram[addr] = (byte) val;
 	}
 
 
 	public int GetByte(int addr)
 	{
-		return _Ram.DecodeU8(addr);
-
+		return _Ram[addr];
+	}
 
 	// signed cell-sized values
 
-	}// convert cell-size signed to unsigned value
-	public int Unsigned(int val)
-	{
-		return (uint)val;
-	}
-
-
 	public void SetInt(int addr, int val)
 	{
-		_Ram.EncodeS32(addr, val);
+		Span<byte> bytes = _Ram;
+		System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(bytes.Slice(addr, sizeof(int)), val);
 	}
 
 
 	public int GetInt(int addr)
 	{
-		return _Ram.DecodeS32(addr);
+		Span<byte> bytes = _Ram;
+		return System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(bytes.Slice(addr, sizeof(int)));
 	}
 
 
 // unsigned cell-sized values
-	public void SetWord(int addr, int val)
+	public void SetWord(int addr, uint val)
 	{
-		_Ram.EncodeU32(addr, val);
+		Span<byte> bytes = _Ram;
+		System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(bytes.Slice(addr, sizeof(int)), val);
 	}
 
 
-	public int GetWord(int addr)
+	public uint GetWord(int addr)
 	{
-		return _Ram.DecodeU32(addr);
+		Span<byte> bytes = _Ram;
+		return System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(bytes.Slice(addr, sizeof(uint)));
 	}
 
 
-// signed double-precision values
-	public void SetDint(int addr, int val)
+// signed double-precision values - same split as on Forth stack
+	public void SetDint(int addr, long val)
 	{
-		_Ram.EncodeS64(addr, _DSwap(val));
+		var split_long = Split64(val);
+		SetInt(addr, (int) split_long.Hi);
+		SetInt(addr + sizeof(int), (int) split_long.Lo);
 	}
 
 
-	public int GetDint(int addr)
+	public long GetDint(int addr)
 	{
-		return _DSwap(_Ram.DecodeS64(addr));
+		return Combine64(GetInt(addr), GetInt(addr + sizeof(int)));
 	}
 
 
 // unsigned double-precision values
-	public void SetDword(int addr, int val)
+	public void SetDword(int addr, ulong val)
 	{
-		_Ram.EncodeU64(addr, _DSwap(val));
+		var split_long = Split64((long) val);
+		SetWord(addr, (uint) split_long.Hi);
+		SetWord(addr + sizeof(uint), (uint) split_long.Lo);
 	}
 
 
-	public int GetDword(int addr)
+	public ulong GetDword(int addr)
 	{
-		return _DSwap(_Ram.DecodeU64(addr));
+		return (ulong) Combine64((int)GetWord(addr), (int)GetWord(addr + sizeof(int)));
 	}
-
-
 }

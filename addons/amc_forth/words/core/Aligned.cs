@@ -3,7 +3,7 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class Aligned : Forth.WordBase
+	public partial class Aligned : Forth.Words
 	{
 
 		public Aligned(AMCForth forth, string wordset) : base(forth, wordset)
@@ -14,12 +14,12 @@ namespace Forth.Core
 
 		}
 
-		public override void Execute()
+		public override void Call()
 		{
 			var a = Forth.Pop();
-			if(a % ForthRAM.CELL_SIZE != 0)
+			if(a % ForthRAM.CellSize != 0)
 			{
-				a = (a / ForthRAM.CELL_SIZE + 1) * ForthRAM.CELL_SIZE;
+				a = (a / ForthRAM.CellSize + 1) * ForthRAM.CellSize;
 			}
 			Forth.Push(a);
 		}

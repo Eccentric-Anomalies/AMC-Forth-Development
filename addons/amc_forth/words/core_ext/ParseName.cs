@@ -3,7 +3,7 @@ using Godot;
 namespace Forth.CoreExt
 {
 [GlobalClass]
-	public partial class ParseName : Forth.WordBase
+	public partial class ParseName : Forth.Words
 	{
 
 		public ParseName(AMCForth forth, string wordset) : base(forth, wordset)
@@ -13,11 +13,11 @@ namespace Forth.CoreExt
 			StackEffect = "( - )";
 		}
 
-		public override void Execute()
+		public override void Call()
 		{
 			Forth.Push(ForthTerminal.BL.ToAsciiBuffer()[0]);
-			Forth.FCore.Word.Execute();
-			Forth.FCore.Count.Execute();
+			Forth.FCore.Word.Call();
+			Forth.FCore.Count.Call();
 		}
 	}
 }

@@ -4,7 +4,7 @@ using Godot.Collections;
 namespace Forth.String
 {
 	[GlobalClass]
-	public partial class Compare : Forth.WordBase
+	public partial class Compare : Forth.Words
 	{
 
 		public Compare(AMCForth forth, string wordset) : base(forth, wordset)
@@ -14,7 +14,7 @@ namespace Forth.String
 			StackEffect = "( - )";
 		}
 
-		public override void Execute()
+		public override void Call()
 		{
 			var n2 = Forth.Pop();
 			var a2 = Forth.Pop();

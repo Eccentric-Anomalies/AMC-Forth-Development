@@ -1,9 +1,6 @@
 using Godot;
-using Godot.Collections;
 
-//# Define key codes for interacting with a terminal
-
-//#
+// Define key codes for interacting with a terminal
 
 
 [GlobalClass]

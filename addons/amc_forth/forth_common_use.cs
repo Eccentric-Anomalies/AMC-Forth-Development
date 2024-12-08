@@ -77,7 +77,7 @@ public partial class ForthCommonUse : ForthImplementationBase
 	// @STACK ( c-addr u - 0 | n 1 | d 2 )
 	public void NumberQuestion()
 	{
-		var radix = Forth.Ram.GetInt(Forth.BASE);
+		var radix = Forth.Ram.GetInt(Forth.Base);
 		var len = Forth.Pop();
 		// length of word
 		var caddr = Forth.Pop();

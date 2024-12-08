@@ -3,7 +3,7 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class Word : Forth.WordBase
+	public partial class Word : Forth.Words
 	{
 
 		public Word(AMCForth forth, string wordset) : base(forth, wordset)
@@ -16,14 +16,14 @@ namespace Forth.Core
 			StackEffect = "( char - c-addr )";
 		}
 
-		public override void Execute()
+		public override void Call()
 		{
-			Dup();
+			Forth.CoreWords.Dup.Call();
 			var delim = Forth.Pop();
-			Source();
+			Forth.CoreWords.Source.Call();
 			var source_size = Forth.Pop();
 			var source_start = Forth.Pop();
-			ToIn();
+			Forth.CoreWords.ToIn.Call();
 			var ptraddr = Forth.Pop();
 			while(true)
 			{
@@ -41,7 +41,7 @@ namespace Forth.Core
 					break;
 				}
 			}
-			Forth.CoreExt.Parse();
+			Forth.CoreExtWords.Parse.Call();
 			var count = Forth.Pop();
 			var straddr = Forth.Pop();
 			var ret = straddr - 1;

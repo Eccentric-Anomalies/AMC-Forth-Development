@@ -64,7 +64,7 @@ public partial class ForthFile : ForthImplementationBase
 	}//# @STACK ( fileid - )
 	public void IncludeFile()
 	{
-		var flag = Forth.TRUE;
+		var flag = Forth.True;
 		var u2 = 0;
 		var ior = 0;
 		var fileid = Forth.Pop();
@@ -76,13 +76,13 @@ public partial class ForthFile : ForthImplementationBase
 		Forth.SourceId = fileid;
 
 		// address of data buffer
-		var buff_data = fileid + Forth.FILE_BUFF_DATA_OFFSET;
-		var buff_size = Forth.FILE_BUFF_DATA_SIZE;
-		while(!ior && flag == Forth.TRUE)
+		var buff_data = fileid + Forth.FileBuffDataOffset;
+		var buff_size = Forth.FileBuffDataSize;
+		while(!ior && flag == Forth.True)
 		{
 
 			// clear the buffer pointer
-			Forth.Ram.SetInt(fileid + Forth.FILE_BUFF_PTR_OFFSET, 0);
+			Forth.Ram.SetInt(fileid + Forth.FileBuffPtrOffset, 0);
 			Forth.Push(buff_data);
 			Forth.Push(buff_size);
 			Forth.Push(fileid);
@@ -176,7 +176,7 @@ public partial class ForthFile : ForthImplementationBase
 		var u1 = Forth.Pop();
 		var c_addr = Forth.Pop();
 		var u2 = 0;
-		var flag = Forth.FALSE;
+		var flag = Forth.False;
 		var ior = 0;
 		var line = "";
 		if(file && !file.EofReached())
@@ -185,7 +185,7 @@ public partial class ForthFile : ForthImplementationBase
 			// gdscript get_line does not include the end of line character
 			line = file.GetLine();
 			u2 = Mathf.Min(line.Length(), u1);
-			flag = Forth.TRUE;
+			flag = Forth.True;
 
 			// copy incoming string to buffer
 			Forth.Util.StringFromStr(c_addr, u1, line);

@@ -38,10 +38,10 @@ public partial class ForthString : ForthImplementationBase
 		// move in ascending order a1 -> a2, fast, then slow
 		while(i < u)
 		{
-			if(u - i >= ForthRAM.DCELL_SIZE)
+			if(u - i >= ForthRAM.DCellSize)
 			{
 				Forth.Ram.SetDword(a2 + i, Forth.Ram.GetDword(a1 + i));
-				i += ForthRAM.DCELL_SIZE;
+				i += ForthRAM.DCellSize;
 			}
 			else
 			{
@@ -66,9 +66,9 @@ public partial class ForthString : ForthImplementationBase
 		// move in descending order a1 -> a2, fast, then slow
 		while(i > 0)
 		{
-			if(i >= ForthRAM.DCELL_SIZE)
+			if(i >= ForthRAM.DCellSize)
 			{
-				i -= ForthRAM.DCELL_SIZE;
+				i -= ForthRAM.DCellSize;
 				Forth.Ram.SetDword(a2 + i, Forth.Ram.GetDword(a1 + i));
 			}
 			else

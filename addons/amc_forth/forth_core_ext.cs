@@ -60,11 +60,11 @@ public partial class ForthCoreExt : ForthImplementationBase
 		var t = Forth.Pop();
 		if(t != Forth.Pop())
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(Forth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(Forth.False);
 		}
 	}
 
@@ -75,11 +75,11 @@ public partial class ForthCoreExt : ForthImplementationBase
 	{
 		if(Forth.Pop())
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(Forth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(Forth.False);
 
 
 	//# @WORD 0>
@@ -91,11 +91,11 @@ public partial class ForthCoreExt : ForthImplementationBase
 	{
 		if(Forth.Pop() > 0)
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(Forth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(Forth.False);
 
 
 	//# @WORD 2>R
@@ -141,11 +141,11 @@ public partial class ForthCoreExt : ForthImplementationBase
 		// copy the execution token
 
 
-		Forth.Ram.SetInt(Forth.DictTop, Forth.AddressFromBuiltInFunction[again_exec]);
+		Forth.Ram.SetInt(Forth.DictTopP, Forth.AddressFromBuiltInFunction[again_exec]);
 
 		// The link back
-		Forth.Ram.SetInt(Forth.DictTop + ForthRAM.CELL_SIZE, Forth.CfPopDest());
-		Forth.DictTop += ForthRAM.DCELL_SIZE;
+		Forth.Ram.SetInt(Forth.DictTopP + ForthRAM.CellSize, Forth.CfPopDest());
+		Forth.DictTopP += ForthRAM.DCellSize;
 
 
 		// two cells up and done
@@ -155,7 +155,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 	{
 
 		// Unconditionally branch
-		Forth.DictIp = Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CELL_SIZE);
+		Forth.DictIp = Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CellSize);
 
 
 	//# @WORD BUFFER:
@@ -186,21 +186,21 @@ public partial class ForthCoreExt : ForthImplementationBase
 			// copy the execution token
 
 
-			Forth.Ram.SetInt(Forth.DictTop, Forth.AddressFromBuiltInFunction[c_quote_exec]);
+			Forth.Ram.SetInt(Forth.DictTopP, Forth.AddressFromBuiltInFunction[c_quote_exec]);
 
 			// store the value
 			var l = Forth.Pop();
 			// length of the string
 			var src = Forth.Pop();
 			// first byte address
-			Forth.DictTop += ForthRAM.CELL_SIZE;
-			Forth.Ram.SetByte(Forth.DictTop, l);
+			Forth.DictTopP += ForthRAM.CellSize;
+			Forth.Ram.SetByte(Forth.DictTopP, l);
 			// store the length
 			// compile the string into the dictionary
 			foreach(int i in l)
 			{
-				Forth.DictTop += 1;
-				Forth.Ram.SetByte(Forth.DictTop, Forth.Ram.GetByte(src + i));
+				Forth.DictTopP += 1;
+				Forth.Ram.SetByte(Forth.DictTopP, Forth.Ram.GetByte(src + i));
 			}
 
 		// this will align the dict top and save it
@@ -212,11 +212,11 @@ public partial class ForthCoreExt : ForthImplementationBase
 //# @WORDX C"
 	public void CQuoteExec()
 	{
-		var l = Forth.Ram.GetByte(Forth.DictIp + ForthRAM.CELL_SIZE);
-		Forth.Push(Forth.DictIp + ForthRAM.CELL_SIZE);
+		var l = Forth.Ram.GetByte(Forth.DictIp + ForthRAM.CellSize);
+		Forth.Push(Forth.DictIp + ForthRAM.CellSize);
 		// address of the string start
 		// moves to string cell for l in 0..3, then one cell past for l in 4..7, etc.
-		Forth.DictIp += ((l / ForthRAM.CELL_SIZE) + 1) * ForthRAM.CELL_SIZE;
+		Forth.DictIp += ((l / ForthRAM.CellSize) + 1) * ForthRAM.CellSize;
 
 
 	//# @WORD HEX
@@ -236,7 +236,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 	}//# @STACK ( - flag )
 	public void FFalse()
 	{
-		Forth.Push(Forth.FALSE);
+		Forth.Push(Forth.False);
 
 
 	//# @WORD MARKER
@@ -253,11 +253,11 @@ public partial class ForthCoreExt : ForthImplementationBase
 			// copy the execution token
 
 
-			Forth.Ram.SetInt(Forth.DictTop, Forth.AddressFromBuiltInFunction[marker_exec]);
+			Forth.Ram.SetInt(Forth.DictTopP, Forth.AddressFromBuiltInFunction[marker_exec]);
 
 			// store the dict_p value in the next cell
-			Forth.Ram.SetInt(Forth.DictTop + ForthRAM.CELL_SIZE, Forth.DictP);
-			Forth.DictTop += ForthRAM.DCELL_SIZE;
+			Forth.Ram.SetInt(Forth.DictTopP + ForthRAM.CellSize, Forth.DictP);
+			Forth.DictTopP += ForthRAM.DCellSize;
 
 			// preserve the state
 			Forth.SaveDictTop();
@@ -271,8 +271,8 @@ public partial class ForthCoreExt : ForthImplementationBase
 
 		// execution time functionality of marker
 		// set dict_p to the previous entry
-		Forth.DictTop = Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CELL_SIZE);
-		Forth.DictP = Forth.Ram.GetInt(Forth.DictTop);
+		Forth.DictTopP = Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CellSize);
+		Forth.DictP = Forth.Ram.GetInt(Forth.DictTopP);
 		Forth.SaveDictTop();
 		Forth.SaveDictP();
 
@@ -296,7 +296,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 	public void Parse()
 	{
 		var count = 0;
-		var ptr = Forth.WORD_START + 1;
+		var ptr = Forth.WordBuffStart + 1;
 		var delim = Forth.Pop();
 		Forth.Core.Source();
 		var source_size = Forth.Pop();
@@ -352,7 +352,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 	public void Pick()
 	{
 		var n = Forth.Pop();
-		if(n >= Forth.DATA_STACK_SIZE - Forth.DsP)
+		if(n >= Forth.DataStackSize - Forth.DsP)
 		{
 			Forth.Util.RprintTerm(" PICK outside data stack");
 		}
@@ -398,7 +398,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 			// adjust to data field location
 
 
-			Forth.Ram.SetInt(token_addr_immediate[0] + ForthRAM.CELL_SIZE, Forth.Pop());
+			Forth.Ram.SetInt(token_addr_immediate[0] + ForthRAM.CellSize, Forth.Pop());
 
 
 	//# @WORD TRUE
@@ -408,7 +408,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 	}//# @STACK ( - flag )
 	public void FTrue()
 	{
-		Forth.Push(Forth.TRUE);
+		Forth.Push(Forth.True);
 
 
 	//# @WORD TUCK
@@ -427,14 +427,14 @@ public partial class ForthCoreExt : ForthImplementationBase
 	}//# @STACK ( u1 u2 - flag )
 	public void ULessThan()
 	{
-		var u2 = Forth.Ram.Unsigned(Forth.Pop());
-		if(Forth.Ram.Unsigned(Forth.Pop()) > u2)
+		var u2 = (uint) Forth.Pop();
+		if((uint)Forth.Pop() > u2)
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(AMCForth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(AMCForth.False);
 
 
 	//# @WORD UNUSED
@@ -445,7 +445,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 	}//# @STACK ( - u )
 	public void Unused()
 	{
-		Forth.Push(Forth.DICT_TOP - Forth.DictTop);
+		Forth.Push(Forth.DictTop - Forth.DictTopP);
 
 
 	//# @WORD VALUE
@@ -462,11 +462,11 @@ public partial class ForthCoreExt : ForthImplementationBase
 			// copy the execution token
 
 
-			Forth.Ram.SetInt(Forth.DictTop, Forth.AddressFromBuiltInFunction[value_exec]);
+			Forth.Ram.SetInt(Forth.DictTopP, Forth.AddressFromBuiltInFunction[value_exec]);
 
 			// store the initial value
-			Forth.Ram.SetInt(Forth.DictTop + ForthRAM.CELL_SIZE, init_val);
-			Forth.DictTop += ForthRAM.DCELL_SIZE;
+			Forth.Ram.SetInt(Forth.DictTopP + ForthRAM.CellSize, init_val);
+			Forth.DictTopP += ForthRAM.DCellSize;
 
 			// preserve the state
 			Forth.SaveDictTop();
@@ -480,7 +480,7 @@ public partial class ForthCoreExt : ForthImplementationBase
 
 		// execution time functionality of value
 		// return contents of the cell after the execution token
-		Forth.Push(Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CELL_SIZE));
+		Forth.Push(Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CellSize));
 	}
 
 

@@ -1,12 +1,10 @@
-using System.ComponentModel;
 using Godot;
 
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class Align : Forth.WordBase
+	public partial class Align : Forth.Words
 	{
-
 
 		public Align(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
@@ -15,11 +13,11 @@ namespace Forth.Core
 			StackEffect = "( - )";
 		}
 
-		public override void Execute()
+		public override void Call()
 		{
-			Forth.Push(Forth.DictTop);
-			Forth.FCore.Aligned.Execute();
-			Forth.DictTop = Forth.Pop();
+			Forth.Push(Forth.DictTopP);
+			Forth.CoreWords.Aligned.Call();
+			Forth.DictTopP = Forth.Pop();
 
 			// preserve dictionary state
 			Forth.SaveDictTop();

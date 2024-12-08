@@ -3,7 +3,7 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class Move : Forth.WordBase
+	public partial class Move : Forth.Words
 	{
 
 		public Move(AMCForth forth, string wordset) : base(forth, wordset)
@@ -15,7 +15,7 @@ namespace Forth.Core
 			StackEffect = "( addr1 addr2 u - )";
 		}
 
-		public override void Execute()
+		public override void Call()
 		{
 			var a1 = Forth.DataStack[Forth.DsP + 2];
 			var a2 = Forth.DataStack[Forth.DsP + 1];
@@ -24,22 +24,22 @@ namespace Forth.Core
 			{
 
 				// string doesn't need to move. Clean the stack and return.
-				Drop();
-				Drop();
-				Drop();
+				Forth.CoreWords.Drop.Call();
+				Forth.CoreWords.Drop.Call();
+				Forth.CoreWords.Drop.Call();
 				return ;
 			}
 			if(a1 > a2)
 			{
 
 				// potentially overlapping, source above dest
-				Forth.FString.CMove.Execute();
+				Forth.StringWords.CMove.Call();
 			}
 			else
 			{
 
 				// potentially overlapping, source below dest
-				Forth.FString.CMoveUp.Execute();
+				Forth.StringWords.CMoveUp.Call();
 			}
 		}
 	}

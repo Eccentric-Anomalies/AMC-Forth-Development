@@ -36,11 +36,11 @@ public partial class ForthDouble : ForthImplementationBase
 			// copy the execution token
 
 
-			Forth.Ram.SetInt(Forth.DictTop, Forth.AddressFromBuiltInFunction[two_constant_exec]);
+			Forth.Ram.SetInt(Forth.DictTopP, Forth.AddressFromBuiltInFunction[two_constant_exec]);
 
 			// store the constant
-			Forth.Ram.SetDword(Forth.DictTop + ForthRAM.CELL_SIZE, init_val);
-			Forth.DictTop += ForthRAM.CELL_SIZE + ForthRAM.DCELL_SIZE;
+			Forth.Ram.SetDword(Forth.DictTopP + ForthRAM.CellSize, init_val);
+			Forth.DictTopP += ForthRAM.CellSize + ForthRAM.DCellSize;
 
 			// preserve dictionary state
 			Forth.SaveDictTop();
@@ -54,7 +54,7 @@ public partial class ForthDouble : ForthImplementationBase
 
 		// execution time functionality of _two_constant
 		// return contents of double cell after execution token
-		Forth.PushDword(Forth.Ram.GetDword(Forth.DictIp + ForthRAM.CELL_SIZE));
+		Forth.PushDword(Forth.Ram.GetDword(Forth.DictIp + ForthRAM.CellSize));
 
 
 	//# @WORD 2LITERAL
@@ -70,12 +70,12 @@ public partial class ForthDouble : ForthImplementationBase
 		// copy the execution token
 
 
-		Forth.Ram.SetInt(Forth.DictTop, Forth.AddressFromBuiltInFunction[two_literal_exec]);
+		Forth.Ram.SetInt(Forth.DictTopP, Forth.AddressFromBuiltInFunction[two_literal_exec]);
 
 		// store the value
-		Forth.Ram.SetInt(Forth.DictTop + ForthRAM.CELL_SIZE, literal_val1);
-		Forth.Ram.SetInt(Forth.DictTop + ForthRAM.DCELL_SIZE, literal_val2);
-		Forth.DictTop += ForthRAM.CELL_SIZE * 3;
+		Forth.Ram.SetInt(Forth.DictTopP + ForthRAM.CellSize, literal_val1);
+		Forth.Ram.SetInt(Forth.DictTopP + ForthRAM.DCellSize, literal_val2);
+		Forth.DictTopP += ForthRAM.CellSize * 3;
 		// three cells up
 		// preserve dictionary state
 		Forth.SaveDictTop();
@@ -88,11 +88,11 @@ public partial class ForthDouble : ForthImplementationBase
 
 		// execution time functionality of literal
 		// return contents of cell after execution token
-		Forth.Push(Forth.Ram.GetInt(Forth.DictIp + ForthRAM.DCELL_SIZE));
-		Forth.Push(Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CELL_SIZE));
+		Forth.Push(Forth.Ram.GetInt(Forth.DictIp + ForthRAM.DCellSize));
+		Forth.Push(Forth.Ram.GetInt(Forth.DictIp + ForthRAM.CellSize));
 
 		// advance the instruction pointer by one to skip over the data
-		Forth.DictIp += ForthRAM.DCELL_SIZE;
+		Forth.DictIp += ForthRAM.DCellSize;
 
 
 	//# @WORD 2VARIABLE
@@ -105,7 +105,7 @@ public partial class ForthDouble : ForthImplementationBase
 		Forth.Core.Create();
 
 		// make room for one cell
-		Forth.DictTop += ForthRAM.DCELL_SIZE;
+		Forth.DictTopP += ForthRAM.DCellSize;
 
 		// preserve dictionary state
 		Forth.SaveDictTop();
@@ -117,7 +117,7 @@ public partial class ForthDouble : ForthImplementationBase
 	}//# @STACK ( d - )
 	public void DDot()
 	{
-		var fmt = ( Forth.Ram.GetInt(Forth.BASE) == 10 ? "%d" : "%x" );
+		var fmt = ( Forth.Ram.GetInt(Forth.Base) == 10 ? "%d" : "%x" );
 		Forth.Util.PrintTerm(" " + fmt % Forth.PopDint());
 
 
@@ -149,11 +149,11 @@ public partial class ForthDouble : ForthImplementationBase
 		var t = Forth.PopDint();
 		if(Forth.PopDint() < t)
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(Forth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(Forth.False);
 
 
 	//# @WORD D=
@@ -166,11 +166,11 @@ public partial class ForthDouble : ForthImplementationBase
 		var t = Forth.PopDint();
 		if(Forth.PopDint() == t)
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(Forth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(Forth.False);
 
 
 	//# @WORD D0<
@@ -182,11 +182,11 @@ public partial class ForthDouble : ForthImplementationBase
 	{
 		if(Forth.PopDint() < 0)
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(Forth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(Forth.False);
 
 
 	//# @WORD D0=
@@ -198,11 +198,11 @@ public partial class ForthDouble : ForthImplementationBase
 	{
 		if(Forth.PopDint() == 0)
 		{
-			Forth.Push(Forth.TRUE);
+			Forth.Push(Forth.True);
 		}
 		else
 		{
-			Forth.Push(Forth.FALSE);
+			Forth.Push(Forth.False);
 
 
 	//# @WORD D2*
