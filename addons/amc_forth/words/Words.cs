@@ -57,6 +57,11 @@ namespace Forth
 			}
 		}
 
+		public static bool HasName(string name)
+		{
+			return _nameDict.ContainsKey(name);
+		}
+
 		public static Words FromName(string name)
 		{
 			if (_nameDict.ContainsKey(name))
@@ -79,6 +84,12 @@ namespace Forth
 			{
 				throw new ArgumentOutOfRangeException(xt.ToString(), "Unrecognized Built-In Execution Token");
 			}
+		}
+
+		// Is the xt for a built-in function?
+		public static bool IsBuiltInXt(int xt)
+		{
+			return (xt & (AMCForth.BuiltInXtMask | AMCForth.BuiltInXtXMask)) != 0;
 		}
 
 		public static void CallXt(int xt)

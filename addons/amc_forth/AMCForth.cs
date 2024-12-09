@@ -136,6 +136,7 @@ public partial class AMCForth : Godot.RefCounted
 
 	// Forth Word Classes
 	public Forth.String.StringSet StringWords;
+	public Forth.CommonUse.CommonUseSet CommonUseWords;
 	public Forth.Core.CoreSet CoreWords;
 	public Forth.CoreExt.CoreExtSet CoreExtWords;
 
@@ -1102,12 +1103,10 @@ public partial class AMCForth : Godot.RefCounted
 		Util = new();
 		Util.Initialize(this);
 		// Instantiate Forth word definitions
+		CommonUseWords = new(this);
 		CoreWords = new(this);
 		CoreExtWords = new(this);
 		StringWords = new(this);
-
-		// End Forth word definitions
-		_InitBuiltIns();
 
 		// Initialize the data stack pointer
 		DsP = DataStackSize;
@@ -1158,19 +1157,18 @@ public partial class AMCForth : Godot.RefCounted
 			_InputReady.Wait();
 			
 			// preferentially handle input port signals
-			if(InputPortEvents.Size())
+			if(InputPortEvents.Count != 0)
 			{
-				var evt = InputPortEvents.PopBack();
+				PortEvent evt = InputPortEvents[0]; // pull from the front
+				InputPortEvents.RemoveAt(0);		// and remove it from the list
 
-				// only execute if Forth is listening on this port
-				var xt = Ram.GetInt(IoInMapStart + evt[0] * ForthRAM.CellSize);
-				if(xt)
+				// only execute if there is a Forth execution token
+				int xt = Ram.GetInt(IoInMapStart + evt.Port * ForthRAM.CellSize);
+				if(xt != 0)
 				{
-					Push(evt[1]);
-					// store the value
-					Push(xt);
-					// push the xt
-					Core.Execute();
+					Push(evt.Value); // store the value
+					Push(xt);		 // store the execution token
+					CoreWords.Execute.Call();	 // execute the token
 				}
 			}
 
@@ -1181,10 +1179,10 @@ public partial class AMCForth : Godot.RefCounted
 
 				// only execute if Forth is still listening on this id
 				var xt = Ram.GetInt(PeriodicStart + (id * 2 + 1) * ForthRAM.CellSize);
-				if(xt)
+				if(xt != 0)
 				{
 					Push(xt);
-					Core.Execute();
+					CoreWords.Execute.Call();
 				}
 				else
 				{
@@ -1196,50 +1194,9 @@ public partial class AMCForth : Godot.RefCounted
 			{
 				// no input events, must be terminal input line
 				_OutputDone = false;
-				_InterpretTerminalLine();
+				InterpretTerminalLine();
 				_OutputDone = true;
 			}
-		}
-	}
-
-
-// generate execution tokens by hashing Forth Word
-	public int XtFromWord(string word)
-	{
-		return BuiltInXtMask + (BuiltInMask & word.Hash());
-	}
-
-
-// generate run-time execution tokens by hashing Forth Word
-	public int XtxFromWord(string word)
-	{
-		return BuiltInXtXMask + (BuiltInMask & word.Hash());
-	}
-
-
-	protected void _InitBuiltIns()
-	{
-		var addr;
-		foreach(int i in BuiltInNames.Size())
-		{
-			var word = BuiltInNames[i][0];
-			var f = BuiltInNames[i][1];
-
-			// native functions are assigned virtual addresses, outside of
-			// the real memory map.
-			addr = XtFromWord(word);
-			System.Diagnostics.Debug.Assert(!BuiltInFunctionFromAddress.ContainsKey(addr), "Duplicate Forth word hash must be resolved.");
-			BuiltInFunctionFromAddress[addr] = f;
-			AddressFromBuiltInFunction[f] = addr;
-			BuiltInFunction[word] = f;
-		}
-		foreach(int i in BuiltInExecFunctions.Size())
-		{
-			var word = BuiltInExecFunctions[i][0];
-			var f = BuiltInExecFunctions[i][1];
-			addr = XtxFromWord(word);
-			BuiltInFunctionFromAddress[addr] = f;
-			AddressFromBuiltInFunction[f] = addr;
 		}
 	}
 
@@ -1247,14 +1204,13 @@ public partial class AMCForth : Godot.RefCounted
 	public void ResetBuffToIn()
 	{
 		// retrieve the address of the current buffer pointer
-		Core.ToIn();
-
+		CoreWords.ToIn.Call();
 		// and set its contents to zero
 		Ram.SetInt(Pop(), 0);
 	}
 
 
-	public bool IsValidInt(string word, int radix = 10)
+	public static bool IsValidInt(string word, int radix = 10)
 	{
 		if(radix == 16)
 		{
@@ -1264,7 +1220,7 @@ public partial class AMCForth : Godot.RefCounted
 	}
 
 
-	public int ToInt(string word, int radix = 10)
+	public static int ToInt(string word, int radix = 10)
 	{
 		if(radix == 16)
 		{
@@ -1274,31 +1230,22 @@ public partial class AMCForth : Godot.RefCounted
 	}
 
 
-
-// Given a word, determine if it is immediate or not.
-	public bool IsImmediate(string word)
-	{
-		return ImmediateNames.Contains(word);
-	}
-
-
 // Interpret the _terminal_pad content
-	protected void _InterpretTerminalLine()
+	protected void InterpretTerminalLine()
 	{
-		var bytes_input = _TerminalPad.ToAsciiBuffer();
+		// null terminate the string and convert to byte[]
+		var bytes_input = (_TerminalPad + "\u0000").ToAsciiBuffer();
 		_TerminalPad = "";
 		_PadPosition = 0;
-		bytes_input.PushBack(0);
-		// null terminate
 		// transfer to the RAM-based input buffer (accessible to the engine)
-		foreach(int i in bytes_input.Size())
+		for (int i = 0; i < bytes_input.Length; i++)
 		{
 			Ram.SetByte(BuffSourceStart + i, bytes_input[i]);
 		}
 		Push(BuffSourceStart);
-		Push(bytes_input.Size());
+		Push(bytes_input.Length);
 		SourceId =  - 1;
-		Core.Evaluate();
+		CoreWords.Evaluate();
 		Util.RprintTerm(" ok");
 	}
 

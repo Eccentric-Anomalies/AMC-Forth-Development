@@ -15,10 +15,13 @@ namespace Forth.Core
 		public Align Align;
 		public Aligned Aligned;
 		public Base Base;
+		public Comma Comma;
 		public Count Count;
 		public Decimal Decimal;
 		public Drop Drop;
 		public Dup Dup;
+		public Evaluate Evaluate;
+		public Execute Execute;
 		public Source Source;
 		public Store Store;
 		public ToIn ToIn;
@@ -32,10 +35,13 @@ namespace Forth.Core
 			Align = new (_forth, Wordset);
 			Aligned = new (_forth, Wordset);
 			Base = new (_forth, Wordset);
+			Comma = new (_forth, Wordset);
 			Count = new (_forth, Wordset);
 			Decimal = new (_forth, Wordset);
 			Drop = new (_forth, Wordset);
 			Dup = new (_forth, Wordset);
+			Evaluate = new (_forth, Wordset);
+			Execute = new (_forth, Wordset);
 			Source = new (_forth, Wordset);
 			Store = new (_forth, Wordset);
 			ToIn = new (_forth, Wordset);

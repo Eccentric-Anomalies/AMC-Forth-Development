@@ -16,8 +16,8 @@ namespace Forth.CoreExt
 		public override void Call()
 		{
 			Forth.Push(ForthTerminal.BL.ToAsciiBuffer()[0]);
-			Forth.FCore.Word.Call();
-			Forth.FCore.Count.Call();
+			Forth.CoreWords.Word.Call();
+			Forth.CoreWords.Count.Call();
 		}
 	}
 }
