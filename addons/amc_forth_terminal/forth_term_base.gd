@@ -17,7 +17,7 @@ func _init(_forth: AMCForth):
 	# create a blank line
 	blank_line = PackedInt32Array()
 	blank_line.resize(SCREEN_WIDTH)
-	blank_line.fill(ForthTerminal.BL.to_ascii_buffer()[0])
+	blank_line.fill(" ".to_ascii_buffer()[0])
 
 # Connect to the Forth output
 func connect_forth_output() -> void:

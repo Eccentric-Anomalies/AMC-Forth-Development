@@ -52,9 +52,9 @@ public partial class ForthUtil : Godot.RefCounted
 	public string StrFromAddrN(int addr, int n)
 	{
 		var t = "";
-		foreach(int c in n)
+		for (int c = 0; c < n; c++)
 		{
-			t = t + Char(_Forth.Ram.GetByte(addr + c));
+			t = t + (char) _Forth.Ram.GetByte(addr + c);
 		}
 		return t;
 	}
@@ -64,9 +64,9 @@ public partial class ForthUtil : Godot.RefCounted
 	public void CstringFromStr(int addr, string s)
 	{
 		var n = addr;
-		_Forth.Ram.SetByte(n, s.Length());
+		_Forth.Ram.SetByte(n, s.Length);
 		n += 1;
-		foreach(PackedByteArray c in s.ToAsciiBuffer())
+		foreach(char c in s.ToAsciiBuffer())
 		{
 			_Forth.Ram.SetByte(n, c);
 			n += 1;
@@ -78,7 +78,7 @@ public partial class ForthUtil : Godot.RefCounted
 	public void StringFromStr(int addr, int n, string s)
 	{
 		var ptr = addr;
-		foreach(PackedByteArray c in s.Substr(0, n).ToAsciiBuffer())
+		foreach(char c in s.Substr(0, n).ToAsciiBuffer())
 		{
 			_Forth.Ram.SetByte(ptr, c);
 			ptr += 1;
