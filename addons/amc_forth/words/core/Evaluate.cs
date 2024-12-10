@@ -59,15 +59,15 @@ namespace Forth.Core
 					// check for a number
 					Forth.Push(caddr);
 					Forth.Push(len);
-					Forth.CommonUse.NumberQuestion();
+					Forth.CommonUseWords.NumberQuestion.Call();
 					var type = Forth.Pop();
 					if(type == 2 && Forth.State)
 					{
-						Forth.Double.TwoLiteral();
+						Forth.DoubleWords.TwoLiteral.Call();
 					}
 					else if(type == 1 && Forth.State)
 					{
-						Literal();
+						Forth.CoreWords.Literal.Call();
 					}
 					else if(type == 0)
 					{

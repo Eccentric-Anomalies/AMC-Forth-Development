@@ -22,6 +22,7 @@ namespace Forth.Core
 		public Dup Dup;
 		public Evaluate Evaluate;
 		public Execute Execute;
+		public Literal Literal;
 		public Source Source;
 		public Store Store;
 		public ToIn ToIn;
@@ -42,6 +43,7 @@ namespace Forth.Core
 			Dup = new (_forth, Wordset);
 			Evaluate = new (_forth, Wordset);
 			Execute = new (_forth, Wordset);
+			Literal = new (_forth, Wordset);
 			Source = new (_forth, Wordset);
 			Store = new (_forth, Wordset);
 			ToIn = new (_forth, Wordset);

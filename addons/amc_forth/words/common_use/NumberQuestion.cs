@@ -18,22 +18,22 @@ namespace Forth.CommonUse
 
 		public override void Call()
 		{
-			var radix = Forth.Ram.GetInt(Forth.Base);
+			var radix = Forth.Ram.GetInt(AMCForth.Base);
 			var len = Forth.Pop();
 			// length of word
 			var caddr = Forth.Pop();
 			// start of word
 			var t = Forth.Util.StrFromAddrN(caddr, len);
-			if(t.Contains(".") && Forth.IsValidInt(t.Replace(".", ""), radix))
+			if(t.Contains(".") && AMCForth.IsValidInt(t.Replace(".", ""), radix))
 			{
 				var t_strip = t.Replace(".", "");
-				var temp = Forth.ToInt(t_strip, radix);
-				Forth.PushDword(temp);
+				var temp = AMCForth.ToInt(t_strip, radix);
+				Forth.PushDint(temp);
 				Forth.Push(2);
 			}
-			else if(Forth.IsValidInt(t, radix))
+			else if(AMCForth.IsValidInt(t, radix))
 			{
-				var temp = Forth.ToInt(t, radix);
+				var temp = AMCForth.ToInt(t, radix);
 
 				// single-precision
 				Forth.Push(temp);

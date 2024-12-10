@@ -139,6 +139,7 @@ public partial class AMCForth : Godot.RefCounted
 	public Forth.CommonUse.CommonUseSet CommonUseWords;
 	public Forth.Core.CoreSet CoreWords;
 	public Forth.CoreExt.CoreExtSet CoreExtWords;
+	public Forth.Double.DoubleSet DoubleWords;
 
 	// Core Forth word implementations
 	/*
@@ -157,7 +158,7 @@ public partial class AMCForth : Godot.RefCounted
 	*/
 
 
-	// Forth built-in meta-data
+	// Forth built-in meta-data  # FIXME
 	public Dictionary WordDescription = new Dictionary{};
 	public Dictionary WordStackdef = new Dictionary{};
 	public Dictionary WordWordset = new Dictionary{};
@@ -1106,6 +1107,7 @@ public partial class AMCForth : Godot.RefCounted
 		CommonUseWords = new(this);
 		CoreWords = new(this);
 		CoreExtWords = new(this);
+		DoubleWords = new(this);
 		StringWords = new(this);
 
 		// Initialize the data stack pointer
@@ -1146,7 +1148,7 @@ public partial class AMCForth : Godot.RefCounted
 // AMC Forth name with version
 	protected static string GetBanner()
 	{
-		return Banner + " " + "Ver. " + ForthVersion.VER;
+		return Banner + " " + "Ver. " + ForthVersion.Ver;
 	}
 
 
@@ -1245,7 +1247,7 @@ public partial class AMCForth : Godot.RefCounted
 		Push(BuffSourceStart);
 		Push(bytes_input.Length);
 		SourceId =  - 1;
-		CoreWords.Evaluate();
+		CoreWords.Evaluate.Call();
 		Util.RprintTerm(" ok");
 	}
 
@@ -1270,7 +1272,7 @@ public partial class AMCForth : Godot.RefCounted
 	{
 		var selected_index = _BufferIndex;
 		_TerminalPad = _TerminalBuffer[selected_index];
-		_PadPosition = _TerminalPad.Length();
+		_PadPosition = _TerminalPad.Length;
 		return ForthTerminal.CLRLINE + ForthTerminal.CR + _TerminalPad;
 	}
 }
