@@ -48,7 +48,7 @@ func poll_connection() -> void:
 				_connection = _server.take_connection()
 				_server.stop()  # do not listen now
 				_connection.set_no_delay(true)
-				forth.client_connected()
+				forth.ClientConnected()
 		elif _connection:  # not listening.. connected
 			var connect_status = _connection.get_status()
 			if (
@@ -81,8 +81,8 @@ func poll_connection() -> void:
 					# just retrieve the text and pass to forth
 					else:
 						var instr: String = raw_data[1].get_string_from_ascii()
-						if forth.is_ready_for_input():
-							forth.terminal_in(instr)
+						if forth.IsReadyForInput():
+							forth.TerminalIn(instr)
 						else:
 							# discard any input while the forth UI is busy
 							instr = ""

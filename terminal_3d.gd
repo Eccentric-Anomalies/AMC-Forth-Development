@@ -7,8 +7,9 @@ var _local_terminal: ForthTermLocal
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	var AMCForth = load("res://addons/amc_forth/amc_forth.cs")
-	var forth = AMCForth.new(self)
+	# var AMCForth = load("res://addons/amc_forth/AMCForth.cs")
+	var forth = AMCForth.new()
+	forth.Initialize(self)
 	_telnet_terminal = ForthTermTelnet.new(forth)
 	_local_terminal = ForthTermLocal.new(forth, $Bezel/Screen.mesh.material)
 

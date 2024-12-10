@@ -22,7 +22,7 @@ public partial class ForthUtil : Godot.RefCounted
 //# Send a newline character to the terminal out
 	public void EmitNewline()
 	{
-		_Forth.EmitSignal("TerminalOut", ForthTerminal.CR + ForthTerminal.LF);
+		_Forth.EmitSignal("TerminalOut", Forth.Terminal.CR + Forth.Terminal.LF);
 	}
 
 

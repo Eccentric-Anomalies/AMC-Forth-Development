@@ -386,7 +386,7 @@ public partial class AMCForth : Godot.RefCounted
 	{
 		if(_ClientConnections == 0)
 		{
-			EmitSignal("TerminalOut", GetBanner() + ForthTerminal.CRLF);
+			EmitSignal("TerminalOut", GetBanner() + Forth.Terminal.CRLF);
 			_ClientConnections += 1;
 		}
 	}
@@ -446,7 +446,7 @@ public partial class AMCForth : Godot.RefCounted
 		var buffer_size = _TerminalBuffer.Count;
 		while(in_str.Length > 0)
 		{
-			if(in_str.Find(ForthTerminal.DEL_LEFT) == 0)
+			if(in_str.Find(Forth.Terminal.DEL_LEFT) == 0)
 			{
 				_PadPosition = Mathf.Max(0, _PadPosition - 1);
 				if(_TerminalPad.Length != 0)
@@ -465,9 +465,9 @@ public partial class AMCForth : Godot.RefCounted
 
 		// reconstruct the changed entry, with correct cursor position
 				echo_text = _RefreshEditText();
-				in_str = in_str.Substring(ForthTerminal.DEL_LEFT.Length);
+				in_str = in_str.Substring(Forth.Terminal.DEL_LEFT.Length);
 			}
-			else if(in_str.Find(ForthTerminal.DEL) == 0)
+			else if(in_str.Find(Forth.Terminal.DEL) == 0)
 			{
 
 				// do nothing unless cursor is in text
@@ -478,15 +478,15 @@ public partial class AMCForth : Godot.RefCounted
 
 			// reconstruct the changed entry, with correct cursor position
 				echo_text = _RefreshEditText();
-				in_str = in_str.Substring(ForthTerminal.DEL.Length);
+				in_str = in_str.Substring(Forth.Terminal.DEL.Length);
 			}
-			else if(in_str.Find(ForthTerminal.LEFT) == 0)
+			else if(in_str.Find(Forth.Terminal.LEFT) == 0)
 			{
 				_PadPosition = Mathf.Max(0, _PadPosition - 1);
-				echo_text = ForthTerminal.LEFT;
-				in_str = in_str.Substring(ForthTerminal.LEFT.Length);
+				echo_text = Forth.Terminal.LEFT;
+				in_str = in_str.Substring(Forth.Terminal.LEFT.Length);
 			}
-			else if(in_str.Find(ForthTerminal.RIGHT) == 0)
+			else if(in_str.Find(Forth.Terminal.RIGHT) == 0)
 			{
 				_PadPosition += 1;
 				if(_PadPosition > _TerminalPad.Length)
@@ -495,34 +495,34 @@ public partial class AMCForth : Godot.RefCounted
 				}
 				else
 				{
-					echo_text = ForthTerminal.RIGHT;
+					echo_text = Forth.Terminal.RIGHT;
 				}
-				in_str = in_str.Substring(ForthTerminal.RIGHT.Length);
+				in_str = in_str.Substring(Forth.Terminal.RIGHT.Length);
 			}
-			else if(in_str.Find(ForthTerminal.UP) == 0)
+			else if(in_str.Find(Forth.Terminal.UP) == 0)
 			{
 				if(buffer_size != 0)
 				{
 					_BufferIndex = Mathf.Max(0, _BufferIndex - 1);
 					echo_text = _SelectBufferedCommand();
 				}
-				in_str = in_str.Substring(ForthTerminal.UP.Length);
+				in_str = in_str.Substring(Forth.Terminal.UP.Length);
 			}
-			else if(in_str.Find(ForthTerminal.DOWN) == 0)
+			else if(in_str.Find(Forth.Terminal.DOWN) == 0)
 			{
 				if(buffer_size != 0)
 				{
 					_BufferIndex = Mathf.Min(_TerminalBuffer.Count - 1, _BufferIndex + 1);
 					echo_text = _SelectBufferedCommand();
 				}
-				in_str = in_str.Substring(ForthTerminal.DOWN.Length);
+				in_str = in_str.Substring(Forth.Terminal.DOWN.Length);
 			}
-			else if(in_str.Find(ForthTerminal.LF) == 0)
+			else if(in_str.Find(Forth.Terminal.LF) == 0)
 			{
 				echo_text = "";
-				in_str = in_str.Substring(ForthTerminal.LF.Length);
+				in_str = in_str.Substring(Forth.Terminal.LF.Length);
 			}
-			else if(in_str.Find(ForthTerminal.CR) == 0)
+			else if(in_str.Find(Forth.Terminal.CR) == 0)
 			{
 				// only add to the buffer if it's different from the top entry
 				// and not blank!
@@ -541,7 +541,7 @@ public partial class AMCForth : Godot.RefCounted
 				EmitSignal("TerminalOut", _RefreshEditText());
 				// text is ready for the Forth interpreter
 				_InputReady.Post();
-				in_str = in_str.Substring(ForthTerminal.CR.Length);
+				in_str = in_str.Substring(Forth.Terminal.CR.Length);
 			}
 			// not a control character(s)
 			else {
@@ -1255,14 +1255,14 @@ public partial class AMCForth : Godot.RefCounted
 // return echo text that refreshes the current edit
 	protected string _RefreshEditText()
 	{
-		var echo = ForthTerminal.CLRLINE
-			+ ForthTerminal.CR
+		var echo = Forth.Terminal.CLRLINE
+			+ Forth.Terminal.CR
 			+ _TerminalPad
-			+ ForthTerminal.CR;
+			+ Forth.Terminal.CR;
 			
 		foreach(int i in GD.Range(_PadPosition))
 		{
-			echo += ForthTerminal.RIGHT;
+			echo += Forth.Terminal.RIGHT;
 		}
 		return echo;
 	}
@@ -1273,6 +1273,6 @@ public partial class AMCForth : Godot.RefCounted
 		var selected_index = _BufferIndex;
 		_TerminalPad = _TerminalBuffer[selected_index];
 		_PadPosition = _TerminalPad.Length;
-		return ForthTerminal.CLRLINE + ForthTerminal.CR + _TerminalPad;
+		return Forth.Terminal.CLRLINE + Forth.Terminal.CR + _TerminalPad;
 	}
 }
