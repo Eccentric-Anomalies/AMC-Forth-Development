@@ -135,28 +135,12 @@ public partial class AMCForth : Godot.RefCounted
 
 
 	// Forth Word Classes
+	public Forth.AMCExt.AMCExtSet AMCExtWords;
 	public Forth.String.StringSet StringWords;
 	public Forth.CommonUse.CommonUseSet CommonUseWords;
 	public Forth.Core.CoreSet CoreWords;
 	public Forth.CoreExt.CoreExtSet CoreExtWords;
 	public Forth.Double.DoubleSet DoubleWords;
-
-	// Core Forth word implementations
-	/*
-	public ForthCore Core;
-	public ForthCoreExt CoreExt;
-	public ForthTools Tools;
-	public ForthToolsExt ToolsExt;
-	public ForthCommonUse CommonUse;
-	public ForthDouble Double;
-	public ForthDoubleExt DoubleExt;
-	public ForthString StringWords;
-	public ForthAMCExt AmcExt;
-	public ForthFacility Facility;
-	public ForthFileExt FileExt;
-	public ForthFile File;
-	*/
-
 
 	// Forth built-in meta-data  # FIXME
 	public Dictionary WordDescription = new Dictionary{};
@@ -225,7 +209,7 @@ public partial class AMCForth : Godot.RefCounted
 
 
 	// Output handlers
-	public Dictionary OutputPortMap = new Dictionary{};
+	public System.Collections.Generic.Dictionary<int, Godot.StringName> OutputPortMap = new();
 
 	// structure of an input port event (port id, data value)
 	public readonly struct PortEvent
@@ -693,7 +677,7 @@ public partial class AMCForth : Godot.RefCounted
 // Message will fire with Forth OUT ( x p - )
 	public void AddOutputSignal(int port, Signal s)
 	{
-		OutputPortMap[port] = s;
+		OutputPortMap[port] = s.Name;
 	}
 
 // Get a reference to a input port handler function.
@@ -1110,6 +1094,7 @@ public partial class AMCForth : Godot.RefCounted
 		CoreExtWords = new(this);
 		DoubleWords = new(this);
 		StringWords = new(this);
+		AMCExtWords = new(this);
 
 		// Initialize the data stack pointer
 		DsP = DataStackSize;
