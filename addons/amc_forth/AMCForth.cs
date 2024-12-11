@@ -556,6 +556,7 @@ public partial class AMCForth : Godot.RefCounted
 				}
 				_PadPosition += 1;
 			}
+			EmitSignal("TerminalOut", echo_text);
 		}
 	}
 
