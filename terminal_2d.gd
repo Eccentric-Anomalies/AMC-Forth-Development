@@ -11,7 +11,8 @@ var _forth: AMCForth
 
 
 func _ready() -> void:
-	_forth = AMCForth.new(self)
+	var forth = AMCForth.new()
+	forth.Initialize(self)
 	_telnet_terminal = ForthTermTelnet.new(_forth)
 	_local_terminal = ForthTermLocal.new(_forth, $Bezel/Screen.material)
 
