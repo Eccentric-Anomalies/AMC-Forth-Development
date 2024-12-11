@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 namespace Forth.Core
@@ -36,7 +37,13 @@ namespace Forth.Core
 				var xt_immediate = Forth.FindInDict(t);
 				if((xt_immediate.Addr == 0) && HasName(t.ToUpper()))
 				{
-					xt_immediate = new AMCForth.DictResult(FromName(t).Xt, false);
+					try {
+						xt_immediate = new AMCForth.DictResult(FromName(t).Xt, false);
+					}
+					catch (ArgumentOutOfRangeException e) {
+						xt_immediate = new AMCForth.DictResult(0, false);
+						Forth.Util.PrintUnknownWord(e.ParamName);
+					}
 				}
 				if(xt_immediate.Addr != 0) // an execution token exists
 				{

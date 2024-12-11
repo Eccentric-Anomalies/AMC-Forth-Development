@@ -90,11 +90,11 @@ public partial class ForthRAM : Godot.RefCounted
 	}
 
 
-// return just the cell-sized low-order portion of 64-bit int
-	public static int TruncateToCell(long val)
-	{
-		return Convert.ToInt32(Split64(val).Lo);
-	}
+// return just the cell-sized low-order portion of 64-bit int FIXME remove?
+//	public static int TruncateToCell(long val)
+//	{
+//		return Convert.ToInt32(Split64(val).Lo);
+//	}
 
 
 // Data stack and RAM helpers

@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 namespace Forth.AMCExt
@@ -15,7 +16,12 @@ namespace Forth.AMCExt
 
 		public override void Call()
 		{
-			Forth.Util.PrintTerm(" " + FromName(NextWord()).Description);
+			try {
+				Forth.Util.PrintTerm(" " + FromName(NextWord()).Description);
+			}
+			catch (ArgumentOutOfRangeException e) {
+				Forth.Util.PrintUnknownWord(e.ParamName);
+			}
 		}
 
 		public string NextWord()
