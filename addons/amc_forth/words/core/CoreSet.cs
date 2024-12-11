@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Forth.CommonUse;
 using Godot;
 // Forth CORE word set
 
@@ -24,6 +25,8 @@ namespace Forth.Core
 		public Evaluate Evaluate;
 		public Execute Execute;
 		public Literal Literal;
+		public Minus Minus;
+		public Move Move;
 		public Over Over;		
 		public Plus Plus;
 		public Source Source;
@@ -34,7 +37,7 @@ namespace Forth.Core
 		public ToIn ToIn;
 		public TwoStar TwoStar;
 		public Word Word;
-		public Move Move;
+		public ZeroEqual ZeroEqual;
 
 		private const string Wordset = "CORE"; 
 
@@ -52,6 +55,8 @@ namespace Forth.Core
 			Evaluate = new (_forth, Wordset);
 			Execute = new (_forth, Wordset);
 			Literal = new (_forth, Wordset);
+			Minus = new(_forth, Wordset);
+			Move = new(_forth, Wordset);
 			Over = new (_forth, Wordset);
 			Plus = new (_forth, Wordset);
 			Source = new (_forth, Wordset);
@@ -62,7 +67,7 @@ namespace Forth.Core
 			ToIn = new (_forth, Wordset);
 			TwoStar = new (_forth, Wordset);
 			Word = new (_forth, Wordset);
-			Move = new(_forth, Wordset);
+			ZeroEqual = new(_forth, Wordset);
         }
 
 	}
