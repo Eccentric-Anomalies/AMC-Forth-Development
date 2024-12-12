@@ -138,6 +138,7 @@ public partial class AMCForth : Godot.RefCounted
 	// Forth Word Classes
 	public Forth.AMCExt.AMCExtSet AMCExtWords;
 	public Forth.DoubleExt.DoubleExtSet DoubleExtWords;
+	public Forth.Facility.FacilitySet FacilityWords;
 	public Forth.String.StringSet StringWords;
 	public Forth.CommonUse.CommonUseSet CommonUseWords;
 	public Forth.Core.CoreSet CoreWords;
@@ -1096,6 +1097,7 @@ public partial class AMCForth : Godot.RefCounted
 		CoreExtWords = new(this);
 		DoubleWords = new(this);
 		DoubleExtWords = new(this);
+		FacilityWords = new(this);
 		StringWords = new(this);
 		AMCExtWords = new(this);
 
