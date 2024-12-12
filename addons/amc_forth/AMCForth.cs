@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq;
 using Godot;
 using Godot.Collections;
@@ -136,6 +137,7 @@ public partial class AMCForth : Godot.RefCounted
 
 	// Forth Word Classes
 	public Forth.AMCExt.AMCExtSet AMCExtWords;
+	public Forth.DoubleExt.DoubleExtSet DoubleExtWords;
 	public Forth.String.StringSet StringWords;
 	public Forth.CommonUse.CommonUseSet CommonUseWords;
 	public Forth.Core.CoreSet CoreWords;
@@ -877,9 +879,9 @@ public partial class AMCForth : Godot.RefCounted
 	}
 
 
-	public long PopDword()
+	public ulong PopDword()
 	{
-		return ForthRAM.Combine64(Pop(), Pop());
+		return (ulong) ForthRAM.Combine64(Pop(), Pop());
 	}
 
 
@@ -1093,6 +1095,7 @@ public partial class AMCForth : Godot.RefCounted
 		CoreWords = new(this);
 		CoreExtWords = new(this);
 		DoubleWords = new(this);
+		DoubleExtWords = new(this);
 		StringWords = new(this);
 		AMCExtWords = new(this);
 
@@ -1207,14 +1210,25 @@ public partial class AMCForth : Godot.RefCounted
 		return word.IsValidInt();
 	}
 
+	public static bool IsValidLong(string word, int radix = 10)
+	{
+        if (radix == 16)
+        {
+			return long.TryParse(word, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out long _);
+        }
+        return long.TryParse(word, out _);
+	}
+
 
 	public static int ToInt(string word, int radix = 10)
 	{
-		if(radix == 16)
-		{
-			return word.HexToInt();
-		}
-		return word.ToInt();
+		return Convert.ToInt32(word, radix);
+	}
+
+
+	public static long ToLong(string word, int radix = 10)
+	{
+		return Convert.ToInt64(word, radix);
 	}
 
 

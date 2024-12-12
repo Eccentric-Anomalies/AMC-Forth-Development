@@ -24,10 +24,10 @@ namespace Forth.CommonUse
 			var caddr = Forth.Pop();
 			// start of word
 			var t = Forth.Util.StrFromAddrN(caddr, len);
-			if(t.Contains(".") && AMCForth.IsValidInt(t.Replace(".", ""), radix))
+			if(t.Contains(".") && AMCForth.IsValidLong(t.Replace(".", ""), radix))
 			{
 				var t_strip = t.Replace(".", "");
-				var temp = AMCForth.ToInt(t_strip, radix);
+				var temp = AMCForth.ToLong(t_strip, radix);
 				Forth.PushDint(temp);
 				Forth.Push(2);
 			}

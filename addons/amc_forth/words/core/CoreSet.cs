@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Forth.CommonUse;
+using Forth.CoreExt;
 using Godot;
 // Forth CORE word set
 
@@ -15,13 +16,18 @@ namespace Forth.Core
 
 		public Align Align;
 		public Aligned Aligned;
+		public Allot Allot;
 		public Base Base;
 		public Cells Cells;
 		public Comma Comma;
 		public Count Count;
+
+		public Create Create;
 		public Decimal Decimal;
+		public Dot Dot;
 		public Drop Drop;
 		public Dup Dup;
+		public Emit Emit;
 		public Evaluate Evaluate;
 		public Execute Execute;
 		public Literal Literal;
@@ -35,7 +41,9 @@ namespace Forth.Core
 		public Swap Swap;
 		public Tick Tick;
 		public ToIn ToIn;
+		public TwoDrop TwoDrop;
 		public TwoStar TwoStar;
+		public Core.Type Type;
 		public Word Word;
 		public ZeroEqual ZeroEqual;
 
@@ -45,13 +53,17 @@ namespace Forth.Core
         {
 			Align = new (_forth, Wordset);
 			Aligned = new (_forth, Wordset);
+			Allot = new (_forth, Wordset);
 			Base = new (_forth, Wordset);
 			Cells = new (_forth, Wordset);
 			Comma = new (_forth, Wordset);
 			Count = new (_forth, Wordset);
+			Create = new (_forth, Wordset);
 			Decimal = new (_forth, Wordset);
+			Dot = new (_forth, Wordset);
 			Drop = new (_forth, Wordset);
 			Dup = new (_forth, Wordset);
+			Emit = new (_forth, Wordset);
 			Evaluate = new (_forth, Wordset);
 			Execute = new (_forth, Wordset);
 			Literal = new (_forth, Wordset);
@@ -65,7 +77,9 @@ namespace Forth.Core
 			Swap = new (_forth, Wordset);
 			Tick = new (_forth, Wordset);
 			ToIn = new (_forth, Wordset);
+			TwoDrop = new (_forth, Wordset);
 			TwoStar = new (_forth, Wordset);
+			Type = new (_forth, Wordset);
 			Word = new (_forth, Wordset);
 			ZeroEqual = new(_forth, Wordset);
         }
