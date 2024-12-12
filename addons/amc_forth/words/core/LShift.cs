@@ -3,18 +3,22 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class LShift : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public LShift(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "LSHIFT";
+			Description = 
+				"Perform a logical left shift of u places on x1, giving x2. "+
+				"Fill the vacated LSB bits with zero.";
+			StackEffect = "(x1 u - x2 )";
 		}
 
 		public override void Call()
 		{
+			Forth.CoreWords.Swap.Call();
+			Forth.Push(Forth.Pop() << Forth.Pop());
 		}
 	}
 }

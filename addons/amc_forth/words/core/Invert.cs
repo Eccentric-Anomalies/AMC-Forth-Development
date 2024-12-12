@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class Invert : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public Invert(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "INVERT";
+			Description = "Invert all bits of x1, giving its logical inverse, x2.";
+			StackEffect = "( x1 - x2 )";
 		}
 
 		public override void Call()
 		{
+			Forth.DataStack[Forth.DsP] =  ~ Forth.DataStack[Forth.DsP];
 		}
 	}
 }
