@@ -38,7 +38,7 @@ namespace Forth.Core
 				if((xt_immediate.Addr == 0) && HasName(t.ToUpper()))
 				{
 					try {
-						xt_immediate = new AMCForth.DictResult(FromName(t).Xt, false);
+						xt_immediate = new AMCForth.DictResult(FromName(t.ToUpper()).Xt, false);
 					}
 					catch (ArgumentOutOfRangeException e) {
 						xt_immediate = new AMCForth.DictResult(0, false);

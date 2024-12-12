@@ -23,6 +23,10 @@ namespace Forth
 				_xtDict[XtX] = this;
 			}
 		}
+		public static List<string> AllNames
+		{
+			get => new (_nameDict.Keys);
+		}
 		public string Description;
 		public string StackEffect;
 		public string WordSet;

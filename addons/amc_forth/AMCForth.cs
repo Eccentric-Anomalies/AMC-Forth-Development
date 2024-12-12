@@ -142,6 +142,7 @@ public partial class AMCForth : Godot.RefCounted
 	public Forth.File.FileSet FileWords;
 	public Forth.FileExt.FileExtSet FileExtWords;
 	public Forth.String.StringSet StringWords;
+	public Forth.Tools.ToolsSet ToolsWords;
 	public Forth.CommonUse.CommonUseSet CommonUseWords;
 	public Forth.Core.CoreSet CoreWords;
 	public Forth.CoreExt.CoreExtSet CoreExtWords;
@@ -1103,6 +1104,7 @@ public partial class AMCForth : Godot.RefCounted
 		FileWords = new(this);
 		FileExtWords = new(this);
 		StringWords = new(this);
+		ToolsWords = new(this);
 		AMCExtWords = new(this);
 
 		// Initialize the data stack pointer

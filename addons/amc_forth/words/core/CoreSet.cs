@@ -28,6 +28,7 @@ namespace Forth.Core
 		public Drop Drop;
 		public Dup Dup;
 		public Emit Emit;
+		public Fetch Fetch;
 		public Evaluate Evaluate;
 		public Execute Execute;
 		public Literal Literal;
@@ -66,6 +67,7 @@ namespace Forth.Core
 			Emit = new (_forth, Wordset);
 			Evaluate = new (_forth, Wordset);
 			Execute = new (_forth, Wordset);
+			Fetch = new (_forth, Wordset);
 			Literal = new (_forth, Wordset);
 			Minus = new(_forth, Wordset);
 			Move = new(_forth, Wordset);
