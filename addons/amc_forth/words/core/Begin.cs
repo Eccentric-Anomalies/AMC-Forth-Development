@@ -3,18 +3,21 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class Begin : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public Begin(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "BEGIN";
+			Description = "Mark the destination of a backward branch.";
+			StackEffect = "( - dest )";
+			Immediate = true;
 		}
 
 		public override void Call()
 		{
+			// backwards by one cell, so execution will advance it to the right point
+			Forth.CfPushDest(Forth.DictTopP - ForthRAM.CellSize);
 		}
 	}
 }

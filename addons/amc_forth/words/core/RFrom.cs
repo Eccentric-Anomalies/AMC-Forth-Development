@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class RFrom : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public RFrom(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "R>";
+			Description = "Remove the item on the top of the return stack and put it on the data stack.";
+			StackEffect = "(S: - x ) (R: x - )";
 		}
 
 		public override void Call()
 		{
+			Forth.Push(Forth.RPop());
 		}
 	}
 }

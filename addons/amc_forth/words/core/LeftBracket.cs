@@ -3,18 +3,20 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class LeftBracket : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public LeftBracket(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
+			Name = "[";
+			Description = "Enter interpretation state.";
 			StackEffect = "( - )";
+			Immediate = true;
 		}
 
 		public override void Call()
 		{
+			Forth.State = false;
 		}
 	}
 }
