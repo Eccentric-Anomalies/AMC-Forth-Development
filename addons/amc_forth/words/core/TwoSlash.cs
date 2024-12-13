@@ -17,8 +17,8 @@ namespace Forth.Core
 
 		public override void Call()
 		{
-			// this is literally a signed divide by 2
-			Forth.DataStack[Forth.DsP] = Forth.DataStack[Forth.DsP] / 2; 
+			// shift right, copying MSB
+			Forth.DataStack[Forth.DsP] = Forth.DataStack[Forth.DsP] >> 1; 
 		}
 	}
 }

@@ -15,7 +15,11 @@ namespace Forth.Core
 
 		public override void Call()
 		{
-			Forth.DataStack[Forth.DsP] = System.Math.Abs(Forth.DataStack[Forth.DsP]);
+			// Absolute value of MAX-INT+1 is a noop
+			if (Forth.DataStack[Forth.DsP] != int.MinValue)
+			{
+				Forth.DataStack[Forth.DsP] = System.Math.Abs(Forth.DataStack[Forth.DsP]);
+			}
 		}
 	}
 }
