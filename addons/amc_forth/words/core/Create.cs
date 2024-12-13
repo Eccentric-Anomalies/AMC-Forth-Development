@@ -29,6 +29,7 @@ namespace Forth.Core
         {
 			// return address of cell after execution token
 			Forth.Push(Forth.DictIp + ForthRAM.CellSize);
+			Forth.DictIp += ForthRAM.CellSize;
         }
     }
 }
