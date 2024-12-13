@@ -241,8 +241,7 @@ namespace Forth.Core
 			Word = new (_forth, Wordset);
 			Xor = new (_forth, Wordset);
 			ZeroEqual = new (_forth, Wordset);
-			ZeroLessThan = new (_forth, Wordset);)
+			ZeroLessThan = new (_forth, Wordset);
         }
-
 	}
 }

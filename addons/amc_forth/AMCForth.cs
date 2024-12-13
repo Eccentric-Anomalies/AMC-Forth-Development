@@ -808,8 +808,8 @@ public partial class AMCForth : Godot.RefCounted
 	public void PushDint(long val)
 	{
 		var t = ForthRAM.Split64(val);
-		Push((int)Convert.ToUInt32(t.Lo));
-		Push((int)Convert.ToUInt32(t.Hi));
+		Push(t.Lo);
+		Push(t.Hi);
 	}
 
 
@@ -842,8 +842,8 @@ public partial class AMCForth : Godot.RefCounted
 	public void RPushDint(long val)
 	{
 		var t = ForthRAM.Split64(val);
-		RPush((int)Convert.ToUInt32(t.Lo));
-		RPush((int)Convert.ToUInt32(t.Hi));
+		RPush(t.Lo);
+		RPush(t.Hi);
 	}
 
 
@@ -863,24 +863,24 @@ public partial class AMCForth : Godot.RefCounted
 	public void SetDint(int index, long value)
 	{
 		var s = ForthRAM.Split64(value);
-		DataStack[DsP + index] = (int)Convert.ToUInt32(s.Hi);
-		DataStack[DsP + index + 1] = (int)Convert.ToUInt32(s.Lo);
+		DataStack[DsP + index] = s.Hi;
+		DataStack[DsP + index + 1] = s.Lo;
 	}
 
 
 	public void PushDword(ulong value)
 	{
-		var s = ForthRAM.Split64((int)value);
-		Push((int)Convert.ToUInt32(s.Lo));
-		Push((int)Convert.ToUInt32(s.Hi));
+		var s = ForthRAM.Split64((long)value);
+		Push(s.Lo);
+		Push(s.Hi);
 	}
 
 
 	public void SetDword(int index, ulong value)
 	{
 		var s = ForthRAM.Split64((int)value);
-		DataStack[DsP + index] = (int)Convert.ToUInt32(s.Hi);
-		DataStack[DsP + index + 1] = (int)Convert.ToUInt32(s.Lo);
+		DataStack[DsP + index] = s.Hi;
+		DataStack[DsP + index + 1] = s.Lo;
 	}
 
 

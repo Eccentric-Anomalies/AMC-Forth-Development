@@ -3,12 +3,12 @@ using Godot;
 
 namespace Forth.Core
 {
-[GlobalClass]
+	[GlobalClass]
 	public partial class Evaluate : Forth.Words
 	{
 
 		public Evaluate(AMCForth forth, string wordset) : base(forth, wordset)
-		{			
+		{
 			Name = "EVALUATE";
 			Description = "Use c-addr, u as the buffer start and interpret as Forth source.";
 			StackEffect = "( i*x c-addr u - j*x )";
@@ -23,33 +23,35 @@ namespace Forth.Core
 
 			// buffer pointer is based on source-id
 			Forth.ResetBuffToIn();
-			while(true)
+			while (true)
 			{
 				Forth.CoreExtWords.ParseName.Call();
 				var len = Forth.Pop(); // length of word
 				var caddr = Forth.Pop(); // start of word
-				if(len == 0)	// out of tokens?
+				if (len == 0)   // out of tokens?
 				{
 					break;
 				}
 				var t = Forth.Util.StrFromAddrN(caddr, len);
 				// t should be the next token, try to get an execution token from it
 				var xt_immediate = Forth.FindInDict(t);
-				if((xt_immediate.Addr == 0) && HasName(t.ToUpper()))
+				if ((xt_immediate.Addr == 0) && HasName(t.ToUpper()))
 				{
-					try {
+					try
+					{
 						xt_immediate = new AMCForth.DictResult(FromName(t.ToUpper()).Xt, false);
 					}
-					catch (ArgumentOutOfRangeException e) {
+					catch (ArgumentOutOfRangeException e)
+					{
 						xt_immediate = new AMCForth.DictResult(0, false);
 						Forth.Util.PrintUnknownWord(e.ParamName);
 					}
 				}
-				if(xt_immediate.Addr != 0) // an execution token exists
+				if (xt_immediate.Addr != 0) // an execution token exists
 				{
 					Forth.Push(xt_immediate.Addr);
 					// check if it is a built-in immediate or dictionary immediate before storing
-					if(Forth.State && !(FromName(t).Immediate || xt_immediate.IsImmediate))
+					if (Forth.State && !((HasName(t) && FromName(t).Immediate) || xt_immediate.IsImmediate))
 					{
 						// Compiling
 						Forth.CoreWords.Comma.Call();
@@ -61,22 +63,22 @@ namespace Forth.Core
 						Forth.CoreWords.Execute.Call();
 					}
 				}
-				else	// no valid token, so maybe valid numeric value (double first)
+				else    // no valid token, so maybe valid numeric value (double first)
 				{
 					// check for a number
 					Forth.Push(caddr);
 					Forth.Push(len);
 					Forth.CommonUseWords.NumberQuestion.Call();
 					var type = Forth.Pop();
-					if(type == 2 && Forth.State)
+					if (type == 2 && Forth.State)
 					{
 						Forth.DoubleWords.TwoLiteral.Call();
 					}
-					else if(type == 1 && Forth.State)
+					else if (type == 1 && Forth.State)
 					{
 						Forth.CoreWords.Literal.Call();
 					}
-					else if(type == 0)
+					else if (type == 0)
 					{
 						Forth.Util.PrintUnknownWord(t);
 
@@ -87,14 +89,14 @@ namespace Forth.Core
 
 					}
 				}// check the stack at each step..
-				if(Forth.DsP < 0)
+				if (Forth.DsP < 0)
 				{
 					Forth.Util.RprintTerm(" Data stack overflow");
 					Forth.DsP = AMCForth.DataStackSize;
 					break;
 				}
 				// not ok
-				if(Forth.DsP > AMCForth.DataStackSize)
+				if (Forth.DsP > AMCForth.DataStackSize)
 				{
 					Forth.Util.RprintTerm(" Data stack underflow");
 					Forth.DsP = AMCForth.DataStackSize;

@@ -63,14 +63,14 @@ public partial class ForthRAM : Godot.RefCounted
 	// structure of double int
 	public readonly struct Double
 	{
-		public Double(long lo, long hi)
+		public Double(int lo, int hi)
 		{
 			Lo = lo;
 			Hi = hi;
 		}
 
-		public long Lo { get; }
-		public long Hi { get;}
+		public int Lo { get; }
+		public int Hi { get;}
 
 		public override string ToString() => $"(L:{Lo}, H:{Hi})";
 	}
@@ -79,7 +79,7 @@ public partial class ForthRAM : Godot.RefCounted
 	// convert int to [hi, lo] 32-bit words
 	public static Double Split64(long val)
 	{
-		return new Double(val & (long) uint.MaxValue, val / ((long) uint.MaxValue+1));
+		return new Double((int)(val & (long) uint.MaxValue), (int) (val / ((long) uint.MaxValue+1)));
 	}
 
 
