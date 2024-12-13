@@ -37,11 +37,9 @@ namespace Forth.Core
         {
 			// pull out the increment
 			var n = Forth.Pop();
-			Forth.CoreExtWords.TwoRFrom.Call();	// Move to loop params to the data stack.
-			var i = Forth.Pop();
-			// current index
-			var limit = Forth.Pop();
-			// limit value
+			Forth.CoreExtWords.TwoRFrom.Call();	// Move two loop params to the data stack.
+			var i = (long) Forth.Pop();	// current index
+			var limit = (long) Forth.Pop();	// limit value
 			var above_before = i >= limit;
 			var next_i = i + n;
 			var above_after = next_i >= limit;
@@ -53,9 +51,9 @@ namespace Forth.Core
 			else
 			{
 				// loop must continue
-				Forth.Push(limit);
+				Forth.Push((int)limit);
 				// original limit
-				Forth.Push(next_i);
+				Forth.Push((int)next_i);
 				// new index
 				// Branch back. The DO or ?DO exec will push the values
 				// back on the return stack
