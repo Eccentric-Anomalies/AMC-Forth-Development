@@ -79,14 +79,14 @@ public partial class ForthRAM : Godot.RefCounted
 	// convert int to [hi, lo] 32-bit words
 	public static Double Split64(long val)
 	{
-		return new Double((int)(val & (long) uint.MaxValue), (int) (val / ((long) uint.MaxValue+1)));
+		return new Double((int)(val & (long) uint.MaxValue), (int) ((ulong) val / ((ulong) uint.MaxValue+1)));
 	}
 
 
 // convert (hi, lo) to 64-bit int
 	public static long Combine64(int hi, int lo)
 	{
-		return hi * ((long) uint.MaxValue + 1) + lo;
+		return (long) (((ulong) hi << 32) + (uint) lo);
 	}
 
 
