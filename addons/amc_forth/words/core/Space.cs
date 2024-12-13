@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class Space : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public Space(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
+			Name = "SPACE";
+			Description = "Display one space on the current output device.";
 			StackEffect = "( - )";
 		}
 
 		public override void Call()
 		{
+			Forth.Util.PrintTerm(Terminal.BL);
 		}
 	}
 }

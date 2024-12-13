@@ -3,18 +3,23 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class While : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public While(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
+			Name = "WHILE";
+			Description = 
+				"At compile time, place a new unresolved forward reference origin on the "+
+				"control stack. At run-time, if x is zero, take the forward branch to the "+
+				"destination supplied by REPEAT.";
 			StackEffect = "( - )";
+			Immediate = true;
 		}
 
 		public override void Call()
 		{
+			Forth.CoreWords.If.Call();
 		}
-	}
+    }
 }

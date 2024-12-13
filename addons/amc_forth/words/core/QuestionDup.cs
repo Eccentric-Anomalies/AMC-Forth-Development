@@ -3,18 +3,25 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class QuestionDup : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public QuestionDup(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "?DUP";
+			Description = 
+				"Conditionally duplicate the top item on the stack if its value is "+
+				"non-zero.";
+			StackEffect = "( x - x | x x )";
 		}
 
 		public override void Call()
 		{
+			var n = Forth.DataStack[Forth.DsP];
+			if(n != 0)
+			{
+				Forth.Push(n);
+			}
 		}
 	}
 }

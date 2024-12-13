@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class Negate : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public Negate(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "NEGATE";
+			Description = "Change the sign of the top stack value.";
+			StackEffect = "( n - -n )";
 		}
 
 		public override void Call()
 		{
+			Forth.DataStack[Forth.DsP] =  - Forth.DataStack[Forth.DsP];
 		}
 	}
 }

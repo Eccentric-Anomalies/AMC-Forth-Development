@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class MStar : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public MStar(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "M*";
+			Description = "Multiply n1 by n2, leaving the double result d.";
+			StackEffect = "( n1 n2 - d )";
 		}
 
 		public override void Call()
 		{
+			Forth.PushDint((long) Forth.Pop() * Forth.Pop());
 		}
 	}
 }
