@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class Here : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public Here(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "HERE";
+			Description = "Return address of the next available location in data-space.";
+			StackEffect = "( - addr )";
 		}
 
 		public override void Call()
 		{
+			Forth.Push(Forth.DictTopP);
 		}
 	}
 }

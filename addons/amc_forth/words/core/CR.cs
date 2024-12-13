@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class CR : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public CR(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
+			Name = "CR";
+			Description = "Emit characters to generate a newline on the terminal.";
 			StackEffect = "( - )";
 		}
 
 		public override void Call()
 		{
+			Forth.Util.PrintTerm(Terminal.CRLF);
 		}
 	}
 }

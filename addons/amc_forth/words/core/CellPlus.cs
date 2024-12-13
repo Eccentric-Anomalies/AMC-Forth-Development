@@ -3,18 +3,20 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class CellPlus : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public CellPlus(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "CELL+";
+			Description = "Add the size in bytes of a cell to a_addr1, returning a_addr2.";
+			StackEffect = "( a-addr1 - a-addr2 )";
 		}
 
 		public override void Call()
 		{
+			Forth.Push(ForthRAM.CellSize);
+			Forth.CoreWords.Plus.Call();
 		}
 	}
 }

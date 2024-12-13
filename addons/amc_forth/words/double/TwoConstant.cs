@@ -18,12 +18,7 @@ namespace Forth.Double
 			var init_val = Forth.PopDword();
 			if(Forth.CreateDictEntryName() != 0)
 			{
-
-				// copy the execution token
-
-
-				Forth.Ram.SetInt(Forth.DictTopP, XtX);
-
+				Forth.Ram.SetInt(Forth.DictTopP, XtX);	// copy the execution token
 				// store the constant
 				Forth.Ram.SetDword(Forth.DictTopP + ForthRAM.CellSize, init_val);
 				Forth.DictTopP += ForthRAM.CellSize + ForthRAM.DCellSize;

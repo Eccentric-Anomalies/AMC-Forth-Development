@@ -3,18 +3,19 @@ using Godot;
 namespace Forth.Core
 {
 [GlobalClass]
-	public partial class XXXX : Forth.Words
+	public partial class Depth : Forth.Words
 	{
 
-		public XXXX(AMCForth forth, string wordset) : base(forth, wordset)
+		public Depth(AMCForth forth, string wordset) : base(forth, wordset)
 		{			
-			Name = "XXXX";
-			Description = "XXXX";
-			StackEffect = "( - )";
+			Name = "DEPTH";
+			Description = "Return the number of single-cell values on the stack before execution.";
+			StackEffect = "( - +n )";
 		}
 
 		public override void Call()
 		{
+			Forth.Push(AMCForth.DataStackSize - Forth.DsP);
 		}
 	}
 }
