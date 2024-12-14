@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 namespace Forth.AMCExt
@@ -32,12 +33,21 @@ namespace Forth.AMCExt
             var addr = Forth.Pop();
             var ms = Forth.Pop();
             // ( - )
-            if ((ms != 0) && (Forth.Ram.GetInt(addr) == 0))
+            try
             {
-                // only if non-zero and nothing already there
-                Forth.Ram.SetInt(addr, ms);
-                Forth.Ram.SetInt(addr + ForthRAM.CellSize, xt);
-                Forth.StartPeriodicTimer(id, ms, xt);
+                if ((ms != 0) && (Forth.Ram.GetInt(addr) == 0))
+                {
+                    // only if non-zero and nothing already there
+                    Forth.Ram.SetInt(addr, ms);
+                    Forth.Ram.SetInt(addr + ForthRAM.CellSize, xt);
+                    Forth.StartPeriodicTimer(id, ms, xt);
+                }
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                Forth.Util.RprintTerm(
+                    $" Timer ID out of range (maximum {AMCForth.PeriodicTimerQty})."
+                );
             }
         }
 
