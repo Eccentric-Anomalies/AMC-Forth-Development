@@ -7,18 +7,17 @@ signal input_100(value: int)
 
 var _telnet_terminal: ForthTermTelnet
 var _local_terminal: ForthTermLocal
-var _forth: AMCForth
 
 
 func _ready() -> void:
 	var forth = AMCForth.new()
 	forth.Initialize(self)
-	_telnet_terminal = ForthTermTelnet.new(_forth)
-	_local_terminal = ForthTermLocal.new(_forth, $Bezel/Screen.material)
+	_telnet_terminal = ForthTermTelnet.new(forth)
+	_local_terminal = ForthTermLocal.new(forth, $Bezel/Screen.material)
 
-	_forth.add_output_signal(99, port_99)  # FIXME test purposes
+	forth.AddOutputSignal(99, port_99)  # FIXME test purposes
 	port_99.connect(_on_port_99_output)  # FIXME output test
-	input_100.connect(_forth.GetInputReceiver(100))  # FIXME input test
+	# input_100.connect(forth.GetInputReceiver(100))
 
 
 func _process(_delta: float) -> void:
