@@ -29,14 +29,17 @@ namespace Forth.AMCExt
             Forth.CoreWords.Store.Call();
             if (Forth.OutputPortMap.ContainsKey(port))
             {
-                var sig = Forth.OutputPortMap[port];
                 CallDeferred("OutputEmitter", port, value);
             }
         }
 
         public void OutputEmitter(int port, int value)
         {
-            EmitSignal(Forth.OutputPortMap[port], value);
+            // generate an output signal for every registered listener
+            foreach (AMCForth.OutputPortSignal signal in Forth.OutputPortMap[port])
+            {
+                signal.Owner.EmitSignal(signal.Signal, value);
+            }
         }
     }
 }

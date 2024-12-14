@@ -222,7 +222,22 @@ public partial class AMCForth : Godot.RefCounted
     public int RsP;
 
     // Output handlers
-    public System.Collections.Generic.Dictionary<int, Godot.StringName> OutputPortMap = new();
+    // Structure of an output port signal (owner, event name)
+    public readonly struct OutputPortSignal
+    {
+        public OutputPortSignal(GodotObject owner, Godot.StringName signal)
+        {
+            Owner = owner;
+            Signal = signal;
+        }
+
+        public GodotObject Owner { get; }
+        public Godot.StringName Signal { get; }
+
+        public override string ToString() => $"({Owner}, {Signal})";
+    }
+
+    public System.Collections.Generic.Dictionary<int, List<OutputPortSignal>> OutputPortMap = new();
 
     // structure of an input port event (port id, data value)
     public readonly struct PortEvent
@@ -681,9 +696,15 @@ public partial class AMCForth : Godot.RefCounted
 
     // Register an output signal handler (port triggers message out)
     // Message will fire with Forth OUT ( x p - )
+    // Multiple signals may be registered to the same output port
+
     public void AddOutputSignal(int port, Signal s)
     {
-        OutputPortMap[port] = s.Name;
+        if (!OutputPortMap.ContainsKey(port))
+        {
+            OutputPortMap[port] = new List<OutputPortSignal>();
+        }
+        OutputPortMap[port].Add(new OutputPortSignal(s.Owner, s.Name));
     }
 
     // Get a reference to a input port handler function.
