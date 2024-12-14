@@ -15,9 +15,12 @@ func _ready() -> void:
 	_telnet_terminal = ForthTermTelnet.new(forth)
 	_local_terminal = ForthTermLocal.new(forth, $Bezel/Screen.material)
 
+	# outputs
 	forth.AddOutputSignal(99, port_99)  # FIXME test purposes
 	port_99.connect(_on_port_99_output)  # FIXME output test
-	# input_100.connect(forth.GetInputReceiver(100))
+
+	# inputs
+	forth.AddInputSignal(100, input_100)  # FIXME test input
 
 
 func _process(_delta: float) -> void:
@@ -37,7 +40,7 @@ func _on_port_99_output(value: int):
 
 
 # test code FIXME
-func _unhandled_input(event):
+func _input(event):
 	if event is InputEventKey:
-		if event.pressed and event.keycode == KEY_0:
+		if event.pressed and event.keycode == KEY_SPACE:
 			input_100.emit(666)
