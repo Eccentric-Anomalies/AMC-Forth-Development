@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Globalization;
-using System.Linq;
 using Godot;
 using Godot.Collections;
 
@@ -157,12 +155,6 @@ public partial class AMCForth : Godot.RefCounted
     public Forth.CoreExt.CoreExtSet CoreExtWords;
     public Forth.Double.DoubleSet DoubleWords;
 
-    // Forth built-in meta-data  # FIXME
-    public Dictionary WordDescription = new Dictionary { };
-    public Dictionary WordStackdef = new Dictionary { };
-    public Dictionary WordWordset = new Dictionary { };
-    public Dictionary WordsetWords = new Dictionary { };
-
     // The Forth data stack pointer is in byte units
     // The Forth dictionary space
     public int DictP;
@@ -183,33 +175,6 @@ public partial class AMCForth : Godot.RefCounted
     // 0 default, -1 ram buffer, else file id
     public Stack<int> SourceIdStack = new();
 
-    // Built-In names have a run-time definition
-    // These are "<WORD>", <run-time function> pairs that are defined by each
-    // Forth implementation class (e.g. ForthDouble, etc.)
-    // public Array BuiltInNames = new Array{}; FIXME
-
-    // list of built-in functions that have different
-    // compiled (execution token) behavior.
-    // These are <run-time function> items that are defined by each
-    // Forth implementation class (e.g. ForthDouble, etc.) when a
-    // different *compiled* behavior is required
-    // Each item is a [<name>, <callable>] pair
-    // public Array BuiltInExecFunctions = new Array{}; FIXME
-
-    // List of built-in names that are IMMEDIATE by default
-    // public Array ImmediateNames = new Array{}; FIXME
-
-
-    // get "address" from built-in function
-    // public Dictionary AddressFromBuiltInFunction = new Dictionary{}; FIXME
-
-    // get built-in function from "address"
-    // public Dictionary BuiltInFunctionFromAddress = new Dictionary{}; FIXME
-
-    // get built-in function from word
-    // public Dictionary BuiltInFunction = new Dictionary{}; FIXME
-
-
     // Forth : exit flag (true if exit has been called)
     public bool ExitFlag = false;
 
@@ -221,7 +186,6 @@ public partial class AMCForth : Godot.RefCounted
     public int[] ReturnStack = new int[ReturnStackSize];
     public int RsP;
 
-    // Output handlers
     // Structure of an output port signal (owner, event name)
     public readonly struct OutputPortSignal
     {
@@ -237,6 +201,7 @@ public partial class AMCForth : Godot.RefCounted
         public override string ToString() => $"({Owner}, {Signal})";
     }
 
+    // Map output port ID to user signal data
     public System.Collections.Generic.Dictionary<int, List<OutputPortSignal>> OutputPortMap = new();
 
     // structure of an input port event (port id, data value)
@@ -694,10 +659,14 @@ public partial class AMCForth : Godot.RefCounted
 
     // Forth Input and Output Interface
 
+    public void AddInputSignal(int port, Signal s)
+    {
+        new AMCForthInput().Initialize(this, port, s);
+    }
+
     // Register an output signal handler (port triggers message out)
     // Message will fire with Forth OUT ( x p - )
     // Multiple signals may be registered to the same output port
-
     public void AddOutputSignal(int port, Signal s)
     {
         if (!OutputPortMap.ContainsKey(port))
@@ -707,15 +676,8 @@ public partial class AMCForth : Godot.RefCounted
         OutputPortMap[port].Add(new OutputPortSignal(s.Owner, s.Name));
     }
 
-    // Get a reference to a input port handler function.
-    // In Gdscript use <signal>.Connect(<return value>)
-    public Action<int> GetInputReceiver(int port)
-    {
-        return (int value) => InsertNewEvent(port, value);
-    }
-
     // Utility function to add an input event to the queue
-    protected void InsertNewEvent(int port, int value)
+    public void InputEvent(int port, int value)
     {
         var item = new PortEvent(port, value);
         if (!InputPortEvents.Contains(item))

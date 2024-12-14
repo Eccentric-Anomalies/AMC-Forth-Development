@@ -9,8 +9,10 @@ namespace Forth.AMCExt
             : base(forth, wordset)
         {
             Name = "LISTEN";
-            Description = "Send BLINK command to video terminal.";
-            StackEffect = "( - )";
+            Description =
+                "Add a lookup entry for the IO port p, to execute <word>. "
+                + "Usage: <port> LISTEN . ( prints port value when received )";
+            StackEffect = "( 'word' p - )";
         }
 
         public override void Call()
