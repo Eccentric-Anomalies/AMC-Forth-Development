@@ -31,9 +31,9 @@ const BLINK = "\u001B[5m"
 const REVERSE = "\u001B[7m"
 const INVISIBLE = "\u001B[8m"
 
-
 var forth: AMCForth
 var blank_line: PackedInt32Array
+
 
 # Create with a reference to AMCForth
 func _init(_forth: AMCForth):
