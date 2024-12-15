@@ -1,5 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Runtime.CompilerServices;
 using Godot;
 
 // Base class and utilities for Forth word definition
@@ -7,7 +10,7 @@ using Godot;
 namespace Forth
 {
     [GlobalClass]
-    public partial class Words : Godot.RefCounted
+    public partial class Words : Godot.RefCounted, IComparable<Words>
     {
         public AMCForth Forth;
         public bool Immediate;
@@ -112,6 +115,17 @@ namespace Forth
             {
                 word.CallExec();
             }
+        }
+
+        public int CompareTo(Words x)
+        {
+            var comparer = new Comparer(CultureInfo.InvariantCulture);
+            return comparer.Compare(Name, x.Name);
+        }
+
+        public override string ToString()
+        {
+            return Name;
         }
     }
 }

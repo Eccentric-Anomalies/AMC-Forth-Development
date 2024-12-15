@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Security;
+using Forth;
 using Forth.Core;
 using Forth.File;
 using Godot;
@@ -1090,9 +1092,44 @@ public partial class AMCForth : Godot.RefCounted
 
     protected static void CreateBuiltInsDocument()
     {
+        string BulletEscape(string inp)
+        {
+            var bullets = new List<string> { "+", "-", "*", "\\" };
+            if (bullets.Contains(inp))
+            {
+                return "\\" + inp;
+            }
+            return inp;
+        }
+
         var file = Godot.FileAccess.Open("res://builtins.md", Godot.FileAccess.ModeFlags.Write);
         file.StoreLine($"# AMC Forth Built-In Words (Ver. {ForthVersion.Ver})");
-        file.StoreLine("---");
+        file.StoreLine("## Word Sets");
+        var WordSetSet = new SortedSet<string>();
+        var WordsSet = new SortedSet<Words>();
+        foreach (string name in Words.AllNames)
+        {
+            var word = Words.FromName(name);
+            WordSetSet.Add(word.WordSet);
+            WordsSet.Add(word);
+        }
+        foreach (string set in WordSetSet)
+        {
+            file.StoreLine($"### {set}");
+            foreach (Words word in WordsSet)
+            {
+                if (word.WordSet == set)
+                {
+                    var name = BulletEscape(SecurityElement.Escape(word.Name));
+                    var linkname = word.GetType().Name;
+                    if (name == "]" || name == "[")
+                    {
+                        name = "\\" + name;
+                    }
+                    file.StoreLine($"  * [{name}](#{linkname})");
+                }
+            }
+        }
         file.Close();
     }
 
