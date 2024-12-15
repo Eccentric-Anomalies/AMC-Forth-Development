@@ -9,3 +9,4 @@ addons/gdscript2all
 /android/
 .vscode/settings.json
 .vscode/launch.json
+/export/
