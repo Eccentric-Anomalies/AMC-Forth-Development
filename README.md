@@ -18,6 +18,10 @@ See the Github project (https://github.com/Eccentric-Anomalies/AMC-Forth) for ex
 
 See the Github repository [releases page](https://github.com/Eccentric-Anomalies/AMC-Forth/releases) for latest executable binaries.
 
+## License
+
+AMCForth is under the MIT License. Go wild.
+
 ## Screenshot
 
 Well.. why not?
