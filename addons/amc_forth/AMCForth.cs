@@ -1054,7 +1054,7 @@ public partial class AMCForth : Godot.RefCounted
         AMCExtWords = new(this);
 
         // Generate Documentation File
-        CreateBuiltInsDocument();
+        CreateBuiltInsDocuments();
 
         // Initialize the data stack pointer
         DsP = DataStackSize;
@@ -1090,7 +1090,7 @@ public partial class AMCForth : Godot.RefCounted
         GD.Print(GetBanner());
     }
 
-    protected static void CreateBuiltInsDocument()
+    protected static void CreateBuiltInsDocuments()
     {
         string BulletEscape(string inp)
         {
@@ -1102,9 +1102,11 @@ public partial class AMCForth : Godot.RefCounted
             return inp;
         }
 
-        var file = Godot.FileAccess.Open("res://builtins.md", Godot.FileAccess.ModeFlags.Write);
+        var file = Godot.FileAccess.Open(
+            "res://addons/amc_forth/docs/builtins.md",
+            Godot.FileAccess.ModeFlags.Write
+        );
         file.StoreLine($"# AMC Forth Built-In Words (Ver. {ForthVersion.Ver})");
-        file.StoreLine("## Word Sets");
         var WordSetSet = new SortedSet<string>();
         var WordsSet = new SortedSet<Words>();
         foreach (string name in Words.AllNames)
@@ -1115,7 +1117,8 @@ public partial class AMCForth : Godot.RefCounted
         }
         foreach (string set in WordSetSet)
         {
-            file.StoreLine($"### {set}");
+            var word_set_dir = set.ToLower().Replace(" ", "_");
+            file.StoreLine($"## {set}");
             foreach (Words word in WordsSet)
             {
                 if (word.WordSet == set)
@@ -1126,7 +1129,21 @@ public partial class AMCForth : Godot.RefCounted
                     {
                         name = "\\" + name;
                     }
-                    file.StoreLine($"  * [{name}](#{linkname})");
+                    file.StoreLine($"### <a name=\"{linkname}\"></a>[{name}]({linkname}.md)\n");
+                    // now its own file:
+                    var wfile = Godot.FileAccess.Open(
+                        $"res://addons/amc_forth/docs/{linkname}.md",
+                        Godot.FileAccess.ModeFlags.Write
+                    );
+                    wfile.StoreLine($"# {name} &emsp; ({linkname})");
+                    wfile.StoreLine($"{word.Description}");
+                    wfile.StoreLine($"* {word.StackEffect}");
+                    wfile.StoreLine($"* [Source Code](../words/{word_set_dir}/{linkname}.cs)");
+                    wfile.StoreLine(
+                        $"* Execution Tokens: {word.Xt} (interpreted) and {word.XtX} (compiled)"
+                    );
+                    wfile.StoreLine($"\n\n[BACK](builtins.md#{linkname})");
+                    wfile.Close();
                 }
             }
         }
