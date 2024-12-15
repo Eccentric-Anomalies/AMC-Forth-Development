@@ -1,12 +1,20 @@
 # AMC Forth
 
-### A C# based implementation of Chuck Moore's Forth computer language running inside the [Godot game engine](https://godotengine.org/).
+#### A C# based implementation of Chuck Moore's Forth computer language running inside the [Godot game engine](https://godotengine.org/).
 
-AMC Forth is was created to be the in-flight computer for the AMC SkyDart, a fictional spacecraft featured in [Tungsten Moon](https://store.steampowered.com/app/3104900/Tungsten_Moon/). Spun off into its own project on [Github](https://github.com/Eccentric-Anomalies/AMC-Forth), AMC Forth is available for public use under the generous [MIT License](https://github.com/Eccentric-Anomalies/AMC-Forth/blob/main/LICENSE), which allows you to use the software provided it continues to include the original license.
+AMC Forth is a C#-based implementation of Chuck Moore's Forth computer language, running inside the [Godot game engine](https://godotengine.org/). It was created to be the in-flight computer for the AMC SkyDart, a fictional spacecraft featured in [Tungsten Moon](https://store.steampowered.com/app/3104900/Tungsten_Moon/). Spun off into its own project on [Github](https://github.com/Eccentric-Anomalies/AMC-Forth), AMC Forth is available for public use under the generous [MIT License](https://github.com/Eccentric-Anomalies/AMC-Forth/blob/main/LICENSE).
 
 ## How to Use AMC Forth
 
 AMC Forth is suited to inclusion in your Godot project using two Godot add-on paths: `addons/amc_forth`  for the Forth engine C# class, and `addons/amc_forth_terminal` which has a local DEC VT-100 subset script, `forth_term_local.gd`, and a simple telnet script, `forth_term_telnet.gd`. The local terminal implementation can be used together with a 2D canvas shader, `terminal_canvas.gdshader`, or a 3D shader, `terminal_3d.gdshader`, to reproduce the appearance of a VT-100 terminal screen. Example 2D and 3D terminal+Forth scenes are available at the root of the [Github repository for AMC Forth](https://github.com/Eccentric-Anomalies/AMC-Forth). Please refer to those examples when trying to use AMC Forth in your own 2D or 3D Godot project!
+
+## AMCForth Word List
+
+AMCForth currently implements an extensive set of [built-in words](./docs/builtins.md). Each word links to a page with a short description of what it does how it uses the Forth data stack. For debugging purposes, there is also a link to the C# class that implement's the word's functionality, as well as the values of its execution tokens for both interpreted and compiled contexts.
+
+## AMCForth Test Suite
+
+This repository also includes a [Forth test suite](./tests.fth) that can be [INCLUDE](./docs/Include.md)-ed to validate the correctness of the implementation. When executed, a successful run produces NO output to the terminal (i.e. prints "ok").
 
 ## The AMCForth Class (C#)
 
