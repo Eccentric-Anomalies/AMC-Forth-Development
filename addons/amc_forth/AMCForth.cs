@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using Forth.Core;
+using Forth.File;
 using Godot;
 using Godot.Collections;
 
@@ -1016,9 +1019,8 @@ public partial class AMCForth : Godot.RefCounted
     }
 
     // PRIVATES
-    // Called when AMCForth.new() is executed
+
     // This will cascade instantiation of all the Forth implementation classes
-    // and initialize dictionaries for relating built-in words and addresses
     public void Initialize(Godot.Node node)
     {
         // save the instantiating node
@@ -1048,6 +1050,9 @@ public partial class AMCForth : Godot.RefCounted
         ToolsWords = new(this);
         ToolsExtWords = new(this);
         AMCExtWords = new(this);
+
+        // Generate Documentation File
+        CreateBuiltInsDocument();
 
         // Initialize the data stack pointer
         DsP = DataStackSize;
@@ -1081,6 +1086,14 @@ public partial class AMCForth : Godot.RefCounted
         _Thread.Start();
         _OutputDone = true;
         GD.Print(GetBanner());
+    }
+
+    protected static void CreateBuiltInsDocument()
+    {
+        var file = Godot.FileAccess.Open("res://builtins.md", Godot.FileAccess.ModeFlags.Write);
+        file.StoreLine($"# AMC Forth Built-In Words (Ver. {ForthVersion.Ver})");
+        file.StoreLine("---");
+        file.Close();
     }
 
     // AMC Forth name with version
