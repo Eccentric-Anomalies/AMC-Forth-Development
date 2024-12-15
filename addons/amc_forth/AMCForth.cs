@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Security;
 using Forth;
+using Forth.CommonUse;
 using Forth.Core;
 using Forth.File;
 using Godot;
@@ -1054,7 +1055,10 @@ public partial class AMCForth : Godot.RefCounted
         AMCExtWords = new(this);
 
         // Generate Documentation File
-        CreateBuiltInsDocuments();
+        if (OS.HasFeature("editor"))
+        {
+            CreateBuiltInsDocuments();
+        }
 
         // Initialize the data stack pointer
         DsP = DataStackSize;
