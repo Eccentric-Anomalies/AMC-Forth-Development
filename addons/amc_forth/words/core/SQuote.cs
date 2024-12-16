@@ -27,11 +27,12 @@ namespace Forth.Core
                 Forth.Ram.SetInt(Forth.DictTopP, XtX);
                 Forth.DictTopP += ForthRAM.CellSize; // store the value
                 Forth.Ram.SetByte(Forth.DictTopP, l); // store the length
+                Forth.DictTopP += 1; // beginning of string characters
                 // compile the string into the dictionary
                 for (int i = 0; i < l; i++)
                 {
-                    Forth.DictTopP += 1;
                     Forth.Ram.SetByte(Forth.DictTopP, Forth.Ram.GetByte(src + i));
+                    Forth.DictTopP += 1;
                 }
                 Forth.CoreWords.Align.Call(); // this will align the dict top and save it
             }
