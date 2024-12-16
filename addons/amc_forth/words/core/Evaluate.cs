@@ -37,9 +37,11 @@ namespace Forth.Core
                 var xt_immediate = Forth.FindInDict(t);
                 if ((xt_immediate.Addr == 0) && HasName(t.ToUpper()))
                 {
+                    // token is not in the dictionary
+                    t = t.ToUpper(); // use upper case for searching built-ins
                     try
                     {
-                        xt_immediate = new AMCForth.DictResult(FromName(t.ToUpper()).Xt, false);
+                        xt_immediate = new AMCForth.DictResult(FromName(t).Xt, false);
                     }
                     catch (ArgumentOutOfRangeException e)
                     {
