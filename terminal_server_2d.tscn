@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://dh017asy1c633"]
 
 [ext_resource type="Script" path="res://terminal_2d.gd" id="1_21aq0"]
-[ext_resource type="Shader" path="res://addons/amc_forth_terminal/terminal_canvas.gdshader" id="2_1yo1a"]
+[ext_resource type="Shader" path="res://addons/amc_forth/terminal_canvas.gdshader" id="2_1yo1a"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_nm1mo"]
 shader = ExtResource("2_1yo1a")

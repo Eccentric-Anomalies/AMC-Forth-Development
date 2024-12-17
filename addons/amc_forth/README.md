@@ -122,3 +122,14 @@ To cancel a timer, use the custom word: [P-STOP](docs/PStop.md)
 5 P-STOP  ( stops the timer with ID=5)
 ```
 
+## Forth Terminals
+
+### Local Terminal
+
+The script `forth_term_local.gd` implements a local implementation of a VT-100 command subset, to use inside a Godot scene (see the example 2D and 3D scenes at the root of the [AMC Forth Github Repository](https://github.com/Eccentric-Anomalies/AMC-Forth)).
+
+### Telnet Terminal
+
+The script `forth_term_telnet.gd` implements a simple telnet server that should work seamlessly with the PuTTY telnet client.
+
+Telnet and local terminals may be used by themselves, or together at the same time.

@@ -1,7 +1,7 @@
 [gd_scene load_steps=11 format=3 uid="uid://cdp5rrqyggnj3"]
 
 [ext_resource type="Script" path="res://terminal_3d.gd" id="1_hcjy7"]
-[ext_resource type="Shader" path="res://addons/amc_forth_terminal/terminal_3d.gdshader" id="2_ib4cb"]
+[ext_resource type="Shader" path="res://addons/amc_forth/terminal_3d.gdshader" id="2_pia5v"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8t0p6"]
 
@@ -25,7 +25,7 @@ size = Vector3(0.52, 0.32, 0.02)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_4tkqo"]
 render_priority = 0
-shader = ExtResource("2_ib4cb")
+shader = ExtResource("2_pia5v")
 shader_parameter/ram = null
 shader_parameter/cols = 80
 shader_parameter/rows = 24
