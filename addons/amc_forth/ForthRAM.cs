@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using System.Data.SqlTypes;
 using System.Runtime.InteropServices;
 using Godot;
@@ -45,6 +46,7 @@ public partial class ForthRAM : Godot.RefCounted
     public void Allocate(int size)
     {
         _Ram = new byte[size];
+        System.Array.Fill<byte>(_Ram, 0);
     }
 
     // convert int to standard forth ordering and vice versa

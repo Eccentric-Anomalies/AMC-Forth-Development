@@ -19,18 +19,26 @@ public partial class AMCForth : Godot.RefCounted
     [Signal]
     public delegate void TerminalInReadyEventHandler();
 
-    // control flow address types
+    // Control flow address types
     public enum CFType
     {
-        ORIG,
-        DEST,
+        Orig,
+        Dest,
+    }
+
+    // Input event handling modes
+    public enum QueueMode
+    {
+        QueueAlways = 0, // If listening, ALWAYS enqueue new events (e.g. serial data)
+        QueueChanges = 1, // If listening, only enqueue new events with changed value (e.g. want to see changes)
+        QueueReplace = 2, // If listening, replace previous queued events on this port (e.g. only want latest state)
     }
 
     public const string Banner = "AMC Forth";
     public const string ConfigFileName = "user://ForthState.cfg";
 
     // Memory Map
-    public const int RamSize = 0x10000;
+    public const int RamSize = 0x20000;
 
     // BYTES
     // Dictionary
@@ -101,8 +109,8 @@ public partial class AMCForth : Godot.RefCounted
     public const int IoInStart = IoInTop - IoInPortQty * ForthRAM.CellSize;
     public const int IoInMapTop = IoInStart;
 
-    // xt for every port that is being listened on
-    public const int IoInMapStart = IoInMapTop - IoInPortQty * ForthRAM.CellSize;
+    // (xt, QueueMode) for every port that is being listened on (double cell entries)
+    public const int IoInMapStart = IoInMapTop - IoInPortQty * 2 * ForthRAM.CellSize;
 
     // PERIODIC TIMER SPACE
     public const int PeriodicTimerQty = 0x080;
@@ -227,6 +235,7 @@ public partial class AMCForth : Godot.RefCounted
 
     // Input event list of incoming PortEvent data
     public List<PortEvent> InputPortEvents = new();
+    private static Mutex InputPortMutex = new Mutex();
 
     public readonly struct TimerStruct
     {
@@ -685,10 +694,50 @@ public partial class AMCForth : Godot.RefCounted
     // Utility function to add an input event to the queue
     public void InputEvent(int port, int value)
     {
+        var q = (QueueMode)Ram.GetInt(IoInMapStart + ForthRAM.CellSize * (2 * port + 1));
         var item = new PortEvent(port, value);
-        if (!InputPortEvents.Contains(item))
+        bool enqueue = false;
+        int i;
+        InputPortMutex.Lock();
+        if (q == QueueMode.QueueAlways)
         {
+            enqueue = true;
+        }
+        else
+        {
+            for (i = InputPortEvents.Count - 1; i >= 0; i--)
+            {
+                var pe = InputPortEvents[i];
+                if (pe.Port == item.Port)
+                {
+                    if (q == QueueMode.QueueChanges)
+                    {
+                        if (pe.Value != item.Value)
+                        {
+                            // this event represents a changed value so enqueue it
+                            enqueue = true;
+                        }
+                    }
+                    else // QueueMode.QueueReplace
+                    {
+                        // replace the last queued event on this port. DON'T enqeue it.
+                        InputPortEvents[i] = item;
+                    }
+                    break; // stop looping
+                }
+            }
+            if (i < 0)
+            {
+                // exhausted the entire queue without a matching port, so enqueue the event.
+                enqueue = true;
+            }
+        }
+        InputPortMutex.Unlock();
+        if (enqueue)
+        {
+            InputPortMutex.Lock();
             InputPortEvents.Add(item);
+            InputPortMutex.Unlock();
             // bump the semaphore count
             _InputReady.Post();
         }
@@ -930,13 +979,13 @@ public partial class AMCForth : Godot.RefCounted
     // push an ORIG word
     public void CfPushOrig(int addr)
     {
-        _CfPush(new(CFType.ORIG, addr));
+        _CfPush(new(CFType.Orig, addr));
     }
 
     // push an DEST word
     public void CfPushDest(int addr)
     {
-        _CfPush(new(CFType.DEST, addr));
+        _CfPush(new(CFType.Dest, addr));
     }
 
     // pop a word
@@ -963,13 +1012,13 @@ public partial class AMCForth : Godot.RefCounted
     // check for ORIG at top of stack
     public bool CfIsOrig()
     {
-        return _ControlFlowStack.Peek().AddrType == CFType.ORIG;
+        return _ControlFlowStack.Peek().AddrType == CFType.Orig;
     }
 
     // check for DEST at top of stack
     public bool CfIsDest()
     {
-        return _ControlFlowStack.Peek().AddrType == CFType.DEST;
+        return _ControlFlowStack.Peek().AddrType == CFType.Dest;
     }
 
     // pop an ORIG word
@@ -1167,13 +1216,21 @@ public partial class AMCForth : Godot.RefCounted
             _InputReady.Wait();
 
             // preferentially handle input port signals
-            if (InputPortEvents.Count != 0)
+            InputPortMutex.Lock();
+            var InputEventCount = InputPortEvents.Count;
+            InputPortMutex.Unlock();
+            if (InputEventCount != 0)
             {
+                InputPortMutex.Lock();
                 PortEvent evt = InputPortEvents[0]; // pull from the front
                 InputPortEvents.RemoveAt(0); // and remove it from the list
+                InputPortMutex.Unlock();
 
-                // only execute if there is a Forth execution token
-                int xt = Ram.GetInt(IoInMapStart + evt.Port * ForthRAM.CellSize);
+                // save the input value to the correct memory address
+                Ram.SetInt(IoInStart + evt.Port * ForthRAM.CellSize, evt.Value);
+
+                // only execute handler if there is a Forth execution token
+                int xt = Ram.GetInt(IoInMapStart + evt.Port * 2 * ForthRAM.CellSize);
                 if (xt != 0)
                 {
                     Push(evt.Value); // store the value

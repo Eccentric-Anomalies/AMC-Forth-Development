@@ -15,10 +15,13 @@ namespace Forth.AMCExt
 
         public override void Call()
         {
-            Forth.AMCExtWords.Listen.GetPortAddress();
+            var p = Forth.Pop(); // port number
             Forth.Push(0);
-            Forth.CoreWords.Swap.Call();
-            Forth.CoreWords.Store.Call();
+            Forth.Push(AMCForth.IoInMapStart + p * 2 * ForthRAM.CellSize); // address of xt
+            Forth.CoreWords.Store.Call(); // store the XT
+            Forth.Push(0);
+            Forth.Push(AMCForth.IoInMapStart + ForthRAM.CellSize * (p * 2 + 1)); // address of q mode
+            Forth.CoreWords.Store.Call(); // store the Q mode
         }
     }
 }

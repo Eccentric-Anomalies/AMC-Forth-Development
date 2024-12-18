@@ -11,29 +11,23 @@ namespace Forth.AMCExt
             Name = "LISTEN";
             Description =
                 "Add a lookup entry for the IO port p, to execute <word>. "
-                + "Usage: <port> LISTEN . ( prints port value when received )";
-            StackEffect = "( 'word' p - )";
+                + "Events to port p, are enqueued with q mode (0, 1, 2)."
+                + "q = enqueue 0: always, 1: if new value, 2: replace all prior."
+                + "Note: An input port may have only one handler function.";
+            StackEffect = "( 'word' p q - )";
         }
 
         public override void Call()
         {
-            // convert port to address
-            GetPortAddress();
-            Forth.CoreWords.Tick.Call();
-            // get the xt of the following word
-            Forth.CoreWords.Swap.Call();
-            Forth.CoreWords.Store.Call();
-        }
-
-        public void GetPortAddress()
-        {
-            // Utility to accept port number and leave its address
-            // in the handler table.
-            // ( p - addr )
-            Forth.Push(ForthRAM.CellSize);
-            Forth.CoreWords.Star.Call();
-            Forth.Push(AMCForth.IoInMapStart);
-            Forth.CoreWords.Plus.Call();
+            // Store the queue mode
+            var q = Forth.Pop(); // queue mode
+            var p = Forth.Pop(); // port number
+            Forth.CoreWords.Tick.Call(); // retrieve XT for the handler (on stack)
+            Forth.Push(AMCForth.IoInMapStart + p * 2 * ForthRAM.CellSize); // address of xt
+            Forth.CoreWords.Store.Call(); // store the XT
+            Forth.Push(q); // q mode
+            Forth.Push(AMCForth.IoInMapStart + ForthRAM.CellSize * (p * 2 + 1)); // address of q mode
+            Forth.CoreWords.Store.Call(); // store the Q mode
         }
     }
 }
