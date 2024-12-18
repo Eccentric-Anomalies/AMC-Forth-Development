@@ -1196,7 +1196,7 @@ public partial class AMCForth : Godot.RefCounted
                 else
                 {
                     // not listening any longer. remove the timer.
-                    CallDeferred("_remove_timer", id);
+                    CallDeferred("RemoveTimer", id);
                 }
             }
             else
