@@ -6,7 +6,7 @@ AMC Forth is a C#-based implementation of Chuck Moore's Forth computer language,
 
 ## How to Use AMC Forth
 
-AMC Forth is suited to inclusion in your Godot project using two Godot add-on paths: `addons/amc_forth`  for the Forth engine C# class, and `addons/amc_forth_terminal` which has a local DEC VT-100 subset script, `forth_term_local.gd`, and a simple telnet script, `forth_term_telnet.gd`. The local terminal implementation can be used together with a 2D canvas shader, `terminal_canvas.gdshader`, or a 3D shader, `terminal_3d.gdshader`, to reproduce the appearance of a VT-100 terminal screen. Example 2D and 3D terminal+Forth scenes are available at the root of the [Github repository for AMC Forth](https://github.com/Eccentric-Anomalies/AMC-Forth). Please refer to those examples when trying to use AMC Forth in your own 2D or 3D Godot project!
+AMC Forth is suited to inclusion in your Godot project using the Godot add-on path: `addons/amc_forth`. The addon also includes two terminal scripts, a local DEC VT-100 subset script, `forth_term_local.gd`, and a simple telnet script, `forth_term_telnet.gd`. The local terminal implementation can be used together with a 2D canvas shader, `terminal_canvas.gdshader`, or a 3D shader, `terminal_3d.gdshader`, to reproduce the appearance of a VT-100 terminal screen. Example 2D and 3D terminal+Forth scenes are available at the root of the [Github repository for AMC Forth](https://github.com/Eccentric-Anomalies/AMC-Forth). Please refer to those examples when trying to use AMC Forth in your own 2D or 3D Godot project!
 
 ## AMCForth Word List
 
@@ -14,7 +14,12 @@ AMCForth currently implements an extensive set of [built-in words](./docs/builti
 
 ## AMCForth Test Suite
 
-This repository also includes a [Forth test suite](./tests.fth) that can be [INCLUDE](./docs/Include.md)-ed to validate the correctness of the implementation. When executed, a successful run produces NO output to the terminal (i.e. prints "ok").
+This repository also includes a [Forth test suite](./tests.fth) that can be [INCLUDE](./docs/Include.md)-ed to validate the correctness of the implementation. When executed, a successful run produces NO output to the terminal (i.e. prints "ok"). For example:
+
+```forth
+AMC Forth Ver. 0.0.3
+INCLUDE addons/amc_forth/tests.fth ok
+```
 
 ## The AMCForth Class (C#)
 
