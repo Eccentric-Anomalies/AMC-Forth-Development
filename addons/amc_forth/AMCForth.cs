@@ -698,13 +698,13 @@ public partial class AMCForth : Godot.RefCounted
         var item = new PortEvent(port, value);
         bool enqueue = false;
         int i;
-        InputPortMutex.Lock();
         if (q == QueueMode.QueueAlways)
         {
             enqueue = true;
         }
         else
         {
+            InputPortMutex.Lock();
             for (i = InputPortEvents.Count - 1; i >= 0; i--)
             {
                 var pe = InputPortEvents[i];
@@ -726,13 +726,14 @@ public partial class AMCForth : Godot.RefCounted
                     break; // stop looping
                 }
             }
-            if (i < 0)
+            InputPortMutex.Unlock();
+            if (i < 0 && Ram.GetInt(IoInStart + port * ForthRAM.CellSize) != value)
             {
-                // exhausted the entire queue without a matching port, so enqueue the event.
+                // exhausted the entire queue without a matching port, and the new
+                // value is different from the value currently stored. Enqueue it!
                 enqueue = true;
             }
         }
-        InputPortMutex.Unlock();
         if (enqueue)
         {
             InputPortMutex.Lock();
