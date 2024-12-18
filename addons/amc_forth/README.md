@@ -70,14 +70,32 @@ Then when you have data to send to AMCForth, emit the signal:
 my_input_signal.emit(<32-bit integer>)
 ```
 
-In your Forth code, you can register input ports and route them to custom handlers using the custom AMC Forth word: [LISTEN](docs/Listen.md)
+In your Forth code, you can register input ports and route them to custom handlers using the custom AMC Forth word: [LISTEN](docs/Listen.md). There are three input parameters for LISTEN (in the order they appear or are pushed on the stack):
+
+1. The input port (0-128) that will generate events when data is received.
+2. The Queue Mode determines how received data are enqueued.
+3. The word (following LISTEN) that will execute when a data value is received.
+
+The Forth word that is named as the event handler will execute with the received data value already on the stack.
+
+The Queue Mode is an integer value 0, 1, or 2, which controls how the incoming event is enqueued before executing the handler. Queue Modes values are:
+
+* 0 - Incoming values are always enqueued, even there are unprocessed events with the same port and/or value waiting to be processed. This may result in multiple consecutive executions of the handler function with the exact same data (ideal for things like handling an incoming character stream).
+* 1 - Incoming values are always enqueued unless there is already an unprocessed event for the port with the same value as the new event, or if there is no previously queued event but the last stored value is the same as the new value. Multiple events with the same value will not cause multiple executions of the event handler (ideal when the receiver only needs to know when a value has changed).
+* 2 - Incoming values replace any previous enqueued values on this port. A new event is enqueued if there is no previously queued value and the new value is different from the last stored value (ideal when the receiver only needs to know what the current value is).
+
+
 
 ```forth
 : PRINTEVENT . ;  ( define PRINTEVENT to just print an integer on the terminal.)
-100 LISTEN PRINTEVENT   ( values sent to input #100 will print to the terminal.)
+100 0 LISTEN PRINTEVENT   ( values on input #100 will always be queued and printed to the terminal.)
 ```
 
 With this, every time you send an integer on `my_input_signal`, the value will be displayed on the AMC Forth terminal.
+
+### Receiving Input Data Without Listening
+
+Even if LISTEN is not called for an input port, new values may still be sent to the port. Values sent in this way are retrieved by polling the port using the [IN](docs/In.md) word.
 
 ### Configuring AMCForth Outputs
 
