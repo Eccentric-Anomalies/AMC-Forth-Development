@@ -26,7 +26,7 @@ project/assembly_name="AMC Forth"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/amc_forth/plugin.cfg", "res://addons/amc_forth_terminal/plugin.cfg", "res://addons/gdLinter/plugin.cfg", "res://addons/gdscript2all/plugin.cfg", "res://addons/gdscript_formatter/plugin.cfg", "res://addons/script-tabs/plugin.cfg")
+enabled=PackedStringArray("res://addons/amc_forth/plugin.cfg", "res://addons/gdLinter/plugin.cfg", "res://addons/gdscript2all/plugin.cfg", "res://addons/gdscript_formatter/plugin.cfg", "res://addons/script-tabs/plugin.cfg")
 
 [rendering]
 
